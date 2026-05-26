@@ -9,8 +9,9 @@ TableMind is an AI DM system for D&D 5e-compatible one-shot adventures. The MVP 
 1. Read `docs/PRD.md` for the product-level intent.
 2. Read `specs/000-constitution.md` for non-negotiable engineering principles.
 3. Read `specs/000-prd-analysis.md` for how the PRD decomposes into implementable slices.
-4. Use `specs/CODEX_PLAN_PROMPT.md` when asking Codex or another coding agent to produce an implementation plan.
-5. Implement specs in dependency order, not numerical order if dependencies differ.
+4. Read `docs/open-source-integration-strategy.md` before selecting third-party libraries or copying reference implementations.
+5. Use `specs/CODEX_PLAN_PROMPT.md` when asking Codex or another coding agent to produce an implementation plan.
+6. Implement specs in dependency order, not numerical order if dependencies differ.
 
 ## Spec format
 
@@ -57,6 +58,7 @@ These specs define the initial implementation base:
 - DM-only content must never be returned through player-facing APIs.
 - All important state transitions must be represented as events.
 - Host override is a product requirement, not a nice-to-have.
+- Core TableMind state, visibility, event log, Host authority, and AI orchestration must remain first-party code; third-party libraries may be used behind stable adapters for dice parsing, compendium ingestion helpers, and optional visual enhancements.
 - MVP scope is a short, low-level 5e-compatible one-shot, not a full VTT.
 
 ## Recommended first Codex request
@@ -65,6 +67,7 @@ Ask Codex to read:
 
 ```txt
 docs/PRD.md
+docs/open-source-integration-strategy.md
 specs/000-constitution.md
 specs/000-prd-analysis.md
 specs/README.md

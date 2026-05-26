@@ -4,6 +4,8 @@
 
 - [ ] Implement dice formula parser.
 - [ ] Implement deterministic RNG injection.
+- [ ] Evaluate whether selected dice parser supports deterministic test control or can be wrapped safely.
+- [ ] Implement dice parser adapter behind TableMind-owned result types.
 - [ ] Implement d20 advantage/disadvantage selection.
 - [ ] Test `1d20`, `2d6+3`, and whitespace variants.
 

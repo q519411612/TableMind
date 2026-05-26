@@ -39,6 +39,25 @@ type ContentSource = {
 };
 ```
 
+## Content ingestion policy
+
+MVP compendium content must come from one of:
+
+- official SRD/open content with explicit license metadata;
+- original project-authored fixture content;
+- user-private uploads that are never promoted to shared public compendium data.
+
+Open5e or similar projects may be used as schema/API references, but their bundled content must not be imported wholesale without per-source license review.
+
+Every imported entry must preserve:
+
+- source id;
+- source title;
+- license;
+- attribution;
+- source URL when available;
+- import timestamp/version where applicable.
+
 ## Search interface
 
 ```ts

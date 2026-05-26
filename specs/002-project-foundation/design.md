@@ -21,6 +21,7 @@ The repository foundation should optimize for:
   /rules-engine
   /compendium
   /adventure-loader
+  /integrations
   /shared-test-fixtures
 /specs
 /docs
@@ -73,6 +74,21 @@ Contains:
 - adventure validation
 - visibility tagging
 - fixture loading
+
+### packages/integrations
+
+Contains thin adapters around approved third-party libraries.
+
+Examples:
+
+- dice parser adapter;
+- optional 3D dice visual adapter;
+- external SRD/source importer helpers;
+- future VTT reference import/export helpers.
+
+Must not expose third-party library types directly to domain packages.
+
+Must not contain authoritative game state logic.
 
 ### apps/server
 
@@ -151,9 +167,13 @@ apps/server -> packages/domain
 apps/server -> packages/rules-engine
 apps/server -> packages/compendium
 apps/server -> packages/adventure-loader
+packages/rules-engine -> packages/integrations/dice-parser-adapter  optional
+apps/web -> packages/integrations/visual-dice-adapter              optional
 ```
 
 Avoid cyclic dependencies.
+
+`packages/domain` must not depend on `packages/integrations`. Domain events and state types must remain TableMind-owned.
 
 ## Out of scope
 

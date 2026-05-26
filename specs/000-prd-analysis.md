@@ -99,6 +99,16 @@ Mitigation:
 - user uploads are private room assets;
 - no D&D Beyond sync in MVP.
 
+### Risk 6: Third-party code creates license or architecture lock-in
+
+Mitigation:
+
+- prefer MIT/Apache/BSD dependencies for runtime integration;
+- treat GPL/AGPL VTT projects as reference-only unless the whole product intentionally adopts compatible open-source obligations;
+- wrap dice/parser/compendium integrations behind TableMind-owned interfaces;
+- do not fork a full VTT as the MVP foundation;
+- record source, license, version, and attribution for every embedded content or runtime dependency.
+
 ## Recommended first implementation milestone
 
 Milestone 1 should produce a repo that can run tests for:

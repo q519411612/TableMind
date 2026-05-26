@@ -29,6 +29,23 @@ Dice should support injected randomness:
 type RandomSource = () => number; // returns [0, 1)
 ```
 
+## Third-party dice parser policy
+
+The rules engine may use an approved third-party dice parser behind a TableMind-owned adapter.
+
+The adapter must return TableMind-owned result types such as `DiceRoll`, `DiceTerm`, `CheckResult`, and `AttackResult`.
+
+The rules engine must still own:
+
+- RNG injection or equivalent deterministic test control;
+- advantage/disadvantage selection;
+- success/failure semantics;
+- critical hit semantics;
+- serialization into SessionEvents;
+- validation and execution limits for dice formulas.
+
+Third-party parser AST/result types must not leak into domain events or public APIs.
+
 ## Ability modifiers
 
 ```ts

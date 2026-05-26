@@ -7,6 +7,7 @@ Before producing any implementation plan:
 1. Inspect the repository structure.
 2. Read:
    - `docs/PRD.md`
+   - `docs/open-source-integration-strategy.md`
    - `specs/README.md`
    - `specs/000-constitution.md`
    - `specs/000-prd-analysis.md`
@@ -36,8 +37,12 @@ Important constraints:
 - Host override is mandatory
 - DM-only information must not leak
 - all major state transitions become events
+- core state, visibility, event log, Host authority, and AI orchestration remain first-party TableMind code
+- approved third-party libraries stay behind TableMind-owned adapters
+- GPL/AGPL VTT projects are reference-only unless the whole product intentionally adopts compatible open-source obligations
 - the MVP target is a playable 60–90 minute one-shot
 - do not attempt a full VTT
+- do not fork a full VTT as the MVP foundation
 - do not attempt full 5e automation
 - do not implement D&D Beyond sync
 - do not implement marketplace/public adventure sharing
