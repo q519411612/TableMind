@@ -13,6 +13,14 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "@tablemind/domain": ["packages/domain/src/index.ts"],
+      "@tablemind/rules-engine": ["packages/rules-engine/src/index.ts"],
+      "@tablemind/compendium": ["packages/compendium/src/index.ts"],
+      "@tablemind/adventure-loader": ["packages/adventure-loader/src/index.ts"],
+      "@tablemind/shared-test-fixtures": ["packages/shared-test-fixtures/src/index.ts"]
+    }
   }
 }
