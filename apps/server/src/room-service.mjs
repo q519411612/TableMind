@@ -4,6 +4,11 @@ import {
   createInitialSessionState,
   projectSessionState,
 } from "../../../packages/domain/src/index.mjs";
+import {
+  resolveAttack,
+  resolveDamage,
+  resolveInitiative,
+} from "../../../packages/rules-engine/src/index.mjs";
 
 export function createRoomService(options = {}) {
   const baseInviteUrl = options.baseInviteUrl ?? "http://localhost:3000/rooms";
@@ -349,6 +354,267 @@ export function createRoomService(options = {}) {
     };
   }
 
+  function startCombatFromEncounter(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const encounter = requireLoadedEncounter(room, input.encounterId);
+    const combatants = [
+      ...buildCharacterCombatants(room, input.characterIds),
+      ...buildMonsterCombatants(encounter, input.compendiumEntries),
+    ];
+    const initiative = resolveInitiative({
+      combatants: combatants.map((combatant) => ({
+        id: combatant.id,
+        dexterityScore: combatant.abilities.dexterity,
+      })),
+      randomSource: input.randomSource,
+    });
+    const initiativeById = new Map(
+      initiative.map((entry) => [entry.combatantId, entry]),
+    );
+    const orderedCombatants = initiative.map((entry) => ({
+      ...combatants.find((combatant) => combatant.id === entry.combatantId),
+      initiative: entry.total,
+      initiativeRoll: entry.roll,
+    }));
+    const combat = {
+      id: `combat_${input.encounterId}`,
+      encounterId: input.encounterId,
+      status: "active",
+      round: 1,
+      turnIndex: 0,
+      activeCombatantId: orderedCombatants[0].id,
+      combatants: orderedCombatants,
+      initiativeResults: orderedCombatants.map((combatant) =>
+        initiativeById.get(combatant.id),
+      ),
+    };
+    const event = buildEvent(room, {
+      type: "combat.started",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      encounterId: input.encounterId,
+      combat,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function resolveCombatAttack(input) {
+    const room = requireRoom(input.roomId);
+    const actor = room.state.players[input.actorPlayerId];
+    if (!actor) {
+      throw new Error("player_not_found");
+    }
+    const combat = requireActiveCombat(room);
+    const attacker = requireCombatant(combat, input.attackerCombatantId);
+    const target = requireCombatant(combat, input.targetCombatantId);
+    if (actor.role !== "host" && attacker.playerId !== input.actorPlayerId) {
+      throw new Error("forbidden");
+    }
+    const attack = requireAttack(attacker, input.attackId);
+    const attackResult = resolveAttack({
+      attacker,
+      target,
+      attack,
+      advantage: input.advantage ?? "normal",
+      reason: input.reason ?? `Attack ${target.displayName}.`,
+      randomSource: input.randomSource,
+    });
+    const attackEvent = buildEvent(room, {
+      type: "attack.resolved",
+      actorId: input.actorPlayerId,
+      actorRole: actor.role === "host" ? "host" : "player",
+      createdAt: input.now,
+      attackerCombatantId: attacker.id,
+      targetCombatantId: target.id,
+      attackId: attack.id,
+      attackResult,
+    });
+    commitEvent(room, attackEvent);
+
+    let damageEvent;
+    let damageResult;
+    if (attackResult.hit) {
+      damageResult = resolveDamage({
+        target: {
+          id: target.id,
+          currentHp: target.hitPoints.current,
+          maxHp: target.hitPoints.max,
+          conditions: target.conditions,
+        },
+        formula: attack.damage,
+        damageType: attack.damageType,
+        critical: attackResult.critical,
+        randomSource: input.randomSource,
+      });
+      damageEvent = buildEvent(room, {
+        type: "damage.applied",
+        actorId: input.actorPlayerId,
+        actorRole: "system",
+        createdAt: input.now,
+        targetCombatantId: target.id,
+        damageResult,
+      });
+      commitEvent(room, damageEvent);
+    }
+
+    return {
+      attackEvent,
+      damageEvent,
+      attackResult,
+      damageResult,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function advanceCombatTurn(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const combat = requireActiveCombat(room);
+    const next = nextTurn(combat);
+    const event = buildEvent(room, {
+      type: "combat.turn_advanced",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      activeCombatantId: next.activeCombatantId,
+      round: next.round,
+      turnIndex: next.turnIndex,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function endCombat(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    requireActiveCombat(room);
+    const event = buildEvent(room, {
+      type: "combat.ended",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      reason: input.reason,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function patchCombatantHitPoints(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const combat = requireActiveCombat(room);
+    const combatantIndex = combatantIndexById(combat, input.combatantId);
+    const combatant = combat.combatants[combatantIndex];
+    if (!Number.isInteger(input.currentHp) || input.currentHp < 0) {
+      throw new Error("currentHp must be a non-negative integer");
+    }
+    if (input.currentHp > combatant.hitPoints.max + combatant.hitPoints.temporary) {
+      throw new Error("currentHp cannot exceed max plus temporary HP");
+    }
+    const event = buildEvent(room, {
+      type: "state.patch",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      patch: [
+        {
+          op: "replace",
+          path: `/combat/combatants/${combatantIndex}/hitPoints/current`,
+          value: input.currentHp,
+        },
+        {
+          op: "replace",
+          path: `/combat/combatants/${combatantIndex}/status`,
+          value: input.currentHp === 0 ? "defeated" : "active",
+        },
+      ],
+      reason: input.reason,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function patchCombatantCondition(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const combat = requireActiveCombat(room);
+    const combatantIndex = combatantIndexById(combat, input.combatantId);
+    const combatant = combat.combatants[combatantIndex];
+    const conditions = patchConditions(
+      combatant.conditions,
+      input.condition,
+      input.action,
+    );
+    const event = buildEvent(room, {
+      type: "state.patch",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      patch: [
+        {
+          op: "replace",
+          path: `/combat/combatants/${combatantIndex}/conditions`,
+          value: conditions,
+        },
+      ],
+      reason: input.reason,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function setAiPaused(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const operation = room.state.flags.aiPaused ? "replace" : "add";
+    const event = buildEvent(room, {
+      type: "state.patch",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      patch: [
+        {
+          op: operation,
+          path: "/flags/aiPaused",
+          value: {
+            visibility: "dm_only",
+            value: input.paused,
+          },
+        },
+      ],
+      reason: input.reason,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
   function getPresence(roomId) {
     const room = requireRoom(roomId);
     return Array.from(room.presence.values()).sort((left, right) =>
@@ -424,6 +690,13 @@ export function createRoomService(options = {}) {
     getAdventureSnapshot,
     revealClue,
     changeScene,
+    startCombatFromEncounter,
+    resolveCombatAttack,
+    advanceCombatTurn,
+    endCombat,
+    patchCombatantHitPoints,
+    patchCombatantCondition,
+    setAiPaused,
     getPresence,
     getCommittedEvents,
     getSnapshot,
@@ -565,6 +838,182 @@ function requireLoadedScene(room, sceneId) {
   if (!room.adventure.scenes.some((scene) => scene.id === sceneId)) {
     throw new Error(`scene not found: ${sceneId}`);
   }
+}
+
+function requireLoadedEncounter(room, encounterId) {
+  if (!room.adventure) {
+    throw new Error("adventure_not_loaded");
+  }
+  const encounter = room.adventure.encounters.find(
+    (candidate) => candidate.id === encounterId,
+  );
+  if (!encounter) {
+    throw new Error(`encounter not found: ${encounterId}`);
+  }
+  return encounter;
+}
+
+function buildCharacterCombatants(room, characterIds) {
+  if (!Array.isArray(characterIds) || characterIds.length === 0) {
+    throw new Error("characterIds are required");
+  }
+
+  return characterIds.map((characterId) => {
+    const character = room.state.characters[characterId];
+    if (!character) {
+      throw new Error(`character not found: ${characterId}`);
+    }
+
+    return {
+      id: `combatant_${character.id}`,
+      sourceId: character.id,
+      playerId: character.playerId,
+      kind: "character",
+      displayName: character.name,
+      armorClass: character.armorClass,
+      hitPoints: structuredClone(character.hitPoints),
+      abilities: structuredClone(character.abilities),
+      attacks: structuredClone(character.attacks),
+      conditions: structuredClone(character.conditions),
+      status: character.hitPoints.current === 0 ? "defeated" : "active",
+    };
+  });
+}
+
+function buildMonsterCombatants(encounter, compendiumEntries) {
+  if (!Array.isArray(compendiumEntries)) {
+    throw new Error("compendiumEntries are required");
+  }
+
+  const combatants = [];
+  for (const encounterCombatant of encounter.combatants) {
+    const entry = compendiumEntries.find(
+      (candidate) => candidate.id === encounterCombatant.compendiumEntryId,
+    );
+    if (!entry) {
+      throw new Error(`monster compendium entry not found: ${encounterCombatant.compendiumEntryId}`);
+    }
+    const monster = entry.structuredData;
+    if (!monster) {
+      throw new Error(`monster structured data missing: ${entry.id}`);
+    }
+
+    for (let index = 1; index <= encounterCombatant.count; index += 1) {
+      combatants.push({
+        id: `combatant_${entry.id}_${index}`,
+        sourceId: entry.id,
+        kind: "monster",
+        displayName:
+          encounterCombatant.count === 1 ? entry.name : `${entry.name} ${index}`,
+        armorClass: monster.armorClass,
+        hitPoints: {
+          current: monster.hitPoints,
+          max: monster.hitPoints,
+          temporary: 0,
+        },
+        abilities: structuredClone(monster.abilities),
+        attacks: monster.attacks.map((attack, attackIndex) => ({
+          id: attack.id ?? `attack_${normalizeId(attack.name)}_${attackIndex + 1}`,
+          ...structuredClone(attack),
+        })),
+        conditions: [],
+        status: "active",
+      });
+    }
+  }
+  return combatants;
+}
+
+function requireActiveCombat(room) {
+  if (!room.state.combat || room.state.combat.status !== "active") {
+    throw new Error("active combat is required");
+  }
+  return room.state.combat;
+}
+
+function requireCombatant(combat, combatantId) {
+  const combatant = combat.combatants.find(
+    (candidate) => candidate.id === combatantId,
+  );
+  if (!combatant) {
+    throw new Error(`combatant not found: ${combatantId}`);
+  }
+  return combatant;
+}
+
+function requireAttack(combatant, attackId) {
+  const attack = combatant.attacks.find((candidate) => candidate.id === attackId);
+  if (!attack) {
+    throw new Error(`attack not found: ${attackId}`);
+  }
+  return attack;
+}
+
+function nextTurn(combat) {
+  const combatants = combat.combatants;
+  if (combatants.length === 0) {
+    throw new Error("combat has no combatants");
+  }
+
+  let turnIndex = combat.turnIndex;
+  let round = combat.round;
+  for (let attempts = 0; attempts < combatants.length; attempts += 1) {
+    turnIndex += 1;
+    if (turnIndex >= combatants.length) {
+      turnIndex = 0;
+      round += 1;
+    }
+
+    const candidate = combatants[turnIndex];
+    if (!["defeated", "dead", "fled"].includes(candidate.status)) {
+      return {
+        activeCombatantId: candidate.id,
+        turnIndex,
+        round,
+      };
+    }
+  }
+
+  return {
+    activeCombatantId: combatants[combat.turnIndex].id,
+    turnIndex: combat.turnIndex,
+    round: combat.round,
+  };
+}
+
+function combatantIndexById(combat, combatantId) {
+  const index = combat.combatants.findIndex(
+    (candidate) => candidate.id === combatantId,
+  );
+  if (index === -1) {
+    throw new Error(`combatant not found: ${combatantId}`);
+  }
+  return index;
+}
+
+function patchConditions(currentConditions, condition, action) {
+  if (!condition?.conditionId) {
+    throw new Error("condition.conditionId is required");
+  }
+
+  if (action === "apply") {
+    if (currentConditions.some((entry) => entry.conditionId === condition.conditionId)) {
+      return structuredClone(currentConditions);
+    }
+    return [...structuredClone(currentConditions), structuredClone(condition)];
+  }
+
+  if (action === "remove") {
+    return currentConditions.filter(
+      (entry) => entry.conditionId !== condition.conditionId,
+    );
+  }
+
+  throw new Error(`Unsupported condition action: ${action}`);
+}
+
+function normalizeId(value) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
 }
 
 function requirePresence(room, playerId) {

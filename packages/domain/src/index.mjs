@@ -69,12 +69,34 @@ const eventValidators = {
   },
   "combat.started": (event) => {
     requireString(event, "encounterId");
+    if (!event.combat || typeof event.combat !== "object") {
+      throw new Error("combat.started requires combat");
+    }
+    if (!Array.isArray(event.combat.combatants)) {
+      throw new Error("combat.started requires combat.combatants");
+    }
   },
   "combat.turn_advanced": (event) => {
     requireString(event, "activeCombatantId");
   },
   "combat.ended": (event) => {
     requireString(event, "reason");
+  },
+  "attack.resolved": (event) => {
+    requireString(event, "attackerCombatantId");
+    requireString(event, "targetCombatantId");
+    if (!event.attackResult || typeof event.attackResult !== "object") {
+      throw new Error("attack.resolved requires attackResult");
+    }
+  },
+  "damage.applied": (event) => {
+    requireString(event, "targetCombatantId");
+    if (!event.damageResult || typeof event.damageResult !== "object") {
+      throw new Error("damage.applied requires damageResult");
+    }
+    if (!Number.isFinite(event.damageResult.resultingHp)) {
+      throw new Error("damage.applied requires damageResult.resultingHp");
+    }
   },
   "host.override": (event) => {
     requireString(event, "reason");
@@ -254,12 +276,7 @@ function applySessionEvent(state, event) {
       break;
     case "combat.started":
       state.phase = "combat";
-      state.combat = {
-        encounterId: event.encounterId,
-        combatantOrder: event.combatantOrder ?? [],
-        activeCombatantId: event.activeCombatantId,
-        round: event.round ?? 1,
-      };
+      state.combat = clone(event.combat);
       break;
     case "combat.turn_advanced":
       if (!state.combat) {
@@ -267,10 +284,17 @@ function applySessionEvent(state, event) {
       }
       state.combat.activeCombatantId = event.activeCombatantId;
       state.combat.round = event.round ?? state.combat.round;
+      state.combat.turnIndex = event.turnIndex ?? state.combat.turnIndex;
       break;
     case "combat.ended":
       state.phase = "playing";
       delete state.combat;
+      break;
+    case "attack.resolved":
+      state.lastAttackResult = clone(event.attackResult);
+      break;
+    case "damage.applied":
+      applyDamageEvent(state, event);
       break;
     case "state.patch":
       applyStatePatch(state, event.patch);
@@ -287,7 +311,7 @@ function applySessionEvent(state, event) {
 
 function applyStatePatch(state, patch) {
   for (const operation of patch) {
-    if (operation.op !== "replace") {
+    if (!["add", "replace"].includes(operation.op)) {
       throw new Error(`Unsupported patch operation: ${operation.op}`);
     }
 
@@ -305,11 +329,28 @@ function applyStatePatch(state, patch) {
     }
 
     const key = path[path.length - 1];
-    if (!(key in target)) {
+    if (operation.op === "replace" && !(key in target)) {
       throw new Error(`Patch path does not exist: ${operation.path}`);
     }
     target[key] = clone(operation.value);
   }
+}
+
+function applyDamageEvent(state, event) {
+  if (!state.combat) {
+    throw new Error("damage.applied requires active combat");
+  }
+
+  const combatant = state.combat.combatants.find(
+    (candidate) => candidate.id === event.targetCombatantId,
+  );
+  if (!combatant) {
+    throw new Error(`combatant not found: ${event.targetCombatantId}`);
+  }
+
+  combatant.hitPoints.current = event.damageResult.resultingHp;
+  combatant.status = combatant.hitPoints.current === 0 ? "defeated" : "active";
+  state.lastDamageResult = clone(event.damageResult);
 }
 
 function filterVisibility(value, viewerPlayerId) {
