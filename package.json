@@ -1,0 +1,21 @@
+{
+  "name": "tablemind",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AI-assisted tabletop session engine foundation.",
+  "scripts": {
+    "test": "node scripts/run-tests.mjs",
+    "acceptance": "node scripts/run-tests.mjs tests/acceptance",
+    "lint": "node scripts/check-js.mjs",
+    "typecheck": "node scripts/check-js.mjs",
+    "build": "node scripts/check-js.mjs && node scripts/run-tests.mjs --list"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}

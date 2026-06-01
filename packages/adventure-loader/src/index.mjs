@@ -1,0 +1,468 @@
+import { readFile } from "node:fs/promises";
+
+export async function loadAdventureFixture(path) {
+  const markdown = await readFile(path, "utf8");
+  const result = parseAdventureMarkdown(markdown);
+
+  if (result.errors.length > 0) {
+    throw new Error(
+      `Adventure fixture is invalid: ${result.errors
+        .map((issue) => issue.message)
+        .join("; ")}`,
+    );
+  }
+
+  return result.module;
+}
+
+export function parseAdventureMarkdown(markdown) {
+  if (typeof markdown !== "string" || markdown.trim().length === 0) {
+    throw new Error("Adventure markdown is required");
+  }
+
+  const lines = markdown.replace(/\r\n/g, "\n").split("\n");
+  const title = parseTitle(lines);
+  const metadata = parseKeyValueBlock(readSection(lines, "Metadata"));
+  const synopsis = readSection(lines, "Synopsis").trim();
+  const truth = parseNamedEntries(readSection(lines, "Truth"), "Secret").map(
+    (entry) => ({
+      id: requireEntryId(entry),
+      title: entry.name,
+      text: entry.body.trim(),
+      visibility: "dm_only",
+    }),
+  );
+  const scenes = parseScenes(lines);
+  const npcs = parseNamedEntries(readAllTopLevelBlocks(lines, "NPC"), "NPC").map(
+    parseNpc,
+  );
+  const clues = parseNamedEntries(
+    readAllTopLevelBlocks(lines, "Clue"),
+    "Clue",
+  ).map(parseClue);
+  const encounters = parseNamedEntries(
+    readAllTopLevelBlocks(lines, "Encounter"),
+    "Encounter",
+  ).map(parseEncounter);
+  const endings = parseNamedEntries(
+    readAllTopLevelBlocks(lines, "Ending"),
+    "Ending",
+  ).map(parseEnding);
+
+  const module = {
+    id: metadata.id,
+    title,
+    rulesetId: metadata.rulesetId,
+    recommendedLevel: metadata.recommendedLevel,
+    playerCount: metadata.playerCount,
+    estimatedTime: metadata.estimatedTime,
+    synopsis,
+    startingSceneId: metadata.startingSceneId,
+    truth,
+    scenes,
+    locations: [],
+    npcs,
+    encounters,
+    clues,
+    treasure: [],
+    endings,
+    source: {
+      id: "tablemind_demo_original",
+      title: "TableMind Demo Fixture",
+      contentClass: "embedded_original",
+      license: "Original TableMind fixture content",
+      attribution: "TableMind project authors",
+      visibility: "public",
+    },
+    status: "draft",
+  };
+
+  const issues = collectValidationIssues(module);
+
+  return {
+    module,
+    errors: issues.filter((issue) => issue.severity === "error"),
+    warnings: issues.filter((issue) => issue.severity === "warning"),
+  };
+}
+
+export function validateAdventureModule(module) {
+  const errors = collectValidationIssues(module).filter(
+    (issue) => issue.severity === "error",
+  );
+
+  if (errors.length > 0) {
+    throw new Error(errors.map((issue) => issue.message).join("; "));
+  }
+
+  return module;
+}
+
+export function projectAdventureForPlayers(adventure) {
+  validateAdventureModule(adventure);
+
+  return {
+    id: adventure.id,
+    title: adventure.title,
+    rulesetId: adventure.rulesetId,
+    recommendedLevel: adventure.recommendedLevel,
+    playerCount: adventure.playerCount,
+    estimatedTime: adventure.estimatedTime,
+    synopsis: adventure.synopsis,
+    startingSceneId: adventure.startingSceneId,
+    scenes: adventure.scenes.map((scene) => ({
+      id: scene.id,
+      title: scene.title,
+      readAloud: scene.readAloud,
+      clueIds: scene.clueIds,
+      npcIds: scene.npcIds,
+      encounterId: scene.encounterId,
+    })),
+    npcs: adventure.npcs.map((npc) => ({
+      id: npc.id,
+      name: npc.name,
+      publicDescription: npc.publicDescription,
+      visibility: npc.visibility,
+    })),
+    clues: adventure.clues.filter((clue) => clue.visibility !== "dm_only"),
+    encounters: adventure.encounters.map((encounter) => ({
+      id: encounter.id,
+      title: encounter.title,
+      publicSetup: encounter.publicSetup,
+      combatants: encounter.combatants,
+    })),
+    endings: adventure.endings.map((ending) => ({
+      id: ending.id,
+      title: ending.title,
+      publicText: ending.publicText,
+    })),
+    source: adventure.source,
+    status: adventure.status,
+  };
+}
+
+function parseTitle(lines) {
+  const titleLine = lines.find((line) => line.startsWith("# Adventure: "));
+  if (!titleLine) {
+    return undefined;
+  }
+
+  return titleLine.replace("# Adventure: ", "").trim();
+}
+
+function parseScenes(lines) {
+  return readAllTopLevelBlocks(lines, "Scene").map((block) => {
+    const entry = parseNamedBlock(block, "Scene");
+    const metadata = parseKeyValueBlock(entry.beforeSubsections);
+    const readAloud = readSubsection(entry.body, "Read Aloud").trim();
+    const dmNotes = readSubsection(entry.body, "DM Notes").trim();
+    const clueIds = parseList(readSubsection(entry.body, "Clues"));
+    const npcIds = parseList(readSubsection(entry.body, "NPCs"));
+    const encounterId = readSubsection(entry.body, "Encounter").trim();
+
+    return {
+      id: metadata.id,
+      title: entry.name,
+      readAloud: {
+        text: readAloud,
+        visibility: "public",
+      },
+      dmNotes: dmNotes
+        ? {
+            text: dmNotes,
+            visibility: "dm_only",
+          }
+        : undefined,
+      clueIds,
+      npcIds,
+      encounterId: encounterId || undefined,
+    };
+  });
+}
+
+function parseNpc(entry) {
+  const metadata = parseKeyValueBlock(entry.beforeSubsections);
+  return {
+    id: requireEntryId(entry),
+    name: entry.name,
+    publicDescription: readSubsection(entry.body, "Public").trim(),
+    dmNotes: readSubsection(entry.body, "DM Notes").trim(),
+    visibility: metadata.visibility ?? "public",
+  };
+}
+
+function parseClue(entry) {
+  const metadata = parseKeyValueBlock(entry.beforeSubsections);
+  return {
+    id: requireEntryId(entry),
+    title: entry.name,
+    text: readSubsection(entry.body, "Text").trim(),
+    visibility: metadata.visibility ?? "dm_only",
+    sourceSceneId: metadata.sourceSceneId,
+  };
+}
+
+function parseEncounter(entry) {
+  const metadata = parseKeyValueBlock(entry.beforeSubsections);
+  return {
+    id: requireEntryId(entry),
+    title: entry.name,
+    publicSetup: readSubsection(entry.body, "Public Setup").trim(),
+    dmNotes: readSubsection(entry.body, "DM Notes").trim(),
+    combatants: parseCombatants(readSubsection(entry.body, "Combatants")),
+    visibility: metadata.visibility ?? "dm_only",
+  };
+}
+
+function parseEnding(entry) {
+  return {
+    id: requireEntryId(entry),
+    title: entry.name,
+    publicText: readSubsection(entry.body, "Public").trim(),
+    dmNotes: readSubsection(entry.body, "DM Notes").trim(),
+  };
+}
+
+function parseNamedEntries(content, kind) {
+  if (Array.isArray(content)) {
+    return content.map((block) => parseNamedBlock(block, kind));
+  }
+
+  return splitNamedBlocks(content, kind).map((block) =>
+    parseNamedBlock(block, kind),
+  );
+}
+
+function parseNamedBlock(block, kind) {
+  const lines = block.replace(/\n+$/g, "").split("\n");
+  const heading = lines[0]?.trim();
+  const prefix = `### ${kind}: `;
+  const topLevelPrefix = `## ${kind}: `;
+
+  let name;
+  if (heading?.startsWith(prefix)) {
+    name = heading.slice(prefix.length).trim();
+  } else if (heading?.startsWith(topLevelPrefix)) {
+    name = heading.slice(topLevelPrefix.length).trim();
+  } else {
+    throw new Error(`Expected ${kind} heading`);
+  }
+
+  const body = lines.slice(1).join("\n").trim();
+  const firstSubsectionIndex = lines.findIndex(
+    (line, index) => index > 0 && line.startsWith("### "),
+  );
+  const beforeSubsections =
+    firstSubsectionIndex === -1
+      ? body
+      : lines.slice(1, firstSubsectionIndex).join("\n").trim();
+
+  return {
+    name,
+    body,
+    beforeSubsections,
+  };
+}
+
+function splitNamedBlocks(content, kind) {
+  const lines = content.split("\n");
+  const blocks = [];
+  let current = [];
+  const heading = `### ${kind}: `;
+
+  for (const line of lines) {
+    if (line.startsWith(heading)) {
+      if (current.length > 0) {
+        blocks.push(current.join("\n"));
+      }
+      current = [line];
+      continue;
+    }
+
+    if (current.length > 0) {
+      current.push(line);
+    }
+  }
+
+  if (current.length > 0) {
+    blocks.push(current.join("\n"));
+  }
+
+  return blocks;
+}
+
+function readSection(lines, sectionName) {
+  const heading = `## ${sectionName}`;
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start === -1) {
+    return "";
+  }
+
+  const content = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.startsWith("## ")) {
+      break;
+    }
+    content.push(line);
+  }
+
+  return content.join("\n").trim();
+}
+
+function readAllTopLevelBlocks(lines, kind) {
+  const blocks = [];
+  let current = [];
+  const heading = `## ${kind}: `;
+
+  for (const line of lines) {
+    if (line.startsWith("## ") && !line.startsWith(heading)) {
+      if (current.length > 0) {
+        blocks.push(current.join("\n"));
+        current = [];
+      }
+      continue;
+    }
+
+    if (line.startsWith(heading)) {
+      if (current.length > 0) {
+        blocks.push(current.join("\n"));
+      }
+      current = [line];
+      continue;
+    }
+
+    if (current.length > 0) {
+      current.push(line);
+    }
+  }
+
+  if (current.length > 0) {
+    blocks.push(current.join("\n"));
+  }
+
+  return blocks;
+}
+
+function readSubsection(content, subsectionName) {
+  const lines = content.split("\n");
+  const heading = `### ${subsectionName}`;
+  const start = lines.findIndex((line) => line.trim() === heading);
+  if (start === -1) {
+    return "";
+  }
+
+  const output = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.startsWith("### ")) {
+      break;
+    }
+    output.push(line);
+  }
+
+  return output.join("\n").trim();
+}
+
+function parseKeyValueBlock(content) {
+  const values = {};
+
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("### ")) {
+      continue;
+    }
+
+    const match = /^([A-Za-z][A-Za-z0-9]*):\s*(.+)$/.exec(trimmed);
+    if (match) {
+      values[match[1]] = match[2].trim();
+    }
+  }
+
+  return values;
+}
+
+function parseList(content) {
+  return content
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.slice(2).trim());
+}
+
+function parseCombatants(content) {
+  return parseList(content).map((item) => {
+    const match = /^([a-z0-9_]+)\s+x(\d+)$/i.exec(item);
+    if (!match) {
+      throw new Error(`Invalid combatant entry: ${item}`);
+    }
+
+    return {
+      compendiumEntryId: match[1],
+      count: Number.parseInt(match[2], 10),
+    };
+  });
+}
+
+function requireEntryId(entry) {
+  const metadata = parseKeyValueBlock(entry.beforeSubsections);
+  if (!metadata.id) {
+    throw new Error(`${entry.name} requires id`);
+  }
+  return metadata.id;
+}
+
+function collectValidationIssues(module) {
+  const issues = [];
+
+  for (const key of [
+    "id",
+    "title",
+    "rulesetId",
+    "synopsis",
+    "startingSceneId",
+    "source",
+    "status",
+  ]) {
+    if (!module?.[key]) {
+      issues.push(errorIssue(`MISSING_${key.toUpperCase()}`, `${key} is required`));
+    }
+  }
+
+  if (!Array.isArray(module?.scenes) || module.scenes.length === 0) {
+    issues.push(errorIssue("MISSING_SCENES", "scenes are required"));
+  }
+
+  if (!Array.isArray(module?.endings) || module.endings.length === 0) {
+    issues.push(warningIssue("MISSING_ENDINGS", "endings are recommended"));
+  }
+
+  if (
+    module?.startingSceneId &&
+    Array.isArray(module?.scenes) &&
+    !module.scenes.some((scene) => scene.id === module.startingSceneId)
+  ) {
+    issues.push(
+      errorIssue(
+        "MISSING_STARTING_SCENE",
+        `startingSceneId not found: ${module.startingSceneId}`,
+      ),
+    );
+  }
+
+  return issues;
+}
+
+function errorIssue(code, message) {
+  return {
+    code,
+    message,
+    severity: "error",
+  };
+}
+
+function warningIssue(code, message) {
+  return {
+    code,
+    message,
+    severity: "warning",
+  };
+}
