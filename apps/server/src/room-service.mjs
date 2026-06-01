@@ -36,6 +36,7 @@ export function createRoomService(options = {}) {
       hostPlayerId,
       inviteLink: `${baseInviteUrl}/${roomId}`,
       state,
+      adventure: undefined,
       presence: new Map([
         [
           hostPlayerId,
@@ -211,6 +212,93 @@ export function createRoomService(options = {}) {
     room.state.flags[input.key] = structuredClone(input.value);
   }
 
+  function loadAdventureModule(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    validateAdventureForRoom(room, input.adventure);
+
+    room.adventure = structuredClone(input.adventure);
+    room.state.adventureModuleId = input.adventure.id;
+    room.state.currentSceneId = input.adventure.startingSceneId;
+
+    return {
+      adventureId: input.adventure.id,
+      snapshot: getAdventureSnapshot({
+        roomId: input.roomId,
+        viewerRole: "host",
+      }),
+    };
+  }
+
+  function getAdventureSnapshot(input) {
+    const room = requireRoom(input.roomId);
+    if (!room.adventure) {
+      throw new Error("adventure_not_loaded");
+    }
+
+    if (input.viewerRole === "host" || input.viewerRole === "system") {
+      return buildHostAdventureSnapshot(room);
+    }
+
+    if (input.viewerRole !== "player") {
+      throw new Error(`Unsupported viewerRole: ${input.viewerRole}`);
+    }
+
+    if (!input.viewerPlayerId) {
+      throw new Error("Player adventure snapshot requires viewerPlayerId");
+    }
+
+    return buildPlayerAdventureSnapshot(room);
+  }
+
+  function revealClue(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    requireLoadedClue(room, input.clueId);
+
+    const event = buildEvent(room, {
+      type: "clue.revealed",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      clueId: input.clueId,
+      visibility: "revealed",
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getAdventureSnapshot({
+        roomId: input.roomId,
+        viewerRole: "host",
+      }),
+    };
+  }
+
+  function changeScene(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    requireLoadedScene(room, input.sceneId);
+
+    const event = buildEvent(room, {
+      type: "scene.changed",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      sceneId: input.sceneId,
+      reason: input.reason,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getAdventureSnapshot({
+        roomId: input.roomId,
+        viewerRole: "host",
+      }),
+    };
+  }
+
   function getPresence(roomId) {
     const room = requireRoom(roomId);
     return Array.from(room.presence.values()).sort((left, right) =>
@@ -279,10 +367,151 @@ export function createRoomService(options = {}) {
     sendPublicMessage,
     createCharacterForPlayer,
     setRoomFlag,
+    loadAdventureModule,
+    getAdventureSnapshot,
+    revealClue,
+    changeScene,
     getPresence,
     getCommittedEvents,
     getSnapshot,
   };
+}
+
+function validateAdventureForRoom(room, adventure) {
+  if (!adventure || typeof adventure !== "object") {
+    throw new Error("adventure is required");
+  }
+  if (adventure.rulesetId !== room.state.rulesetId) {
+    throw new Error("adventure ruleset does not match room");
+  }
+  if (!adventure.scenes?.some((scene) => scene.id === adventure.startingSceneId)) {
+    throw new Error("adventure starting scene is missing");
+  }
+}
+
+function buildHostAdventureSnapshot(room) {
+  const adventure = room.adventure;
+  const currentScene = requireCurrentScene(room);
+
+  return {
+    id: adventure.id,
+    title: adventure.title,
+    status: adventure.status,
+    synopsis: adventure.synopsis,
+    currentScene: {
+      ...structuredClone(currentScene),
+      clues: sceneClues(adventure, currentScene),
+      npcs: sceneNpcs(adventure, currentScene, "host"),
+      encounter: sceneEncounter(adventure, currentScene, "host"),
+    },
+    truth: structuredClone(adventure.truth),
+    source: structuredClone(adventure.source),
+  };
+}
+
+function buildPlayerAdventureSnapshot(room) {
+  const adventure = room.adventure;
+  const currentScene = requireCurrentScene(room);
+  const revealed = new Set(room.state.discoveredClueIds);
+
+  return {
+    id: adventure.id,
+    title: adventure.title,
+    currentScene: {
+      id: currentScene.id,
+      title: currentScene.title,
+      readAloud: structuredClone(currentScene.readAloud),
+      clueIds: structuredClone(currentScene.clueIds),
+      npcIds: structuredClone(currentScene.npcIds),
+      encounterId: currentScene.encounterId,
+      clues: sceneClues(adventure, currentScene)
+        .filter((clue) => clue.visibility === "public" || revealed.has(clue.id))
+        .map((clue) => ({
+          ...structuredClone(clue),
+          visibility: clue.visibility === "public" ? "public" : "revealed",
+        })),
+      npcs: sceneNpcs(adventure, currentScene, "player"),
+      encounter: sceneEncounter(adventure, currentScene, "player"),
+    },
+    source: structuredClone(adventure.source),
+  };
+}
+
+function requireCurrentScene(room) {
+  const currentScene = room.adventure.scenes.find(
+    (scene) => scene.id === room.state.currentSceneId,
+  );
+  if (!currentScene) {
+    throw new Error(`current scene not found: ${room.state.currentSceneId}`);
+  }
+  return currentScene;
+}
+
+function sceneClues(adventure, scene) {
+  return scene.clueIds.map((clueId) => {
+    const clue = adventure.clues.find((candidate) => candidate.id === clueId);
+    if (!clue) {
+      throw new Error(`scene clue not found: ${clueId}`);
+    }
+    return structuredClone(clue);
+  });
+}
+
+function sceneNpcs(adventure, scene, viewerRole) {
+  return scene.npcIds.map((npcId) => {
+    const npc = adventure.npcs.find((candidate) => candidate.id === npcId);
+    if (!npc) {
+      throw new Error(`scene NPC not found: ${npcId}`);
+    }
+    if (viewerRole === "host") {
+      return structuredClone(npc);
+    }
+    return {
+      id: npc.id,
+      name: npc.name,
+      publicDescription: npc.publicDescription,
+      visibility: npc.visibility,
+    };
+  });
+}
+
+function sceneEncounter(adventure, scene, viewerRole) {
+  if (!scene.encounterId) {
+    return undefined;
+  }
+  const encounter = adventure.encounters.find(
+    (candidate) => candidate.id === scene.encounterId,
+  );
+  if (!encounter) {
+    throw new Error(`scene encounter not found: ${scene.encounterId}`);
+  }
+  if (viewerRole === "host") {
+    return structuredClone(encounter);
+  }
+  return {
+    id: encounter.id,
+    title: encounter.title,
+    publicSetup: encounter.publicSetup,
+    combatants: structuredClone(encounter.combatants),
+  };
+}
+
+function requireLoadedClue(room, clueId) {
+  if (!room.adventure) {
+    throw new Error("adventure_not_loaded");
+  }
+  if (!room.adventure.clues.some((clue) => clue.id === clueId)) {
+    throw new Error(`clue not found: ${clueId}`);
+  }
+}
+
+function requireLoadedScene(room, sceneId) {
+  if (!room.adventure) {
+    throw new Error("adventure_not_loaded");
+  }
+  if (!room.adventure.scenes.some((scene) => scene.id === sceneId)) {
+    throw new Error(`scene not found: ${sceneId}`);
+  }
 }
 
 function requirePresence(room, playerId) {
