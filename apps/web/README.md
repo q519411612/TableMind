@@ -2,4 +2,4 @@
 
 The web app will host the player room, Host controls, dice log, and combat display.
 
-MVP Milestone 1 keeps this as a placeholder so domain and rules behavior can be verified before UI work begins.
+The current local MVP keeps browser UI work as a placeholder while the domain, room orchestration, adventure runtime, AI guardrails, combat controls, and recap behavior are verified through simulated acceptance tests.

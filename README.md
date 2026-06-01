@@ -6,21 +6,25 @@ TableMind is an AI-assisted tabletop session engine for 5e-compatible one-shot p
 
 The current implementation follows `docs/PRD.md` and `specs/SPEC_MATRIX.md`.
 
-Milestone 1 builds the foundation only:
+The local MVP engine now covers:
 
-- package boundaries for domain, rules, compendium, and adventure loading;
-- deterministic unit tests;
-- event replay and projection contracts;
-- tiny SRD/original fixtures;
-- an original demo adventure fixture.
+- deterministic domain state, event log replay, and role-aware projection contracts;
+- a compact rules engine for dice, skill checks, attacks, damage, initiative, and combat turns;
+- tiny SRD-style compendium fixtures and an original demo adventure fixture;
+- an in-memory room service for Host-owned rooms, player joins, reconnection, characters, and committed messages;
+- adventure runtime projections with Host-only truth, player-safe scene text, clue reveals, and scene changes;
+- mock AI DM orchestration with spoiler checks, structured response validation, Host review queues, and rules-engine routing;
+- Host combat controls for encounter start, HP/condition edits, attack resolution, turn advancement, and AI pause/resume;
+- session recap generation plus a full local simulated playtest across room setup, exploration, rules, combat, and recap.
 
-Deferred for later milestones:
+Deferred beyond this local engine MVP:
 
 - production UI;
 - production websocket/API server;
 - authentication;
 - PDF import;
-- production LLM provider integration.
+- production persistence;
+- full production LLM provider configuration and live provider usage.
 
 ## Local Commands
 

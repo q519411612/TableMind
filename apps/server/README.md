@@ -1,5 +1,12 @@
 # TableMind Server App
 
-The server app will own room orchestration, event persistence, AI DM routing, and spoiler filtering.
+The server app owns the local in-memory orchestration used by the MVP engine:
 
-MVP Milestone 1 keeps this as a placeholder so state and rules contracts can stabilize first.
+- Host-owned rooms, invite URLs, player joins, leave, and reconnect flows;
+- character validation and session start;
+- committed room events and role-aware snapshots;
+- adventure runtime controls;
+- mock AI DM routing, spoiler filtering, Host review queues, and rules-engine handoff;
+- encounter combat controls and session completion summaries.
+
+Production websocket/API transport, authentication, and durable persistence remain outside the local MVP engine.
