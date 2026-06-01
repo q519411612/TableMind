@@ -6,6 +6,35 @@ export const visibilityValues = [
 ];
 
 const actorRoles = ["player", "host", "ai_dm", "system"];
+export const abilityKeys = [
+  "strength",
+  "dexterity",
+  "constitution",
+  "intelligence",
+  "wisdom",
+  "charisma",
+];
+
+export const skillKeys = [
+  "athletics",
+  "acrobatics",
+  "sleight_of_hand",
+  "stealth",
+  "arcana",
+  "history",
+  "investigation",
+  "nature",
+  "religion",
+  "animal_handling",
+  "insight",
+  "medicine",
+  "perception",
+  "survival",
+  "deception",
+  "intimidation",
+  "performance",
+  "persuasion",
+];
 
 const eventValidators = {
   "player.message": (event) => {
@@ -147,6 +176,66 @@ export function projectSessionState(input) {
   return filterVisibility(clone(state), viewerPlayerId);
 }
 
+export function createCharacter(input) {
+  validateCharacter(input);
+  return {
+    ...clone(input),
+    ...deriveCharacterStats(input),
+    visibility: input.visibility ?? "public",
+  };
+}
+
+export function deriveCharacterStats(input) {
+  validateAbilityScores(input.abilities);
+
+  return {
+    abilityModifiers: Object.fromEntries(
+      abilityKeys.map((ability) => [
+        ability,
+        Math.floor((input.abilities[ability] - 10) / 2),
+      ]),
+    ),
+    proficiencyBonus: proficiencyBonusForLevel(input.level),
+  };
+}
+
+export function validateCharacter(input) {
+  if (!input || typeof input !== "object") {
+    throw new Error("Character is required");
+  }
+
+  for (const key of ["id", "playerId", "name", "className"]) {
+    requireString(input, key);
+  }
+
+  if (input.level !== 1) {
+    throw new Error("MVP character level must be 1");
+  }
+
+  validateAbilityScores(input.abilities);
+  validateHitPoints(input.hitPoints);
+
+  if (!Number.isInteger(input.armorClass) || input.armorClass < 1) {
+    throw new Error("armorClass must be positive");
+  }
+
+  if (!Number.isInteger(input.speed) || input.speed < 0) {
+    throw new Error("speed must be a non-negative integer");
+  }
+
+  validateStringList(input.savingThrowProficiencies, abilityKeys, "savingThrowProficiencies");
+  validateStringList(input.skillProficiencies, skillKeys, "skillProficiencies");
+  validateAttacks(input.attacks);
+
+  for (const key of ["spells", "inventory", "conditions"]) {
+    if (!Array.isArray(input[key])) {
+      throw new Error(`${key} must be an array`);
+    }
+  }
+
+  return input;
+}
+
 function applySessionEvent(state, event) {
   switch (event.type) {
     case "scene.changed":
@@ -283,4 +372,90 @@ function requireString(object, key) {
 
 function clone(value) {
   return structuredClone(value);
+}
+
+function proficiencyBonusForLevel(level) {
+  if (!Number.isInteger(level) || level < 1 || level > 20) {
+    throw new Error(`Invalid level: ${level}`);
+  }
+  return Math.ceil(level / 4) + 1;
+}
+
+function validateAbilityScores(abilities) {
+  if (!abilities || typeof abilities !== "object") {
+    throw new Error("abilities are required");
+  }
+
+  for (const ability of abilityKeys) {
+    const score = abilities[ability];
+    if (!Number.isInteger(score) || score < 1 || score > 30) {
+      throw new Error(`${ability} ability score must be an integer from 1 to 30`);
+    }
+  }
+}
+
+function validateHitPoints(hitPoints) {
+  if (!hitPoints || typeof hitPoints !== "object") {
+    throw new Error("hitPoints are required");
+  }
+
+  for (const key of ["current", "max", "temporary"]) {
+    if (!Number.isInteger(hitPoints[key]) || hitPoints[key] < 0) {
+      throw new Error(`${key} HP must be a non-negative integer`);
+    }
+  }
+
+  if (hitPoints.max < 1) {
+    throw new Error("max HP must be positive");
+  }
+
+  if (hitPoints.current > hitPoints.max + hitPoints.temporary) {
+    throw new Error("current HP cannot exceed max plus temporary HP");
+  }
+}
+
+function validateStringList(values, allowed, label) {
+  if (!Array.isArray(values)) {
+    throw new Error(`${label} must be an array`);
+  }
+
+  for (const value of values) {
+    if (!allowed.includes(value)) {
+      throw new Error(`Invalid ${label} entry: ${value}`);
+    }
+  }
+}
+
+function validateAttacks(attacks) {
+  if (!Array.isArray(attacks)) {
+    throw new Error("attacks must be an array");
+  }
+
+  for (const attack of attacks) {
+    for (const key of ["id", "name", "damage"]) {
+      requireString(attack, key);
+    }
+    if (!Number.isInteger(attack.attackBonus)) {
+      throw new Error("attackBonus must be an integer");
+    }
+    if (!isDiceFormula(attack.damage)) {
+      throw new Error(`Invalid attack damage formula: ${attack.damage}`);
+    }
+  }
+}
+
+function isDiceFormula(formula) {
+  if (typeof formula !== "string") {
+    return false;
+  }
+
+  const normalized = formula.replace(/\s+/g, "");
+  const match = /^(\d+)d(\d+)([+-]\d+)?$/.exec(normalized);
+  if (!match) {
+    return false;
+  }
+
+  const count = Number.parseInt(match[1], 10);
+  const sides = Number.parseInt(match[2], 10);
+  return count >= 1 && count <= 100 && [4, 6, 8, 10, 12, 20, 100].includes(sides);
 }
