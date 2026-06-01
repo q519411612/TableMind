@@ -615,6 +615,60 @@ export function createRoomService(options = {}) {
     };
   }
 
+  function commitDiceRoll(input) {
+    const room = requireRoom(input.roomId);
+    const event = buildEvent(room, {
+      type: "dice.rolled",
+      actorRole: "system",
+      createdAt: input.now,
+      roll: input.roll,
+      reason: input.reason,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
+  function completeSession(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const event = buildEvent(room, {
+      type: "state.patch",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      patch: [
+        { op: "replace", path: "/phase", value: "ended" },
+        {
+          op: room.state.flags.ending ? "replace" : "add",
+          path: "/flags/ending",
+          value: {
+            visibility: "public",
+            value: input.ending,
+          },
+        },
+        {
+          op: room.state.flags.rewards ? "replace" : "add",
+          path: "/flags/rewards",
+          value: {
+            visibility: "public",
+            value: structuredClone(input.rewards),
+          },
+        },
+      ],
+      reason: `Session completed: ${input.ending}`,
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
+  }
+
   function getPresence(roomId) {
     const room = requireRoom(roomId);
     return Array.from(room.presence.values()).sort((left, right) =>
@@ -697,6 +751,8 @@ export function createRoomService(options = {}) {
     patchCombatantHitPoints,
     patchCombatantCondition,
     setAiPaused,
+    commitDiceRoll,
+    completeSession,
     getPresence,
     getCommittedEvents,
     getSnapshot,
