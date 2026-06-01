@@ -50,8 +50,10 @@ export function createRoomService(options = {}) {
         ],
       ]),
       committedEvents: [],
+      reviewQueue: [],
       nextPlayerNumber: 2,
       nextEventNumber: 1,
+      nextReviewNumber: 1,
     };
 
     rooms.set(roomId, room);
@@ -212,6 +214,54 @@ export function createRoomService(options = {}) {
     room.state.flags[input.key] = structuredClone(input.value);
   }
 
+  function addHostReviewItem(input) {
+    const room = requireRoom(input.roomId);
+    const item = {
+      id: `review_${nextCounter(room.nextReviewNumber)}`,
+      sessionId: room.state.id,
+      type: input.type,
+      proposedPayload: structuredClone(input.proposedPayload),
+      reason: input.reason,
+      riskLevel: input.riskLevel,
+      status: "pending",
+      createdAt: input.now,
+    };
+    room.nextReviewNumber += 1;
+    room.reviewQueue.push(item);
+    return structuredClone(item);
+  }
+
+  function getHostReviewQueue(input) {
+    requireRoom(input.roomId);
+    if (input.viewerRole !== "host") {
+      throw new Error("forbidden");
+    }
+    return structuredClone(requireRoom(input.roomId).reviewQueue);
+  }
+
+  function updateHostReviewItem(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+    const item = room.reviewQueue.find((candidate) => candidate.id === input.itemId);
+    if (!item) {
+      throw new Error("review_item_not_found");
+    }
+
+    if (input.action === "approve") {
+      item.status = "approved";
+    } else if (input.action === "reject") {
+      item.status = "rejected";
+      item.rejectionReason = input.reason;
+    } else if (input.action === "edit") {
+      item.status = "edited";
+      item.proposedPayload = structuredClone(input.proposedPayload);
+    } else {
+      throw new Error(`Unsupported review action: ${input.action}`);
+    }
+
+    return structuredClone(item);
+  }
+
   function loadAdventureModule(input) {
     const room = requireRoom(input.roomId);
     requireHost(room, input.hostPlayerId);
@@ -367,6 +417,9 @@ export function createRoomService(options = {}) {
     sendPublicMessage,
     createCharacterForPlayer,
     setRoomFlag,
+    addHostReviewItem,
+    getHostReviewQueue,
+    updateHostReviewItem,
     loadAdventureModule,
     getAdventureSnapshot,
     revealClue,
