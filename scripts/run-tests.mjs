@@ -29,7 +29,7 @@ async function main() {
     return;
   }
 
-  const targets = roots.length > 0 ? roots : ["packages", "tests"];
+  const targets = roots.length > 0 ? roots : ["packages", "apps", "tests"];
   const testFiles = [];
 
   for (const target of targets) {

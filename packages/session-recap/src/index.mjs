@@ -5,10 +5,11 @@ export function generateSessionRecap(input) {
 
   const title = `${input.adventure.title} Recap`;
   const audience = input.viewerRole;
-  const timeline = buildTimeline(input.events);
-  const keyRolls = buildKeyRolls(input.events);
+  const events = projectEventsForRecap(input.events ?? [], input.viewerRole);
+  const timeline = buildTimeline(events);
+  const keyRolls = buildKeyRolls(events);
   const discoveredClues = buildDiscoveredClues(input);
-  const combatOutcomes = buildCombatOutcomes(input.events);
+  const combatOutcomes = buildCombatOutcomes(events);
   const rewards = publicListFlag(input.sessionState.flags?.rewards);
   const characterStates = buildCharacterStates(input.sessionState);
   const unresolvedThreads =
@@ -134,6 +135,52 @@ function buildSummary(input) {
     parts.push(`Rewards: ${input.rewards.join(", ")}.`);
   }
   return parts.join(" ");
+}
+
+function projectEventsForRecap(events, viewerRole) {
+  if (viewerRole === "host") {
+    return events.map((event) => structuredClone(event));
+  }
+
+  return events.filter(isPlayerSafeEvent).map(redactEventForPlayer);
+}
+
+function isPlayerSafeEvent(event) {
+  if (event.visibility === "dm_only" || event.visibility === "player_specific") {
+    return false;
+  }
+  if (event.type === "state.patch" || event.type === "host.override") {
+    return false;
+  }
+  if (event.type === "ai.message" && event.reviewStatus && event.reviewStatus !== "approved") {
+    return false;
+  }
+
+  return [
+    "player.message",
+    "ai.message",
+    "system.message",
+    "dice.rolled",
+    "scene.changed",
+    "clue.revealed",
+    "combat.started",
+    "combat.turn_advanced",
+    "combat.ended",
+    "attack.resolved",
+    "damage.applied",
+  ].includes(event.type);
+}
+
+function redactEventForPlayer(event) {
+  const output = structuredClone(event);
+  delete output.patch;
+  delete output.proposedPayload;
+  delete output.privateNotes;
+  delete output.dmNotes;
+  if (output.type === "combat.started") {
+    delete output.combat;
+  }
+  return output;
 }
 
 function renderMarkdown(recap) {

@@ -446,6 +446,7 @@ export function createRoomService(options = {}) {
           id: target.id,
           currentHp: target.hitPoints.current,
           maxHp: target.hitPoints.max,
+          temporaryHp: target.hitPoints.temporary,
           conditions: target.conditions,
         },
         formula: attack.damage,

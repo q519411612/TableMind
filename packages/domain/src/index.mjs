@@ -349,6 +349,9 @@ function applyDamageEvent(state, event) {
   }
 
   combatant.hitPoints.current = event.damageResult.resultingHp;
+  if (Number.isFinite(event.damageResult.resultingTemporaryHp)) {
+    combatant.hitPoints.temporary = event.damageResult.resultingTemporaryHp;
+  }
   combatant.status = combatant.hitPoints.current === 0 ? "defeated" : "active";
   state.lastDamageResult = clone(event.damageResult);
 }
