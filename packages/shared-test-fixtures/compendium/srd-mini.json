@@ -1,0 +1,133 @@
+{
+  "fixtureId": "srd-mini",
+  "entries": [
+    {
+      "id": "rule_ability_checks",
+      "type": "rule",
+      "name": "Ability Checks",
+      "normalizedName": "ability checks",
+      "source": {
+        "id": "srd_5_2_1",
+        "title": "D&D 5e SRD",
+        "contentClass": "embedded_srd",
+        "license": "CC-BY-4.0",
+        "attribution": "System Reference Document 5.2.1",
+        "url": "https://www.dndbeyond.com/srd",
+        "visibility": "public"
+      },
+      "sectionPath": ["Rules", "Using Ability Scores"],
+      "rawText": "An ability check tests a character's innate talent and training against a challenge.",
+      "summary": "Ability checks compare a d20 total against a DC.",
+      "structuredData": {
+        "resultRule": "total_meets_or_exceeds_dc"
+      },
+      "tags": ["rules", "checks", "dc"]
+    },
+    {
+      "id": "rule_advantage_disadvantage",
+      "type": "rule",
+      "name": "Advantage and Disadvantage",
+      "normalizedName": "advantage and disadvantage",
+      "source": {
+        "id": "srd_5_2_1",
+        "title": "D&D 5e SRD",
+        "contentClass": "embedded_srd",
+        "license": "CC-BY-4.0",
+        "attribution": "System Reference Document 5.2.1",
+        "url": "https://www.dndbeyond.com/srd",
+        "visibility": "public"
+      },
+      "sectionPath": ["Rules", "D20 Tests"],
+      "rawText": "Roll two d20s and use the higher result for advantage or the lower result for disadvantage.",
+      "summary": "Advantage keeps the higher d20; disadvantage keeps the lower d20.",
+      "tags": ["rules", "d20", "advantage"]
+    },
+    {
+      "id": "condition_grappled",
+      "type": "condition",
+      "name": "Grappled",
+      "normalizedName": "grappled",
+      "source": {
+        "id": "srd_5_2_1",
+        "title": "D&D 5e SRD",
+        "contentClass": "embedded_srd",
+        "license": "CC-BY-4.0",
+        "attribution": "System Reference Document 5.2.1",
+        "url": "https://www.dndbeyond.com/srd",
+        "visibility": "public"
+      },
+      "sectionPath": ["Rules", "Conditions"],
+      "rawText": "A grappled creature has its movement constrained until the condition ends.",
+      "summary": "Movement is constrained by a grappler or effect.",
+      "structuredData": {
+        "effects": ["movement_constrained"]
+      },
+      "tags": ["condition", "movement"]
+    },
+    {
+      "id": "item_shortsword",
+      "type": "item",
+      "name": "Shortsword",
+      "normalizedName": "shortsword",
+      "source": {
+        "id": "srd_5_2_1",
+        "title": "D&D 5e SRD",
+        "contentClass": "embedded_srd",
+        "license": "CC-BY-4.0",
+        "attribution": "System Reference Document 5.2.1",
+        "url": "https://www.dndbeyond.com/srd",
+        "visibility": "public"
+      },
+      "sectionPath": ["Equipment", "Weapons"],
+      "rawText": "A light finesse melee weapon used for close combat.",
+      "summary": "A one-handed melee weapon.",
+      "structuredData": {
+        "attack": {
+          "damage": "1d6",
+          "damageType": "piercing"
+        }
+      },
+      "tags": ["item", "weapon", "melee"]
+    },
+    {
+      "id": "monster_hill_scavenger",
+      "type": "monster",
+      "name": "Hill Scavenger",
+      "normalizedName": "hill scavenger",
+      "source": {
+        "id": "tablemind_demo_original",
+        "title": "TableMind Demo Fixture",
+        "contentClass": "embedded_original",
+        "license": "Original TableMind fixture content",
+        "attribution": "TableMind project authors",
+        "visibility": "public"
+      },
+      "sectionPath": ["Demo", "Monsters"],
+      "rawText": "A wary scavenger with a shortbow and a chipped blade.",
+      "summary": "Original low-threat scavenger for the demo adventure.",
+      "structuredData": {
+        "armorClass": 13,
+        "hitPoints": 7,
+        "speed": "30 ft.",
+        "abilities": {
+          "strength": 8,
+          "dexterity": 14,
+          "constitution": 10,
+          "intelligence": 10,
+          "wisdom": 8,
+          "charisma": 8
+        },
+        "attacks": [
+          {
+            "name": "Shortbow",
+            "attackBonus": 4,
+            "damage": "1d6+2",
+            "damageType": "piercing"
+          }
+        ],
+        "challengeRating": "1/8"
+      },
+      "tags": ["monster", "demo", "shortbow", "scavenger"]
+    }
+  ]
+}
