@@ -164,15 +164,20 @@ export function resolveDamage(input) {
   }
 
   const roll = rollDice(input.formula, input.randomSource);
-  const amount = input.critical ? roll.total * 2 : roll.total;
+  const criticalRoll = input.critical
+    ? rollDice(diceOnlyFormula(input.formula), input.randomSource)
+    : undefined;
+  const amount = roll.total + (criticalRoll?.total ?? 0);
   const damaged = applyDamage(input.target, amount);
 
   return {
     roll,
+    criticalRoll,
     amount,
     damageType: input.damageType,
     targetId: input.target.id,
     resultingHp: damaged.currentHp,
+    resultingTemporaryHp: damaged.temporaryHp,
   };
 }
 
@@ -181,12 +186,25 @@ export function applyDamage(target, amount) {
     throw new Error(`Invalid damage amount: ${amount}`);
   }
 
-  const currentHp = Math.max(0, target.currentHp - amount);
+  const temporaryHp = targetTemporaryHitPoints(target);
+  const absorbedByTemporaryHp = Math.min(temporaryHp, amount);
+  const remainingDamage = amount - absorbedByTemporaryHp;
+  const nextTemporaryHp = temporaryHp - absorbedByTemporaryHp;
+  const currentHp = Math.max(0, target.currentHp - remainingDamage);
   return {
     ...target,
     currentHp,
+    temporaryHp: nextTemporaryHp,
     defeated: currentHp === 0,
   };
+}
+
+function targetTemporaryHitPoints(target) {
+  const value = target.temporaryHp ?? target.hitPoints?.temporary ?? 0;
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`Invalid temporary HP: ${value}`);
+  }
+  return value;
 }
 
 export function applyHealing(target, amount) {
@@ -311,6 +329,11 @@ function parseDiceFormula(formula) {
     modifier,
     normalized,
   };
+}
+
+function diceOnlyFormula(formula) {
+  const parsed = parseDiceFormula(formula);
+  return `${parsed.count}d${parsed.sides}`;
 }
 
 function rollDie(sides, randomSource) {

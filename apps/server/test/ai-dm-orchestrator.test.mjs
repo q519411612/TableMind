@@ -57,6 +57,23 @@ test("validates structured AI DM output and rejects fabricated dice results", ()
     () => validateAiDmResponse({ publicMessage: 42 }),
     /publicMessage/,
   );
+
+  assert.throws(
+    () =>
+      validateAiDmResponse({
+        publicMessage: "The scavenger raises its rusted blade.",
+        ruleRequests: [
+          {
+            type: "attack",
+            attackerId: "combatant_monster_hill_scavenger_1",
+            targetId: "combatant_char_ada",
+            attackId: "attack_claw",
+            reason: "Resolve the monster attack.",
+          },
+        ],
+      }),
+    /attack requests are not supported/,
+  );
 });
 
 test("routes skill check requests through the rules engine", async () => {

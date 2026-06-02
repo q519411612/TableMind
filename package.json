@@ -5,11 +5,12 @@
   "type": "module",
   "description": "AI-assisted tabletop session engine foundation.",
   "scripts": {
-    "test": "node scripts/run-tests.mjs",
+    "test": "node scripts/run-tests.mjs packages apps tests",
     "acceptance": "node scripts/run-tests.mjs tests/acceptance",
     "lint": "node scripts/check-js.mjs",
     "typecheck": "node scripts/check-js.mjs",
-    "build": "node scripts/check-js.mjs && node scripts/run-tests.mjs --list"
+    "check": "node scripts/check-js.mjs",
+    "build": "node scripts/check-js.mjs && node scripts/run-tests.mjs packages apps tests && node scripts/run-tests.mjs tests/acceptance"
   },
   "workspaces": [
     "apps/*",

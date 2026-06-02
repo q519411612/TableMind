@@ -112,7 +112,11 @@ function containsCandidate(normalizedMessage, candidate) {
 }
 
 function normalize(value) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
 }
 
 function requireString(object, key) {

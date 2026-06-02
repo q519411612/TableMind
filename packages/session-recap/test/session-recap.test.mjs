@@ -95,6 +95,14 @@ const events = [
     createdAt: "2026-06-02T09:05:00.000Z",
     reason: "The remaining scavenger fled.",
   },
+  {
+    id: "event_secret_patch",
+    type: "state.patch",
+    createdAt: "2026-06-02T09:06:00.000Z",
+    reason: "Mira broke the shrine seal while searching for her sibling.",
+    patch: [{ op: "replace", path: "/flags/hiddenTruth", value: "secret" }],
+    visibility: "dm_only",
+  },
 ];
 
 test("player recap includes public results and excludes DM-only truth", () => {
