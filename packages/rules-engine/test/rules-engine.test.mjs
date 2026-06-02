@@ -174,6 +174,18 @@ test("attacks resolve natural 20, natural 1, armor class, and damage", () => {
 
   assert.equal(damage.amount, 7);
   assert.equal(damage.resultingHp, 2);
+
+  const criticalDamage = resolveDamage({
+    target,
+    formula: "1d6+3",
+    damageType: "piercing",
+    critical: true,
+    randomSource: createSequenceRandomSource([0.5, 0.5]),
+  });
+
+  assert.equal(criticalDamage.amount, 11);
+  assert.equal(criticalDamage.resultingHp, 0);
+  assert.deepEqual(criticalDamage.criticalRoll.terms[0].rolls, [4]);
 });
 
 test("damage, healing, and conditions update combatant copies", () => {
@@ -187,6 +199,15 @@ test("damage, healing, and conditions update combatant copies", () => {
   const damaged = applyDamage(target, 5);
   assert.equal(damaged.currentHp, 0);
   assert.equal(damaged.defeated, true);
+
+  const shielded = applyDamage(
+    { id: "char_shielded", currentHp: 10, maxHp: 10, temporaryHp: 5, conditions: [] },
+    7,
+  );
+
+  assert.equal(shielded.temporaryHp, 0);
+  assert.equal(shielded.currentHp, 8);
+  assert.equal(shielded.defeated, false);
 
   const healed = applyHealing(damaged, 6);
   assert.equal(healed.currentHp, 6);

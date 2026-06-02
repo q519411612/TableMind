@@ -161,6 +161,11 @@ function validatePrivateMessage(message) {
 
 function validateRuleRequest(request) {
   requireString(request, "type");
+  if (request.type === "attack") {
+    throw new Error(
+      "AI attack requests are not supported in MVP; use Host combat controls.",
+    );
+  }
   requireString(request, "characterId");
   requireString(request, "reason");
   if (!["normal", "advantage", "disadvantage"].includes(request.advantage)) {
@@ -175,12 +180,6 @@ function validateRuleRequest(request) {
   }
   if (request.type === "ability_check" || request.type === "saving_throw") {
     requireString(request, "ability");
-    return;
-  }
-  if (request.type === "attack") {
-    requireString(request, "attackerId");
-    requireString(request, "targetId");
-    requireString(request, "attackId");
     return;
   }
   throw new Error(`Unsupported rule request type: ${request.type}`);
