@@ -6,6 +6,15 @@ export const visibilityValues = [
 ];
 
 const actorRoles = ["player", "host", "ai_dm", "system"];
+const playerRoles = ["player", "host"];
+const hostReviewActions = ["approve", "reject", "edit"];
+const aiMessageReviewStatuses = ["approved", "auto_approved"];
+const playerHiddenEventTypes = new Set([
+  "host.review.created",
+  "host.review.updated",
+  "host.override",
+  "state.patch",
+]);
 export const abilityKeys = [
   "strength",
   "dexterity",
@@ -37,11 +46,59 @@ export const skillKeys = [
 ];
 
 const eventValidators = {
+  "player.joined": (event) => {
+    if (!event.player || typeof event.player !== "object") {
+      throw new Error("player.joined requires player");
+    }
+    validatePlayerRecord(event.player);
+  },
+  "character.created": (event) => {
+    requireString(event, "playerId");
+    if (!event.character || typeof event.character !== "object") {
+      throw new Error("character.created requires character");
+    }
+    validateCharacter(event.character);
+    if (event.character.playerId !== event.playerId) {
+      throw new Error("character.playerId must match playerId");
+    }
+  },
+  "adventure.loaded": (event) => {
+    requireString(event, "adventureModuleId");
+    requireString(event, "startingSceneId");
+  },
+  "session.started": (event) => {
+    requireString(event, "reason");
+  },
+  "host.review.created": (event) => {
+    if (!event.reviewItem || typeof event.reviewItem !== "object") {
+      throw new Error("host.review.created requires reviewItem");
+    }
+    validateHostReviewItem(event.reviewItem);
+  },
+  "host.review.updated": (event) => {
+    requireString(event, "itemId");
+    requireString(event, "action");
+    if (!hostReviewActions.includes(event.action)) {
+      throw new Error(`Unsupported review action: ${event.action}`);
+    }
+    if (event.reason !== undefined && typeof event.reason !== "string") {
+      throw new Error("host.review.updated reason must be a string");
+    }
+  },
   "player.message": (event) => {
     requireString(event, "message");
   },
   "ai.message": (event) => {
     requireString(event, "message");
+    if (event.visibility !== "public") {
+      throw new Error("ai.message visibility must be public");
+    }
+    if (
+      event.reviewStatus !== undefined &&
+      !aiMessageReviewStatuses.includes(event.reviewStatus)
+    ) {
+      throw new Error(`Unsupported ai.message reviewStatus: ${event.reviewStatus}`);
+    }
   },
   "system.message": (event) => {
     requireString(event, "message");
@@ -260,6 +317,32 @@ export function validateCharacter(input) {
 
 function applySessionEvent(state, event) {
   switch (event.type) {
+    case "player.joined":
+      if (state.players[event.player.id]) {
+        throw new Error("player_already_joined");
+      }
+      state.players[event.player.id] = clone(event.player);
+      break;
+    case "character.created":
+      if (!state.players[event.playerId]) {
+        throw new Error("player_not_found");
+      }
+      state.characters[event.character.id] = clone(event.character);
+      state.players[event.playerId] = {
+        ...state.players[event.playerId],
+        characterId: event.character.id,
+      };
+      break;
+    case "adventure.loaded":
+      state.adventureModuleId = event.adventureModuleId;
+      state.currentSceneId = event.startingSceneId;
+      break;
+    case "session.started":
+      state.phase = "playing";
+      break;
+    case "host.review.created":
+    case "host.review.updated":
+      break;
     case "scene.changed":
       state.currentSceneId = event.sceneId;
       break;
@@ -385,6 +468,11 @@ function filterVisibility(value, viewerPlayerId) {
       continue;
     }
 
+    if (key === "eventLog" && Array.isArray(child)) {
+      output[key] = filterPlayerEventLog(child, viewerPlayerId);
+      continue;
+    }
+
     const filtered = filterVisibility(child, viewerPlayerId);
     if (filtered !== undefined) {
       output[key] = filtered;
@@ -392,6 +480,33 @@ function filterVisibility(value, viewerPlayerId) {
   }
 
   return output;
+}
+
+function filterPlayerEventLog(events, viewerPlayerId) {
+  return events
+    .filter((event) => isPlayerVisibleEvent(event, viewerPlayerId))
+    .map((event) => filterVisibility(event, viewerPlayerId))
+    .filter((event) => event !== undefined);
+}
+
+function isPlayerVisibleEvent(event, viewerPlayerId) {
+  if (!event || typeof event !== "object") {
+    return false;
+  }
+
+  if (playerHiddenEventTypes.has(event.type)) {
+    return false;
+  }
+
+  if (event.visibility === "dm_only") {
+    return false;
+  }
+
+  return (
+    event.visibility !== "player_specific" ||
+    event.playerId === viewerPlayerId ||
+    event.privateOwnerPlayerId === viewerPlayerId
+  );
 }
 
 function isPrivateField(key, owner, viewerPlayerId) {
@@ -411,6 +526,30 @@ function pushUnique(list, value) {
 function requireString(object, key) {
   if (typeof object?.[key] !== "string" || object[key].length === 0) {
     throw new Error(`${key} is required`);
+  }
+}
+
+function validatePlayerRecord(player) {
+  for (const key of ["id", "displayName", "role", "visibility"]) {
+    requireString(player, key);
+  }
+
+  if (!playerRoles.includes(player.role)) {
+    throw new Error(`Unsupported player role: ${player.role}`);
+  }
+
+  if (player.visibility !== "public") {
+    throw new Error("player visibility must be public");
+  }
+}
+
+function validateHostReviewItem(item) {
+  for (const key of ["id", "sessionId", "type", "reason", "riskLevel", "status", "createdAt"]) {
+    requireString(item, key);
+  }
+
+  if (item.proposedPayload === undefined) {
+    throw new Error("reviewItem.proposedPayload is required");
   }
 }
 

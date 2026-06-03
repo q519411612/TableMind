@@ -63,6 +63,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: ada.playerId,
+    now: "2026-06-02T10:02:10.000Z",
     character: character({
       id: "char_ada",
       name: "Ada Thorne",
@@ -93,6 +94,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: bran.playerId,
+    now: "2026-06-02T10:02:20.000Z",
     character: character({
       id: "char_bran",
       name: "Bran Vale",
@@ -124,6 +126,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T10:02:30.000Z",
   });
   service.startSession({
     roomId: room.roomId,

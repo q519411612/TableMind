@@ -69,6 +69,7 @@ test("milestone 2 simulates a local room gameplay skeleton", async () => {
     roomId: room.roomId,
     playerId: ada.playerId,
     character: demoCharacter,
+    now: "2026-06-02T02:02:30.000Z",
   });
   service.setRoomFlag({
     roomId: room.roomId,
@@ -124,8 +125,12 @@ test("milestone 2 simulates a local room gameplay skeleton", async () => {
       event.type,
     ]),
     [
-      [1, "state.patch"],
-      [2, "player.message"],
+      [1, "player.joined"],
+      [2, "player.joined"],
+      [3, "player.joined"],
+      [4, "character.created"],
+      [5, "session.started"],
+      [6, "player.message"],
     ],
   );
   assert.deepEqual(

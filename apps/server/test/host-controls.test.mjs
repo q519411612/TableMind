@@ -57,11 +57,13 @@ async function createStartedCombat() {
     roomId: room.roomId,
     playerId: player.playerId,
     character,
+    now: "2026-06-02T07:01:30.000Z",
   });
   service.loadAdventureModule({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T07:01:45.000Z",
   });
   service.startCombatFromEncounter({
     roomId: room.roomId,

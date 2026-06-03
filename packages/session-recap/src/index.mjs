@@ -70,6 +70,15 @@ function timelineText(event) {
   if (event.type === "player.message") {
     return event.message;
   }
+  if (event.type === "ai.message") {
+    return event.message;
+  }
+  if (event.type === "host.review.created") {
+    return `Review created: ${event.reviewItem.reason}.`;
+  }
+  if (event.type === "host.review.updated") {
+    return `Review ${event.action}: ${event.reason ?? event.itemId}.`;
+  }
   if (event.type === "state.patch") {
     return event.reason;
   }
@@ -152,7 +161,11 @@ function isPlayerSafeEvent(event) {
   if (event.type === "state.patch" || event.type === "host.override") {
     return false;
   }
-  if (event.type === "ai.message" && event.reviewStatus && event.reviewStatus !== "approved") {
+  if (
+    event.type === "ai.message" &&
+    event.reviewStatus &&
+    !["approved", "auto_approved"].includes(event.reviewStatus)
+  ) {
     return false;
   }
 
