@@ -29,7 +29,7 @@ export function createRoomService(options = {}) {
       now: input.now,
     });
 
-    state.players[hostPlayerId] = {
+    const hostPlayer = {
       id: hostPlayerId,
       displayName: input.hostDisplayName,
       role: "host",
@@ -42,18 +42,7 @@ export function createRoomService(options = {}) {
       inviteLink: `${baseInviteUrl}/${roomId}`,
       state,
       adventure: undefined,
-      presence: new Map([
-        [
-          hostPlayerId,
-          {
-            playerId: hostPlayerId,
-            displayName: input.hostDisplayName,
-            role: "host",
-            connected: true,
-            lastSeenAt: input.now,
-          },
-        ],
-      ]),
+      presence: new Map(),
       committedEvents: [],
       reviewQueue: [],
       nextPlayerNumber: 2,
@@ -61,6 +50,21 @@ export function createRoomService(options = {}) {
       nextReviewNumber: 1,
     };
 
+    const event = buildEvent(room, {
+      type: "player.joined",
+      actorId: hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      player: hostPlayer,
+    });
+    commitEvent(room, event);
+    room.presence.set(hostPlayerId, {
+      playerId: hostPlayerId,
+      displayName: input.hostDisplayName,
+      role: "host",
+      connected: true,
+      lastSeenAt: input.now,
+    });
     rooms.set(roomId, room);
 
     return {
@@ -74,14 +78,22 @@ export function createRoomService(options = {}) {
   function joinRoom(input) {
     const room = requireRoom(input.roomId);
     const playerId = `player_${nextCounter(room.nextPlayerNumber)}`;
-    room.nextPlayerNumber += 1;
 
-    room.state.players[playerId] = {
+    const player = {
       id: playerId,
       displayName: input.displayName,
       role: "player",
       visibility: "public",
     };
+    const event = buildEvent(room, {
+      type: "player.joined",
+      actorId: playerId,
+      actorRole: "player",
+      createdAt: input.now,
+      player,
+    });
+    commitEvent(room, event);
+    room.nextPlayerNumber += 1;
     room.presence.set(playerId, {
       playerId,
       displayName: input.displayName,
@@ -92,6 +104,7 @@ export function createRoomService(options = {}) {
 
     return {
       playerId,
+      event,
       snapshot: getSnapshot({
         roomId: input.roomId,
         viewerRole: "player",
@@ -144,11 +157,10 @@ export function createRoomService(options = {}) {
     }
 
     const event = buildEvent(room, {
-      type: "state.patch",
+      type: "session.started",
       actorId: input.hostPlayerId,
       actorRole: "host",
       createdAt: input.now,
-      patch: [{ op: "replace", path: "/phase", value: "playing" }],
       reason: "Host started the session.",
     });
     commitEvent(room, event);
@@ -198,14 +210,19 @@ export function createRoomService(options = {}) {
       ...input.character,
       playerId: input.playerId,
     });
-    room.state.characters[character.id] = character;
-    room.state.players[input.playerId] = {
-      ...player,
-      characterId: character.id,
-    };
+    const event = buildEvent(room, {
+      type: "character.created",
+      actorId: input.playerId,
+      actorRole: player.role === "host" ? "host" : "player",
+      createdAt: input.now,
+      playerId: input.playerId,
+      character,
+    });
+    commitEvent(room, event);
 
     return {
       character,
+      event,
       snapshot: getSnapshot({
         roomId: input.roomId,
         viewerRole: player.role === "host" ? "host" : "player",
@@ -231,6 +248,14 @@ export function createRoomService(options = {}) {
       status: "pending",
       createdAt: input.now,
     };
+    const event = buildEvent(room, {
+      type: "host.review.created",
+      actorId: input.actorId,
+      actorRole: input.actorRole ?? "ai_dm",
+      createdAt: input.now,
+      reviewItem: item,
+    });
+    commitEvent(room, event);
     room.nextReviewNumber += 1;
     room.reviewQueue.push(item);
     return structuredClone(item);
@@ -252,19 +277,71 @@ export function createRoomService(options = {}) {
       throw new Error("review_item_not_found");
     }
 
+    const updatedItem = structuredClone(item);
     if (input.action === "approve") {
-      item.status = "approved";
+      updatedItem.status = "approved";
     } else if (input.action === "reject") {
-      item.status = "rejected";
-      item.rejectionReason = input.reason;
+      updatedItem.status = "rejected";
+      updatedItem.rejectionReason = input.reason;
     } else if (input.action === "edit") {
-      item.status = "edited";
-      item.proposedPayload = structuredClone(input.proposedPayload);
+      updatedItem.status = "edited";
+      updatedItem.proposedPayload = structuredClone(input.proposedPayload);
     } else {
       throw new Error(`Unsupported review action: ${input.action}`);
     }
 
+    const event = buildEvent(room, {
+      type: "host.review.updated",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      itemId: input.itemId,
+      action: input.action,
+      reason: input.reason,
+      proposedPayload:
+        input.proposedPayload === undefined
+          ? undefined
+          : structuredClone(input.proposedPayload),
+    });
+    commitEvent(room, event);
+    Object.assign(item, updatedItem);
+
     return structuredClone(item);
+  }
+
+  function commitApprovedAiMessage(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+
+    if (input.reviewItemId) {
+      const reviewItem = room.reviewQueue.find(
+        (candidate) => candidate.id === input.reviewItemId,
+      );
+      if (!reviewItem) {
+        throw new Error("review_item_not_found");
+      }
+      if (!["approved", "edited"].includes(reviewItem.status)) {
+        throw new Error("review_item_not_approved");
+      }
+    }
+
+    const event = buildEvent(room, {
+      type: "ai.message",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      message: input.message,
+      reviewItemId: input.reviewItemId,
+      reviewStatus: input.reviewStatus ?? "approved",
+      visibility: "public",
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      broadcasts: buildBroadcasts(room, event),
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
   }
 
   function loadAdventureModule(input) {
@@ -272,12 +349,21 @@ export function createRoomService(options = {}) {
     requireHost(room, input.hostPlayerId);
     validateAdventureForRoom(room, input.adventure);
 
-    room.adventure = structuredClone(input.adventure);
-    room.state.adventureModuleId = input.adventure.id;
-    room.state.currentSceneId = input.adventure.startingSceneId;
+    const adventure = structuredClone(input.adventure);
+    const event = buildEvent(room, {
+      type: "adventure.loaded",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      adventureModuleId: adventure.id,
+      startingSceneId: adventure.startingSceneId,
+    });
+    commitEvent(room, event);
+    room.adventure = adventure;
 
     return {
-      adventureId: input.adventure.id,
+      adventureId: adventure.id,
+      event,
       snapshot: getAdventureSnapshot({
         roomId: input.roomId,
         viewerRole: "host",
@@ -741,6 +827,7 @@ export function createRoomService(options = {}) {
     addHostReviewItem,
     getHostReviewQueue,
     updateHostReviewItem,
+    commitApprovedAiMessage,
     loadAdventureModule,
     getAdventureSnapshot,
     revealClue,

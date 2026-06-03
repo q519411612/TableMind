@@ -57,11 +57,13 @@ test("milestone 4 simulates mock AI rule routing and spoiler review", async () =
     roomId: room.roomId,
     playerId: player.playerId,
     character: demoCharacter,
+    now: "2026-06-02T06:01:30.000Z",
   });
   service.loadAdventureModule({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T06:01:45.000Z",
   });
 
   const safeTurn = await runAiDmTurn({

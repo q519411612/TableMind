@@ -31,6 +31,7 @@ test("host loads a demo adventure and sees current scene with DM-only context", 
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T03:02:00.000Z",
   });
   const hostView = service.getAdventureSnapshot({
     roomId: room.roomId,
@@ -50,6 +51,7 @@ test("player adventure snapshot hides truth, DM notes, and unrevealed clues", as
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T03:02:00.000Z",
   });
 
   const playerView = service.getAdventureSnapshot({
@@ -70,6 +72,7 @@ test("revealed clues become visible to player projections through committed even
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T03:02:00.000Z",
   });
 
   const reveal = service.revealClue({
@@ -85,7 +88,7 @@ test("revealed clues become visible to player projections through committed even
   });
 
   assert.equal(reveal.event.type, "clue.revealed");
-  assert.equal(reveal.event.sequence, 1);
+  assert.equal(reveal.event.sequence, 4);
   assert.deepEqual(
     playerView.currentScene.clues.map((clue) => clue.id),
     ["clue_old_record"],

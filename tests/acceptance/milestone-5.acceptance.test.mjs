@@ -65,11 +65,13 @@ test("milestone 5 simulates combat and Host override controls", async () => {
     roomId: room.roomId,
     playerId: player.playerId,
     character,
+    now: "2026-06-02T08:01:30.000Z",
   });
   service.loadAdventureModule({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T08:01:45.000Z",
   });
 
   const started = service.startCombatFromEncounter({
@@ -148,6 +150,10 @@ test("milestone 5 simulates combat and Host override controls", async () => {
   assert.deepEqual(
     service.getCommittedEvents(room.roomId).map((event) => event.type),
     [
+      "player.joined",
+      "player.joined",
+      "character.created",
+      "adventure.loaded",
       "combat.started",
       "attack.resolved",
       "damage.applied",
