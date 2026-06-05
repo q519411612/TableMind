@@ -2,39 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRoomService } from "../../apps/server/src/room-service.mjs";
 import { loadAdventureFixture } from "../../packages/adventure-loader/src/index.mjs";
+import { loadCompendiumFixture } from "../../packages/compendium/src/index.mjs";
 import {
   createInitialSessionState,
   replaySessionEvents,
 } from "../../packages/domain/src/index.mjs";
-import {
-  createSequenceRandomSource,
-} from "../../packages/rules-engine/src/index.mjs";
-import { loadCompendiumFixture } from "../../packages/compendium/src/index.mjs";
+import { createSequenceRandomSource } from "../../packages/rules-engine/src/index.mjs";
 
-function character(input) {
-  return {
-    id: input.id,
-    name: input.name,
-    className: input.className,
-    level: 1,
-    abilities: input.abilities,
-    armorClass: input.armorClass,
-    hitPoints: {
-      current: input.maxHp,
-      max: input.maxHp,
-      temporary: 0,
-    },
-    speed: 30,
-    savingThrowProficiencies: input.savingThrowProficiencies,
-    skillProficiencies: input.skillProficiencies,
-    attacks: input.attacks,
-    spells: [],
-    inventory: [],
-    conditions: [],
-  };
-}
-
-test("eventized room lifecycle replays critical session truth", async () => {
+test("MVP-0.7A replay reconstructs lifecycle and gameplay-critical room state", async () => {
   const adventure = await loadAdventureFixture(
     "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
   );
@@ -45,8 +20,8 @@ test("eventized room lifecycle replays critical session truth", async () => {
   const room = service.createRoom({
     hostDisplayName: "Host",
     rulesetId: adventure.rulesetId,
-    adventureModuleId: "adventure_placeholder",
-    startingSceneId: "scene_placeholder",
+    adventureModuleId: "adventure_unloaded",
+    startingSceneId: "scene_unloaded",
     now: "2026-06-02T11:00:00.000Z",
   });
   const ada = service.joinRoom({
@@ -59,10 +34,11 @@ test("eventized room lifecycle replays critical session truth", async () => {
     displayName: "Bran",
     now: "2026-06-02T11:02:00.000Z",
   });
+
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: ada.playerId,
-    now: "2026-06-02T11:03:00.000Z",
+    now: "2026-06-02T11:02:10.000Z",
     character: character({
       id: "char_ada",
       name: "Ada Thorne",
@@ -71,14 +47,14 @@ test("eventized room lifecycle replays critical session truth", async () => {
         strength: 14,
         dexterity: 12,
         constitution: 14,
-        intelligence: 12,
+        intelligence: 10,
         wisdom: 11,
         charisma: 8,
       },
       armorClass: 16,
       maxHp: 12,
       savingThrowProficiencies: ["strength", "constitution"],
-      skillProficiencies: ["athletics"],
+      skillProficiencies: ["athletics", "perception"],
       attacks: [
         {
           id: "attack_longsword",
@@ -93,7 +69,7 @@ test("eventized room lifecycle replays critical session truth", async () => {
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: bran.playerId,
-    now: "2026-06-02T11:04:00.000Z",
+    now: "2026-06-02T11:02:20.000Z",
     character: character({
       id: "char_bran",
       name: "Bran Vale",
@@ -125,25 +101,35 @@ test("eventized room lifecycle replays critical session truth", async () => {
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
-    now: "2026-06-02T11:05:00.000Z",
+    now: "2026-06-02T11:02:30.000Z",
   });
   service.startSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
-    now: "2026-06-02T11:06:00.000Z",
+    now: "2026-06-02T11:03:00.000Z",
   });
   service.changeScene({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     sceneId: "scene_lantern_tower",
     reason: "The party reaches the lantern tower.",
-    now: "2026-06-02T11:07:00.000Z",
+    now: "2026-06-02T11:04:00.000Z",
   });
   service.revealClue({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     clueId: "clue_broken_lens",
-    now: "2026-06-02T11:08:00.000Z",
+    now: "2026-06-02T11:05:00.000Z",
+  });
+  service.commitDiceRoll({
+    roomId: room.roomId,
+    roll: {
+      formula: "1d20+3",
+      terms: [{ count: 1, sides: 20, rolls: [16], modifier: 3 }],
+      total: 19,
+    },
+    reason: "Inspect the lantern frame.",
+    now: "2026-06-02T11:06:00.000Z",
   });
   service.startCombatFromEncounter({
     roomId: room.roomId,
@@ -151,8 +137,8 @@ test("eventized room lifecycle replays critical session truth", async () => {
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada", "char_bran"],
     compendiumEntries: compendium,
-    randomSource: createSequenceRandomSource([0.5, 0.45, 0.1, 0.2]),
-    now: "2026-06-02T11:09:00.000Z",
+    randomSource: createSequenceRandomSource([0.9, 0.1, 0.2, 0.3]),
+    now: "2026-06-02T11:07:00.000Z",
   });
   service.resolveCombatAttack({
     roomId: room.roomId,
@@ -161,41 +147,49 @@ test("eventized room lifecycle replays critical session truth", async () => {
     targetCombatantId: "combatant_monster_hill_scavenger_1",
     attackId: "attack_longsword",
     randomSource: createSequenceRandomSource([0.7, 0.5]),
-    now: "2026-06-02T11:10:00.000Z",
+    now: "2026-06-02T11:08:00.000Z",
   });
+
+  const liveCombatState = criticalCombatFields(
+    service.getSnapshot({ roomId: room.roomId, viewerRole: "host" }),
+  );
+
   service.endCombat({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
-    reason: "The remaining scavenger flees.",
-    now: "2026-06-02T11:11:00.000Z",
+    reason: "The remaining scavenger flees into the rain.",
+    now: "2026-06-02T11:09:00.000Z",
   });
   service.completeSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     ending: "Repair the Lantern",
     rewards: ["Village gratitude", "A safe hill road"],
-    now: "2026-06-02T11:12:00.000Z",
+    now: "2026-06-02T11:10:00.000Z",
   });
 
-  const liveState = service.getSnapshot({
+  const events = service.getCommittedEvents(room.roomId);
+  const replayInitial = createInitialSessionState({
+    id: room.snapshot.id,
+    roomId: room.roomId,
+    rulesetId: adventure.rulesetId,
+    adventureModuleId: "adventure_unloaded",
+    currentSceneId: "scene_unloaded",
+    now: "2026-06-02T11:00:00.000Z",
+  });
+  const damageIndex = events.findIndex((event) => event.type === "damage.applied");
+  const replayedCombatState = replaySessionEvents(
+    events.slice(0, damageIndex + 1),
+    replayInitial,
+  );
+  const replayedFinalState = replaySessionEvents(events, replayInitial);
+  const liveFinalState = service.getSnapshot({
     roomId: room.roomId,
     viewerRole: "host",
   });
-  const committedEvents = service.getCommittedEvents(room.roomId);
-  const replayedState = replaySessionEvents(
-    committedEvents,
-    createInitialSessionState({
-      id: liveState.id,
-      roomId: liveState.roomId,
-      rulesetId: liveState.rulesetId,
-      adventureModuleId: "adventure_placeholder",
-      currentSceneId: "scene_placeholder",
-      now: "2026-06-02T11:00:00.000Z",
-    }),
-  );
 
   assert.deepEqual(
-    committedEvents.slice(0, 7).map((event) => event.type),
+    events.slice(0, 7).map((event) => event.type),
     [
       "player.joined",
       "player.joined",
@@ -206,15 +200,59 @@ test("eventized room lifecycle replays critical session truth", async () => {
       "session.started",
     ],
   );
-  assert.equal(replayedState.phase, liveState.phase);
-  assert.deepEqual(replayedState.players, liveState.players);
-  assert.deepEqual(replayedState.characters, liveState.characters);
-  assert.equal(replayedState.adventureModuleId, adventure.id);
-  assert.equal(replayedState.currentSceneId, liveState.currentSceneId);
-  assert.deepEqual(replayedState.discoveredClueIds, ["clue_broken_lens"]);
-  assert.equal(replayedState.lastAttackResult.total, liveState.lastAttackResult.total);
-  assert.equal(replayedState.lastDamageResult.resultingHp, 0);
-  assert.deepEqual(replayedState.flags.ending, liveState.flags.ending);
-  assert.deepEqual(replayedState.flags.rewards, liveState.flags.rewards);
-  assert.equal(replayedState.eventLog.length, committedEvents.length);
+  assert.deepEqual(
+    criticalCombatFields(replayedCombatState),
+    liveCombatState,
+  );
+  assert.deepEqual(
+    criticalFinalFields(replayedFinalState),
+    criticalFinalFields(liveFinalState),
+  );
 });
+
+function character(input) {
+  return {
+    id: input.id,
+    name: input.name,
+    className: input.className,
+    level: 1,
+    abilities: input.abilities,
+    armorClass: input.armorClass,
+    hitPoints: {
+      current: input.maxHp,
+      max: input.maxHp,
+      temporary: 0,
+    },
+    speed: 30,
+    savingThrowProficiencies: input.savingThrowProficiencies,
+    skillProficiencies: input.skillProficiencies,
+    attacks: input.attacks,
+    spells: [],
+    inventory: [],
+    conditions: [],
+  };
+}
+
+function criticalCombatFields(state) {
+  return {
+    phase: state.phase,
+    combat: state.combat,
+    lastAttackResult: state.lastAttackResult,
+    lastDamageResult: state.lastDamageResult,
+  };
+}
+
+function criticalFinalFields(state) {
+  return {
+    phase: state.phase,
+    players: state.players,
+    characters: state.characters,
+    adventureModuleId: state.adventureModuleId,
+    currentSceneId: state.currentSceneId,
+    discoveredClueIds: state.discoveredClueIds,
+    diceLog: state.diceLog,
+    lastAttackResult: state.lastAttackResult,
+    lastDamageResult: state.lastDamageResult,
+    flags: state.flags,
+  };
+}

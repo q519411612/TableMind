@@ -52,18 +52,13 @@ export async function runAiDmTurn(input) {
     dmOnlySecrets: input.context.dmOnlySecrets ?? [],
     viewerRole: "player",
   });
-  const ruleResults = routeRuleRequests({
-    context: input.context,
-    ruleRequests: response.ruleRequests ?? [],
-    randomSource: input.randomSource,
-  });
   const reviewReason = reviewReasonFor(response, spoilerCheck);
 
   if (reviewReason) {
     return {
       status: "host_review_required",
       response,
-      ruleResults,
+      ruleResults: [],
       spoilerCheck,
       reviewItem: {
         id: "review_pending_ai_output",
@@ -75,6 +70,12 @@ export async function runAiDmTurn(input) {
       },
     };
   }
+
+  const ruleResults = routeRuleRequests({
+    context: input.context,
+    ruleRequests: response.ruleRequests ?? [],
+    randomSource: input.randomSource,
+  });
 
   return {
     status: "broadcast_ready",

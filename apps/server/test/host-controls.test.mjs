@@ -57,13 +57,13 @@ async function createStartedCombat() {
     roomId: room.roomId,
     playerId: player.playerId,
     character,
-    now: "2026-06-02T07:02:00.000Z",
+    now: "2026-06-02T07:01:30.000Z",
   });
   service.loadAdventureModule({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
-    now: "2026-06-02T07:03:00.000Z",
+    now: "2026-06-02T07:01:45.000Z",
   });
   service.startCombatFromEncounter({
     roomId: room.roomId,
@@ -72,7 +72,7 @@ async function createStartedCombat() {
     characterIds: ["char_ada"],
     compendiumEntries: compendium,
     randomSource: createSequenceRandomSource([0.5, 0.1, 0.2]),
-    now: "2026-06-02T07:04:00.000Z",
+    now: "2026-06-02T07:02:00.000Z",
   });
 
   return { service, room, player };

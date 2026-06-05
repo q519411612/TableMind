@@ -74,6 +74,80 @@ test("replay applies scene changes, clue reveals, and stored dice without reroll
   assert.equal(firstReplay.version, 3);
 });
 
+test("replay applies validated lifecycle events", () => {
+  const initial = createInitialSessionState({
+    id: "session_test",
+    roomId: "room_test",
+    rulesetId: "5e-srd-5.2.1",
+    adventureModuleId: "adventure_unloaded",
+    currentSceneId: "scene_unloaded",
+    now: "2026-06-02T00:00:00.000Z",
+  });
+
+  const events = [
+    baseEvent({
+      id: "event_host_joined",
+      type: "player.joined",
+      actorRole: "host",
+      actorId: "player_0001",
+      player: {
+        id: "player_0001",
+        displayName: "Host",
+        role: "host",
+        visibility: "public",
+      },
+    }),
+    baseEvent({
+      id: "event_player_joined",
+      type: "player.joined",
+      actorRole: "player",
+      actorId: "player_0002",
+      player: {
+        id: "player_0002",
+        displayName: "Ada",
+        role: "player",
+        visibility: "public",
+      },
+    }),
+    baseEvent({
+      id: "event_character_created",
+      type: "character.created",
+      actorRole: "player",
+      actorId: "player_0002",
+      playerId: "player_0002",
+      character: demoCharacter({
+        id: "char_ada",
+        playerId: "player_0002",
+      }),
+    }),
+    baseEvent({
+      id: "event_adventure_loaded",
+      type: "adventure.loaded",
+      actorRole: "host",
+      actorId: "player_0001",
+      adventureModuleId: "adventure_lantern_beneath_hill",
+      startingSceneId: "scene_village_square",
+    }),
+    baseEvent({
+      id: "event_session_started",
+      type: "session.started",
+      actorRole: "host",
+      actorId: "player_0001",
+      reason: "Host started the session.",
+    }),
+  ];
+
+  const replayed = replaySessionEvents(events, initial);
+
+  assert.deepEqual(Object.keys(replayed.players), ["player_0001", "player_0002"]);
+  assert.equal(replayed.players.player_0002.characterId, "char_ada");
+  assert.equal(replayed.characters.char_ada.playerId, "player_0002");
+  assert.equal(replayed.adventureModuleId, "adventure_lantern_beneath_hill");
+  assert.equal(replayed.currentSceneId, "scene_village_square");
+  assert.equal(replayed.phase, "playing");
+  assert.equal(replayed.version, 5);
+});
+
 test("append rejects invalid events before mutating state", () => {
   const initial = createInitialSessionState({
     id: "session_test",
@@ -269,7 +343,7 @@ test("character creation event requires an existing player", () => {
           character,
         }),
       ),
-    /player not found/,
+    /player_not_found/,
   );
   assert.deepEqual(initial.characters, {});
 });
@@ -340,6 +414,64 @@ test("player projection strips dm_only data but keeps own player_specific data",
   assert.equal(hostView.flags.hiddenTruth.value, "The lantern covers a shrine.");
 });
 
+test("player projection strips host-only event log entries", () => {
+  let state = createInitialSessionState({
+    id: "session_test",
+    roomId: "room_test",
+    rulesetId: "5e-srd-5.2.1",
+    adventureModuleId: "adventure_lantern",
+    currentSceneId: "scene_village_square",
+    now: "2026-06-02T00:00:00.000Z",
+  });
+
+  state = appendSessionEvent(
+    state,
+    baseEvent({
+      id: "event_public_message",
+      type: "player.message",
+      actorRole: "player",
+      actorId: "player_1",
+      message: "I inspect the lantern.",
+      visibility: "public",
+    }),
+  );
+  state = appendSessionEvent(
+    state,
+    baseEvent({
+      id: "event_host_patch",
+      type: "state.patch",
+      actorRole: "host",
+      actorId: "player_host",
+      patch: [
+        {
+          op: "add",
+          path: "/flags/aiPaused",
+          value: {
+            visibility: "dm_only",
+            value: true,
+          },
+        },
+      ],
+      reason: "Host-only pause reason.",
+    }),
+  );
+
+  const playerView = projectSessionState({
+    state,
+    viewerRole: "player",
+    viewerPlayerId: "player_1",
+  });
+  const hostView = projectSessionState({ state, viewerRole: "host" });
+
+  assert.equal(hostView.eventLog[1].reason, "Host-only pause reason.");
+  assert.equal(playerView.flags.aiPaused, undefined);
+  assert.deepEqual(
+    playerView.eventLog.map((event) => event.type),
+    ["player.message"],
+  );
+  assert.equal(JSON.stringify(playerView).includes("Host-only pause reason."), false);
+});
+
 test("validation requires known event type and matching session id", () => {
   assert.throws(
     () =>
@@ -367,3 +499,174 @@ test("validation requires known event type and matching session id", () => {
     /sessionId/,
   );
 });
+
+test("lifecycle validation rejects invalid player and missing character owner", () => {
+  assert.throws(
+    () =>
+      validateSessionEvent(
+        baseEvent({
+          id: "event_invalid_player",
+          type: "player.joined",
+          player: {
+            id: "player_0002",
+            role: "player",
+            visibility: "public",
+          },
+        }),
+        "session_test",
+      ),
+    /displayName/,
+  );
+
+  const initial = createInitialSessionState({
+    id: "session_test",
+    roomId: "room_test",
+    rulesetId: "5e-srd-5.2.1",
+    adventureModuleId: "adventure_unloaded",
+    currentSceneId: "scene_unloaded",
+    now: "2026-06-02T00:00:00.000Z",
+  });
+
+  assert.throws(
+    () =>
+      appendSessionEvent(
+        initial,
+        baseEvent({
+          id: "event_orphan_character",
+          type: "character.created",
+          playerId: "player_missing",
+          character: demoCharacter({
+            id: "char_orphan",
+            playerId: "player_missing",
+          }),
+        }),
+      ),
+    /player_not_found/,
+  );
+});
+
+test("replay validates Host review audit events and approved public AI messages", () => {
+  const initial = createInitialSessionState({
+    id: "session_test",
+    roomId: "room_test",
+    rulesetId: "5e-srd-5.2.1",
+    adventureModuleId: "adventure_lantern",
+    currentSceneId: "scene_village_square",
+    now: "2026-06-02T00:00:00.000Z",
+  });
+
+  const events = [
+    baseEvent({
+      id: "event_review_created",
+      type: "host.review.created",
+      actorRole: "ai_dm",
+      reviewItem: {
+        id: "review_0001",
+        sessionId: "session_test",
+        type: "ai_output",
+        proposedPayload: { publicMessage: "Unsafe output." },
+        reason: "Spoiler guard blocked output.",
+        riskLevel: "high",
+        status: "pending",
+        createdAt: "2026-06-02T00:01:00.000Z",
+      },
+    }),
+    baseEvent({
+      id: "event_review_updated",
+      type: "host.review.updated",
+      actorRole: "host",
+      itemId: "review_0001",
+      action: "approve",
+      reason: "Host approved safe edit.",
+    }),
+    baseEvent({
+      id: "event_ai_message",
+      type: "ai.message",
+      actorRole: "host",
+      message: "The lantern flickers back to life.",
+      reviewItemId: "review_0001",
+      reviewStatus: "approved",
+      visibility: "public",
+    }),
+  ];
+
+  const replayed = replaySessionEvents(events, initial);
+
+  assert.equal(replayed.version, 3);
+  assert.deepEqual(replayed.eventLog.map((event) => event.type), [
+    "host.review.created",
+    "host.review.updated",
+    "ai.message",
+  ]);
+});
+
+test("review and AI message validation rejects private or unsupported payloads", () => {
+  assert.throws(
+    () =>
+      validateSessionEvent(
+        baseEvent({
+          id: "event_bad_review_update",
+          type: "host.review.updated",
+          itemId: "review_0001",
+          action: "publish",
+        }),
+        "session_test",
+      ),
+    /Unsupported review action/,
+  );
+
+  assert.throws(
+    () =>
+      validateSessionEvent(
+        baseEvent({
+          id: "event_private_ai_message",
+          type: "ai.message",
+          message: "Private narration.",
+          visibility: "dm_only",
+          reviewStatus: "approved",
+        }),
+        "session_test",
+      ),
+    /visibility/,
+  );
+});
+
+function demoCharacter(overrides = {}) {
+  return {
+    id: "char_ada",
+    playerId: "player_0002",
+    name: "Ada Thorne",
+    className: "Fighter",
+    level: 1,
+    abilities: {
+      strength: 14,
+      dexterity: 12,
+      constitution: 14,
+      intelligence: 10,
+      wisdom: 11,
+      charisma: 8,
+    },
+    armorClass: 16,
+    hitPoints: {
+      current: 12,
+      max: 12,
+      temporary: 0,
+    },
+    speed: 30,
+    savingThrowProficiencies: ["strength", "constitution"],
+    skillProficiencies: ["athletics", "perception"],
+    attacks: [
+      {
+        id: "attack_longsword",
+        name: "Longsword",
+        attackBonus: 5,
+        damage: "1d8+3",
+        damageType: "slashing",
+      },
+    ],
+    spells: [],
+    inventory: [],
+    conditions: [],
+    ...overrides,
+  };
+}

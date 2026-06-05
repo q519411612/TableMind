@@ -25,20 +25,20 @@ test("milestone 3 simulates role-aware adventure execution", async () => {
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
-    now: "2026-06-02T04:02:00.000Z",
+    now: "2026-06-02T04:01:30.000Z",
   });
   const sceneChange = service.changeScene({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     sceneId: "scene_lantern_tower",
-    now: "2026-06-02T04:03:00.000Z",
+    now: "2026-06-02T04:02:00.000Z",
     reason: "The party reaches the lantern tower.",
   });
   service.revealClue({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     clueId: "clue_broken_lens",
-    now: "2026-06-02T04:04:00.000Z",
+    now: "2026-06-02T04:03:00.000Z",
   });
 
   const hostView = service.getAdventureSnapshot({
@@ -58,10 +58,15 @@ test("milestone 3 simulates role-aware adventure execution", async () => {
   assert.ok(hostView.currentScene.encounter.dmNotes.includes("flee"));
   assert.equal(playerView.truth, undefined);
   assert.equal(playerView.currentScene.dmNotes, undefined);
-  assert.equal(playerView.currentScene.encounter.dmNotes, undefined);
+  assert.equal(playerView.currentScene.encounter, undefined);
   assert.deepEqual(
-    playerView.currentScene.clues.map((clue) => [clue.id, clue.visibility]),
-    [["clue_broken_lens", "revealed"]],
+    playerView.currentScene.clues.map((clue) => [
+      clue.publicHandle,
+      clue.title,
+      clue.id,
+      clue.visibility,
+    ]),
+    [["clue_1", "Broken Lantern Lens", undefined, "revealed"]],
   );
   assert.deepEqual(
     service.getCommittedEvents(room.roomId).map((event) => [

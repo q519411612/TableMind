@@ -63,7 +63,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: ada.playerId,
-    now: "2026-06-02T10:03:00.000Z",
+    now: "2026-06-02T10:02:10.000Z",
     character: character({
       id: "char_ada",
       name: "Ada Thorne",
@@ -94,7 +94,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: bran.playerId,
-    now: "2026-06-02T10:04:00.000Z",
+    now: "2026-06-02T10:02:20.000Z",
     character: character({
       id: "char_bran",
       name: "Bran Vale",
@@ -126,19 +126,19 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
-    now: "2026-06-02T10:05:00.000Z",
+    now: "2026-06-02T10:02:30.000Z",
   });
   service.startSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
-    now: "2026-06-02T10:06:00.000Z",
+    now: "2026-06-02T10:03:00.000Z",
   });
   service.changeScene({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     sceneId: "scene_lantern_tower",
     reason: "The party reaches the lantern tower.",
-    now: "2026-06-02T10:07:00.000Z",
+    now: "2026-06-02T10:04:00.000Z",
   });
 
   const aiTurn = await runAiDmTurn({
@@ -178,13 +178,13 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     roomId: room.roomId,
     roll: aiTurn.ruleResults[0].d20,
     reason: aiTurn.ruleResults[0].reason,
-    now: "2026-06-02T10:08:00.000Z",
+    now: "2026-06-02T10:05:00.000Z",
   });
   service.revealClue({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     clueId: "clue_broken_lens",
-    now: "2026-06-02T10:09:00.000Z",
+    now: "2026-06-02T10:06:00.000Z",
   });
   service.startCombatFromEncounter({
     roomId: room.roomId,
@@ -192,8 +192,8 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada", "char_bran"],
     compendiumEntries: compendium,
-    randomSource: createSequenceRandomSource([0.5, 0.45, 0.1, 0.2]),
-    now: "2026-06-02T10:10:00.000Z",
+    randomSource: createSequenceRandomSource([0.9, 0.1, 0.2, 0.3]),
+    now: "2026-06-02T10:07:00.000Z",
   });
   service.resolveCombatAttack({
     roomId: room.roomId,
@@ -202,27 +202,27 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     targetCombatantId: "combatant_monster_hill_scavenger_1",
     attackId: "attack_longsword",
     randomSource: createSequenceRandomSource([0.7, 0.5]),
-    now: "2026-06-02T10:11:00.000Z",
+    now: "2026-06-02T10:08:00.000Z",
   });
   service.setAiPaused({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     paused: true,
     reason: "Host reviews the closing narration.",
-    now: "2026-06-02T10:12:00.000Z",
+    now: "2026-06-02T10:09:00.000Z",
   });
   service.endCombat({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     reason: "The remaining scavenger flees into the rain.",
-    now: "2026-06-02T10:13:00.000Z",
+    now: "2026-06-02T10:10:00.000Z",
   });
   const completed = service.completeSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     ending: "Repair the Lantern",
     rewards: ["Village gratitude", "A safe hill road"],
-    now: "2026-06-02T10:14:00.000Z",
+    now: "2026-06-02T10:11:00.000Z",
   });
 
   const hostState = service.getSnapshot({

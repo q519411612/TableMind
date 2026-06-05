@@ -69,7 +69,7 @@ test("milestone 2 simulates a local room gameplay skeleton", async () => {
     roomId: room.roomId,
     playerId: ada.playerId,
     character: demoCharacter,
-    now: "2026-06-02T02:03:00.000Z",
+    now: "2026-06-02T02:02:30.000Z",
   });
   service.setRoomFlag({
     roomId: room.roomId,
@@ -83,13 +83,13 @@ test("milestone 2 simulates a local room gameplay skeleton", async () => {
   const started = service.startSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
-    now: "2026-06-02T02:04:00.000Z",
+    now: "2026-06-02T02:03:00.000Z",
   });
   const message = service.sendPublicMessage({
     roomId: room.roomId,
     playerId: ada.playerId,
     text: "I inspect the dark lantern.",
-    now: "2026-06-02T02:05:00.000Z",
+    now: "2026-06-02T02:04:00.000Z",
   });
 
   const adaSnapshot = service.getSnapshot({

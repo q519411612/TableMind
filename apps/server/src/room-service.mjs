@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { validateAdventureModule } from "../../../packages/adventure-loader/src/index.mjs";
 import {
   appendSessionEvent,
   createCharacter,
@@ -29,48 +31,50 @@ export function createRoomService(options = {}) {
       now: input.now,
     });
 
+    const hostPlayer = {
+      id: hostPlayerId,
+      displayName: input.hostDisplayName,
+      role: "host",
+      visibility: "public",
+    };
+
     const room = {
       roomId,
       hostPlayerId,
       inviteLink: `${baseInviteUrl}/${roomId}`,
       state,
       adventure: undefined,
-      presence: new Map([
-        [
-          hostPlayerId,
-          {
-            playerId: hostPlayerId,
-            displayName: input.hostDisplayName,
-            role: "host",
-            connected: true,
-            lastSeenAt: input.now,
-          },
-        ],
-      ]),
+      presence: new Map(),
+      sessionTokens: new Map(),
       committedEvents: [],
       reviewQueue: [],
       nextPlayerNumber: 2,
       nextEventNumber: 1,
       nextReviewNumber: 1,
     };
+    const hostSessionToken = issueSessionToken(room, hostPlayerId, options);
 
-    const hostJoinedEvent = buildEvent(room, {
+    const event = buildEvent(room, {
       type: "player.joined",
-      actorRole: "system",
+      actorId: hostPlayerId,
+      actorRole: "host",
       createdAt: input.now,
-      player: {
-        id: hostPlayerId,
-        displayName: input.hostDisplayName,
-        role: "host",
-        visibility: "public",
-      },
+      player: hostPlayer,
     });
-    commitEvent(room, hostJoinedEvent);
+    commitEvent(room, event);
+    room.presence.set(hostPlayerId, {
+      playerId: hostPlayerId,
+      displayName: input.hostDisplayName,
+      role: "host",
+      connected: true,
+      lastSeenAt: input.now,
+    });
     rooms.set(roomId, room);
 
     return {
       roomId,
       hostPlayerId,
+      hostSessionToken,
       inviteLink: room.inviteLink,
       snapshot: projectSessionState({ state: room.state, viewerRole: "host" }),
     };
@@ -79,6 +83,7 @@ export function createRoomService(options = {}) {
   function joinRoom(input) {
     const room = requireRoom(input.roomId);
     const playerId = `player_${nextCounter(room.nextPlayerNumber)}`;
+
     const player = {
       id: playerId,
       displayName: input.displayName,
@@ -87,13 +92,14 @@ export function createRoomService(options = {}) {
     };
     const event = buildEvent(room, {
       type: "player.joined",
-      actorRole: "system",
+      actorId: playerId,
+      actorRole: "player",
       createdAt: input.now,
       player,
     });
     commitEvent(room, event);
+    const playerSessionToken = issueSessionToken(room, playerId, options);
     room.nextPlayerNumber += 1;
-
     room.presence.set(playerId, {
       playerId,
       displayName: input.displayName,
@@ -104,6 +110,8 @@ export function createRoomService(options = {}) {
 
     return {
       playerId,
+      playerSessionToken,
+      event,
       snapshot: getSnapshot({
         roomId: input.roomId,
         viewerRole: "player",
@@ -221,6 +229,7 @@ export function createRoomService(options = {}) {
 
     return {
       character,
+      event,
       snapshot: getSnapshot({
         roomId: input.roomId,
         viewerRole: player.role === "host" ? "host" : "player",
@@ -246,17 +255,29 @@ export function createRoomService(options = {}) {
       status: "pending",
       createdAt: input.now,
     };
+    const event = buildEvent(room, {
+      type: "host.review.created",
+      actorId: input.actorId,
+      actorRole: input.actorRole ?? "ai_dm",
+      createdAt: input.now,
+      reviewItem: item,
+    });
+    commitEvent(room, event);
     room.nextReviewNumber += 1;
     room.reviewQueue.push(item);
     return structuredClone(item);
   }
 
   function getHostReviewQueue(input) {
-    requireRoom(input.roomId);
+    const room = requireRoom(input.roomId);
+    if (input.hostPlayerId) {
+      requireHost(room, input.hostPlayerId);
+      return structuredClone(room.reviewQueue);
+    }
     if (input.viewerRole !== "host") {
       throw new Error("forbidden");
     }
-    return structuredClone(requireRoom(input.roomId).reviewQueue);
+    return structuredClone(room.reviewQueue);
   }
 
   function updateHostReviewItem(input) {
@@ -267,19 +288,71 @@ export function createRoomService(options = {}) {
       throw new Error("review_item_not_found");
     }
 
+    const updatedItem = structuredClone(item);
     if (input.action === "approve") {
-      item.status = "approved";
+      updatedItem.status = "approved";
     } else if (input.action === "reject") {
-      item.status = "rejected";
-      item.rejectionReason = input.reason;
+      updatedItem.status = "rejected";
+      updatedItem.rejectionReason = input.reason;
     } else if (input.action === "edit") {
-      item.status = "edited";
-      item.proposedPayload = structuredClone(input.proposedPayload);
+      updatedItem.status = "edited";
+      updatedItem.proposedPayload = structuredClone(input.proposedPayload);
     } else {
       throw new Error(`Unsupported review action: ${input.action}`);
     }
 
+    const event = buildEvent(room, {
+      type: "host.review.updated",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      itemId: input.itemId,
+      action: input.action,
+      reason: input.reason,
+      proposedPayload:
+        input.proposedPayload === undefined
+          ? undefined
+          : structuredClone(input.proposedPayload),
+    });
+    commitEvent(room, event);
+    Object.assign(item, updatedItem);
+
     return structuredClone(item);
+  }
+
+  function commitApprovedAiMessage(input) {
+    const room = requireRoom(input.roomId);
+    requireHost(room, input.hostPlayerId);
+
+    if (input.reviewItemId) {
+      const reviewItem = room.reviewQueue.find(
+        (candidate) => candidate.id === input.reviewItemId,
+      );
+      if (!reviewItem) {
+        throw new Error("review_item_not_found");
+      }
+      if (!["approved", "edited"].includes(reviewItem.status)) {
+        throw new Error("review_item_not_approved");
+      }
+    }
+
+    const event = buildEvent(room, {
+      type: "ai.message",
+      actorId: input.hostPlayerId,
+      actorRole: "host",
+      createdAt: input.now,
+      message: input.message,
+      reviewItemId: input.reviewItemId,
+      reviewStatus: input.reviewStatus ?? "approved",
+      visibility: "public",
+    });
+    commitEvent(room, event);
+
+    return {
+      event,
+      broadcasts: buildBroadcasts(room, event),
+      snapshot: getSnapshot({ roomId: input.roomId, viewerRole: "host" }),
+    };
   }
 
   function loadAdventureModule(input) {
@@ -287,19 +360,21 @@ export function createRoomService(options = {}) {
     requireHost(room, input.hostPlayerId);
     validateAdventureForRoom(room, input.adventure);
 
+    const adventure = structuredClone(input.adventure);
     const event = buildEvent(room, {
       type: "adventure.loaded",
       actorId: input.hostPlayerId,
       actorRole: "host",
       createdAt: input.now,
-      adventureModuleId: input.adventure.id,
-      startingSceneId: input.adventure.startingSceneId,
+      adventureModuleId: adventure.id,
+      startingSceneId: adventure.startingSceneId,
     });
     commitEvent(room, event);
-    room.adventure = structuredClone(input.adventure);
+    room.adventure = adventure;
 
     return {
-      adventureId: input.adventure.id,
+      adventureId: adventure.id,
+      event,
       snapshot: getAdventureSnapshot({
         roomId: input.roomId,
         viewerRole: "host",
@@ -438,6 +513,15 @@ export function createRoomService(options = {}) {
     const target = requireCombatant(combat, input.targetCombatantId);
     if (actor.role !== "host" && attacker.playerId !== input.actorPlayerId) {
       throw new Error("forbidden");
+    }
+    if (input.hostOverrideReason && actor.role !== "host") {
+      throw new Error("forbidden");
+    }
+    if (["defeated", "dead", "fled"].includes(attacker.status)) {
+      throw new Error("invalid_combat_action");
+    }
+    if (combat.activeCombatantId !== attacker.id && !input.hostOverrideReason) {
+      throw new Error("invalid_combat_action");
     }
     const attack = requireAttack(attacker, input.attackId);
     const attackResult = resolveAttack({
@@ -712,6 +796,27 @@ export function createRoomService(options = {}) {
     });
   }
 
+  function resolveSessionIdentity(input) {
+    const room = requireRoom(input.roomId);
+    if (typeof input.sessionToken !== "string" || input.sessionToken.length === 0) {
+      throw new Error("forbidden");
+    }
+    const playerId = room.sessionTokens.get(input.sessionToken);
+    if (!playerId) {
+      throw new Error("forbidden");
+    }
+    const player = room.state.players[playerId];
+    if (!player) {
+      throw new Error("forbidden");
+    }
+    return {
+      roomId: input.roomId,
+      playerId,
+      viewerPlayerId: playerId,
+      viewerRole: player.role === "host" ? "host" : "player",
+    };
+  }
+
   function buildBroadcasts(room, event) {
     return getPresence(room.roomId)
       .filter((presence) => presence.connected)
@@ -763,6 +868,7 @@ export function createRoomService(options = {}) {
     addHostReviewItem,
     getHostReviewQueue,
     updateHostReviewItem,
+    commitApprovedAiMessage,
     loadAdventureModule,
     getAdventureSnapshot,
     revealClue,
@@ -779,18 +885,27 @@ export function createRoomService(options = {}) {
     getPresence,
     getCommittedEvents,
     getSnapshot,
+    resolveSessionIdentity,
   };
 }
 
-function validateAdventureForRoom(room, adventure) {
-  if (!adventure || typeof adventure !== "object") {
-    throw new Error("adventure is required");
+function issueSessionToken(room, playerId, options) {
+  const token =
+    options.sessionTokenFactory?.({
+      roomId: room.roomId,
+      playerId,
+    }) ?? `tm_session_${randomUUID()}`;
+  if (typeof token !== "string" || token.length === 0) {
+    throw new Error("session token factory must return a non-empty string");
   }
+  room.sessionTokens.set(token, playerId);
+  return token;
+}
+
+function validateAdventureForRoom(room, adventure) {
+  validateAdventureModule(adventure);
   if (adventure.rulesetId !== room.state.rulesetId) {
     throw new Error("adventure ruleset does not match room");
-  }
-  if (!adventure.scenes?.some((scene) => scene.id === adventure.startingSceneId)) {
-    throw new Error("adventure starting scene is missing");
   }
 }
 
@@ -818,6 +933,9 @@ function buildPlayerAdventureSnapshot(room) {
   const adventure = room.adventure;
   const currentScene = requireCurrentScene(room);
   const revealed = new Set(room.state.discoveredClueIds);
+  const visibleClues = sceneClues(adventure, currentScene).filter(
+    (clue) => clue.visibility === "public" || revealed.has(clue.id),
+  );
 
   return {
     id: adventure.id,
@@ -826,15 +944,12 @@ function buildPlayerAdventureSnapshot(room) {
       id: currentScene.id,
       title: currentScene.title,
       readAloud: structuredClone(currentScene.readAloud),
-      clueIds: structuredClone(currentScene.clueIds),
-      npcIds: structuredClone(currentScene.npcIds),
-      encounterId: currentScene.encounterId,
-      clues: sceneClues(adventure, currentScene)
-        .filter((clue) => clue.visibility === "public" || revealed.has(clue.id))
-        .map((clue) => ({
-          ...structuredClone(clue),
-          visibility: clue.visibility === "public" ? "public" : "revealed",
-        })),
+      clues: visibleClues.map((clue, index) => ({
+        publicHandle: `clue_${index + 1}`,
+        title: clue.title,
+        text: clue.text,
+        visibility: clue.visibility === "public" ? "public" : "revealed",
+      })),
       npcs: sceneNpcs(adventure, currentScene, "player"),
       encounter: sceneEncounter(adventure, currentScene, "player"),
     },
@@ -871,13 +986,16 @@ function sceneNpcs(adventure, scene, viewerRole) {
     if (viewerRole === "host") {
       return structuredClone(npc);
     }
+    if (!["public", "revealed"].includes(npc.visibility)) {
+      return undefined;
+    }
     return {
-      id: npc.id,
+      publicHandle: `npc_${scene.npcIds.indexOf(npcId) + 1}`,
       name: npc.name,
       publicDescription: npc.publicDescription,
       visibility: npc.visibility,
     };
-  });
+  }).filter(Boolean);
 }
 
 function sceneEncounter(adventure, scene, viewerRole) {
@@ -893,11 +1011,14 @@ function sceneEncounter(adventure, scene, viewerRole) {
   if (viewerRole === "host") {
     return structuredClone(encounter);
   }
+  if (!["public", "revealed"].includes(encounter.visibility)) {
+    return undefined;
+  }
   return {
-    id: encounter.id,
+    publicHandle: "encounter_1",
     title: encounter.title,
     publicSetup: encounter.publicSetup,
-    combatants: structuredClone(encounter.combatants),
+    visibility: encounter.visibility,
   };
 }
 

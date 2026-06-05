@@ -140,3 +140,83 @@ test("Host recap includes unresolved hidden threads and character status", () =>
   assert.deepEqual(recap.characterStates, ["Ada Thorne: 10/12 HP"]);
   assert.ok(recap.markdown.includes("Secret: Broken Seal"));
 });
+
+test("player recap excludes rejected review payloads but includes approved AI messages", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events: [
+      ...events,
+      {
+        id: "event_review_created",
+        type: "host.review.created",
+        createdAt: "2026-06-02T09:07:00.000Z",
+        reviewItem: {
+          id: "review_0001",
+          type: "ai_output",
+          proposedPayload: {
+            publicMessage: "Mira broke the shrine seal while searching for her sibling.",
+          },
+          reason: "Spoiler guard blocked output.",
+          riskLevel: "high",
+          status: "pending",
+        },
+      },
+      {
+        id: "event_review_updated",
+        type: "host.review.updated",
+        createdAt: "2026-06-02T09:08:00.000Z",
+        itemId: "review_0001",
+        action: "reject",
+        reason: "Mira broke the shrine seal while searching for her sibling.",
+      },
+      {
+        id: "event_ai_message",
+        type: "ai.message",
+        createdAt: "2026-06-02T09:09:00.000Z",
+        message: "The lantern flickers back to life.",
+        reviewItemId: "review_0002",
+        reviewStatus: "approved",
+        visibility: "public",
+      },
+    ],
+    adventure,
+    viewerRole: "player",
+  });
+
+  assert.equal(recap.markdown.includes("Mira broke the shrine seal"), false);
+  assert.ok(recap.markdown.includes("The lantern flickers back to life."));
+});
+
+test("Host recap includes review audit history", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events: [
+      {
+        id: "event_review_created",
+        type: "host.review.created",
+        createdAt: "2026-06-02T09:07:00.000Z",
+        reviewItem: {
+          id: "review_0001",
+          type: "ai_output",
+          proposedPayload: { publicMessage: "Unsafe output." },
+          reason: "Spoiler guard blocked output.",
+          riskLevel: "high",
+          status: "pending",
+        },
+      },
+      {
+        id: "event_review_updated",
+        type: "host.review.updated",
+        createdAt: "2026-06-02T09:08:00.000Z",
+        itemId: "review_0001",
+        action: "reject",
+        reason: "Too early.",
+      },
+    ],
+    adventure,
+    viewerRole: "host",
+  });
+
+  assert.ok(recap.markdown.includes("Review created: Spoiler guard blocked output."));
+  assert.ok(recap.markdown.includes("Review reject: Too early."));
+});
