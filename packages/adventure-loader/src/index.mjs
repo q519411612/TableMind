@@ -412,6 +412,12 @@ function requireEntryId(entry) {
 
 function collectValidationIssues(module) {
   const issues = [];
+  const sceneIds = new Set((module?.scenes ?? []).map((scene) => scene.id));
+  const clueIds = new Set((module?.clues ?? []).map((clue) => clue.id));
+  const npcIds = new Set((module?.npcs ?? []).map((npc) => npc.id));
+  const encounterIds = new Set(
+    (module?.encounters ?? []).map((encounter) => encounter.id),
+  );
 
   for (const key of [
     "id",
@@ -448,7 +454,140 @@ function collectValidationIssues(module) {
     );
   }
 
+  validateSource(module?.source, issues);
+  validateScenes(module?.scenes, { clueIds, npcIds, encounterIds }, issues);
+  validateClues(module?.clues, { sceneIds }, issues);
+  validateNpcs(module?.npcs, issues);
+  validateEncounters(module?.encounters, issues);
+  validateEndings(module?.endings, issues);
+
   return issues;
+}
+
+const visibilityValues = new Set([
+  "public",
+  "dm_only",
+  "revealed",
+  "player_specific",
+]);
+
+function validateSource(source, issues) {
+  if (!source || typeof source !== "object") {
+    return;
+  }
+  for (const key of ["id", "title", "contentClass", "license", "attribution"]) {
+    if (typeof source[key] !== "string" || source[key].length === 0) {
+      issues.push(errorIssue(`MISSING_SOURCE_${key.toUpperCase()}`, `source.${key} is required`));
+    }
+  }
+}
+
+function validateScenes(scenes, refs, issues) {
+  if (!Array.isArray(scenes)) {
+    return;
+  }
+  for (const scene of scenes) {
+    for (const key of ["id", "title"]) {
+      if (typeof scene?.[key] !== "string" || scene[key].length === 0) {
+        issues.push(errorIssue(`MISSING_SCENE_${key.toUpperCase()}`, `scene.${key} is required`));
+      }
+    }
+    if (!scene?.readAloud?.text) {
+      issues.push(errorIssue("MISSING_SCENE_READALOUD", `scene ${scene?.id ?? "<unknown>"} readAloud.text is required`));
+    }
+    for (const clueId of scene?.clueIds ?? []) {
+      if (!refs.clueIds.has(clueId)) {
+        issues.push(errorIssue("BROKEN_SCENE_CLUE", `scene clue not found: ${clueId}`));
+      }
+    }
+    for (const npcId of scene?.npcIds ?? []) {
+      if (!refs.npcIds.has(npcId)) {
+        issues.push(errorIssue("BROKEN_SCENE_NPC", `scene NPC not found: ${npcId}`));
+      }
+    }
+    if (scene?.encounterId && !refs.encounterIds.has(scene.encounterId)) {
+      issues.push(errorIssue("BROKEN_SCENE_ENCOUNTER", `scene encounter not found: ${scene.encounterId}`));
+    }
+  }
+}
+
+function validateClues(clues, refs, issues) {
+  if (!Array.isArray(clues)) {
+    return;
+  }
+  for (const clue of clues) {
+    for (const key of ["id", "title", "text"]) {
+      if (typeof clue?.[key] !== "string" || clue[key].length === 0) {
+        issues.push(errorIssue(`MISSING_CLUE_${key.toUpperCase()}`, `clue.${key} is required`));
+      }
+    }
+    validateVisibility(clue?.visibility, "clue.visibility", issues);
+    if (clue?.sourceSceneId && !refs.sceneIds.has(clue.sourceSceneId)) {
+      issues.push(errorIssue("BROKEN_CLUE_SCENE", `clue sourceSceneId not found: ${clue.sourceSceneId}`));
+    }
+  }
+}
+
+function validateNpcs(npcs, issues) {
+  if (!Array.isArray(npcs)) {
+    return;
+  }
+  for (const npc of npcs) {
+    for (const key of ["id", "name", "publicDescription"]) {
+      if (typeof npc?.[key] !== "string" || npc[key].length === 0) {
+        issues.push(errorIssue(`MISSING_NPC_${key.toUpperCase()}`, `npc.${key} is required`));
+      }
+    }
+    validateVisibility(npc?.visibility, "npc.visibility", issues);
+  }
+}
+
+function validateEncounters(encounters, issues) {
+  if (!Array.isArray(encounters)) {
+    return;
+  }
+  for (const encounter of encounters) {
+    for (const key of ["id", "title", "publicSetup"]) {
+      if (typeof encounter?.[key] !== "string" || encounter[key].length === 0) {
+        issues.push(errorIssue(`MISSING_ENCOUNTER_${key.toUpperCase()}`, `encounter.${key} is required`));
+      }
+    }
+    validateVisibility(encounter?.visibility, "encounter.visibility", issues);
+    if (!Array.isArray(encounter?.combatants)) {
+      issues.push(errorIssue("MISSING_ENCOUNTER_COMBATANTS", "encounter.combatants is required"));
+      continue;
+    }
+    for (const combatant of encounter.combatants) {
+      if (
+        typeof combatant.compendiumEntryId !== "string" ||
+        combatant.compendiumEntryId.length === 0
+      ) {
+        issues.push(errorIssue("MISSING_ENCOUNTER_COMPENDIUM", "encounter combatant compendiumEntryId is required"));
+      }
+      if (!Number.isInteger(combatant.count) || combatant.count < 1) {
+        issues.push(errorIssue("INVALID_ENCOUNTER_COUNT", "encounter combatant count must be positive"));
+      }
+    }
+  }
+}
+
+function validateEndings(endings, issues) {
+  if (!Array.isArray(endings)) {
+    return;
+  }
+  for (const ending of endings) {
+    for (const key of ["id", "title", "publicText"]) {
+      if (typeof ending?.[key] !== "string" || ending[key].length === 0) {
+        issues.push(errorIssue(`MISSING_ENDING_${key.toUpperCase()}`, `ending.${key} is required`));
+      }
+    }
+  }
+}
+
+function validateVisibility(value, label, issues) {
+  if (!visibilityValues.has(value)) {
+    issues.push(errorIssue("INVALID_VISIBILITY", `${label} must be a supported visibility`));
+  }
 }
 
 function errorIssue(code, message) {

@@ -25,9 +25,13 @@ export function createTableMindApi(input = {}) {
       );
     },
     getSnapshot(roomId, input) {
-      const search = new URLSearchParams({
-        viewerRole: input.viewerRole,
-      });
+      const search = new URLSearchParams();
+      if (input.sessionToken) {
+        search.set("sessionToken", input.sessionToken);
+      }
+      if (input.viewerRole) {
+        search.set("viewerRole", input.viewerRole);
+      }
       if (input.viewerPlayerId) {
         search.set("viewerPlayerId", input.viewerPlayerId);
       }
@@ -36,9 +40,13 @@ export function createTableMindApi(input = {}) {
       );
     },
     getAdventureSnapshot(roomId, input) {
-      const search = new URLSearchParams({
-        viewerRole: input.viewerRole,
-      });
+      const search = new URLSearchParams();
+      if (input.sessionToken) {
+        search.set("sessionToken", input.sessionToken);
+      }
+      if (input.viewerRole) {
+        search.set("viewerRole", input.viewerRole);
+      }
       if (input.viewerPlayerId) {
         search.set("viewerPlayerId", input.viewerPlayerId);
       }
@@ -76,6 +84,12 @@ export function createHostCommandClient(input) {
         proposedPayload,
       });
     },
+    listReviewQueue() {
+      return command("host.review.list", {});
+    },
+    runAiTurn(payload = {}) {
+      return command("ai.turn.run", payload);
+    },
     commitAiMessage(message, reviewItemId, reviewStatus) {
       return command("ai.message.commit", {
         message,
@@ -93,10 +107,10 @@ export function createHostCommandClient(input) {
         reason,
       });
     },
-    patchCondition(combatantId, condition, action, reason) {
+    patchCondition(combatantId, conditionId, action, reason) {
       return command("combat.patch_condition", {
         combatantId,
-        condition,
+        condition: { conditionId },
         action,
         reason,
       });
@@ -112,7 +126,7 @@ export function createHostCommandClient(input) {
     },
     refreshSnapshot() {
       return input.api.getSnapshot(input.roomId, {
-        viewerRole: "host",
+        sessionToken: input.hostSessionToken,
       });
     },
   };
@@ -133,8 +147,7 @@ export function createPlayerCommandClient(input) {
     },
     refreshSnapshot() {
       return input.api.getSnapshot(input.roomId, {
-        viewerRole: "player",
-        viewerPlayerId: input.playerId,
+        sessionToken: input.playerSessionToken,
       });
     },
   };
@@ -145,6 +158,7 @@ function hostCommand(input) {
     input.api.sendAction(input.roomId, {
       type,
       actorPlayerId: input.hostPlayerId,
+      sessionToken: input.hostSessionToken,
       payload,
       now: currentTime(input),
     });
@@ -155,6 +169,7 @@ function playerCommand(input) {
     input.api.sendAction(input.roomId, {
       type,
       actorPlayerId: input.playerId,
+      sessionToken: input.playerSessionToken,
       payload,
       now: currentTime(input),
     });

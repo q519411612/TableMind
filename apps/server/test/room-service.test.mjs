@@ -239,3 +239,30 @@ test("room lifecycle commands commit typed events in replay order", async () => 
     ],
   );
 });
+
+test("loadAdventureModule rejects modules with broken references through the shared validator", async () => {
+  const adventure = await loadAdventureFixture(
+    "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
+  );
+  const service = createRoomService();
+  const room = service.createRoom(baseRoomInput);
+
+  assert.throws(
+    () =>
+      service.loadAdventureModule({
+        roomId: room.roomId,
+        hostPlayerId: room.hostPlayerId,
+        adventure: {
+          ...structuredClone(adventure),
+          scenes: [
+            {
+              ...structuredClone(adventure.scenes[0]),
+              encounterId: "encounter_missing",
+            },
+          ],
+        },
+        now: "2026-06-02T01:03:00.000Z",
+      }),
+    /scene encounter not found: encounter_missing/,
+  );
+});

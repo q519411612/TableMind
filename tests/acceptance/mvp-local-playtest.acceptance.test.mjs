@@ -192,7 +192,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada", "char_bran"],
     compendiumEntries: compendium,
-    randomSource: createSequenceRandomSource([0.5, 0.45, 0.1, 0.2]),
+    randomSource: createSequenceRandomSource([0.9, 0.1, 0.2, 0.3]),
     now: "2026-06-02T10:07:00.000Z",
   });
   service.resolveCombatAttack({

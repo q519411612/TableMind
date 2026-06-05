@@ -8,6 +8,7 @@ import {
   runAiTurnForRoom,
 } from "../src/ai-room-runner.mjs";
 import { createMockAiAdapter } from "../src/ai-dm-orchestrator.mjs";
+import { createRoomActionDispatcher } from "../src/room-actions.mjs";
 import { createRoomService } from "../src/room-service.mjs";
 
 test("AI context is room-aware and excludes provider secrets", async () => {
@@ -225,6 +226,135 @@ test("provider config is disabled by default and runner refuses provider calls",
   assert.deepEqual(config, { enabled: false });
   assert.equal(result.status, "provider_disabled");
   assert.equal(result.error.code, "provider_disabled");
+});
+
+test("review-required AI output does not consume deterministic RNG or expose rule result previews", async () => {
+  const { service, room } = await createLoadedAiRoom();
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    adapter: createMockAiAdapter({
+      publicMessage: "The lantern trembles in the rain.",
+      ruleRequests: [
+        {
+          type: "skill_check",
+          characterId: "char_ada",
+          skill: "investigation",
+          dc: 15,
+          advantage: "normal",
+          reason: "Inspect the lantern soot.",
+        },
+      ],
+      confidence: "low",
+    }),
+    randomSource: createSequenceRandomSource([]),
+    now: "2026-06-02T19:15:00.000Z",
+  });
+
+  assert.equal(result.status, "host_review_required");
+  assert.deepEqual(result.ruleResults, []);
+  assert.equal(
+    service.getCommittedEvents(room.roomId).some((event) => event.type === "dice.rolled"),
+    false,
+  );
+});
+
+test("ai.turn.run dispatcher command covers safe, review, spoiler, and provider-disabled outcomes", async () => {
+  const safeRoom = await createLoadedAiRoom();
+  const safeDispatcher = createRoomActionDispatcher({
+    roomService: safeRoom.service,
+    aiAdapter: createMockAiAdapter({
+      publicMessage: "Cold soot curls around the cracked lantern frame.",
+      ruleRequests: [
+        {
+          type: "skill_check",
+          characterId: "char_ada",
+          skill: "investigation",
+          dc: 15,
+          advantage: "normal",
+          reason: "Inspect the lantern soot.",
+        },
+      ],
+      confidence: "high",
+    }),
+  });
+  const safe = await safeDispatcher.dispatchRoomCommand({
+    type: "ai.turn.run",
+    roomId: safeRoom.room.roomId,
+    actorPlayerId: safeRoom.room.hostPlayerId,
+    payload: {
+      randomValues: [0.7],
+    },
+    now: "2026-06-02T19:16:00.000Z",
+  });
+
+  const lowRoom = await createLoadedAiRoom();
+  const lowDispatcher = createRoomActionDispatcher({
+    roomService: lowRoom.service,
+    aiAdapter: createMockAiAdapter({
+      publicMessage: "The lantern trembles in the rain.",
+      confidence: "low",
+    }),
+  });
+  const low = await lowDispatcher.dispatchRoomCommand({
+    type: "ai.turn.run",
+    roomId: lowRoom.room.roomId,
+    actorPlayerId: lowRoom.room.hostPlayerId,
+    payload: {},
+    now: "2026-06-02T19:17:00.000Z",
+  });
+
+  const spoilerRoom = await createLoadedAiRoom();
+  const spoilerDispatcher = createRoomActionDispatcher({
+    roomService: spoilerRoom.service,
+    aiAdapter: createMockAiAdapter({
+      publicMessage:
+        "id: secret_broken_seal\nMira, a frightened apprentice, broke the shrine seal while searching for her missing sibling. The spirit beneath the hill is not evil, but it is using the dead lantern to draw help.",
+      confidence: "high",
+    }),
+  });
+  const spoiler = await spoilerDispatcher.dispatchRoomCommand({
+    type: "ai.turn.run",
+    roomId: spoilerRoom.room.roomId,
+    actorPlayerId: spoilerRoom.room.hostPlayerId,
+    payload: {},
+    now: "2026-06-02T19:18:00.000Z",
+  });
+
+  const disabledRoom = await createLoadedAiRoom();
+  const disabledDispatcher = createRoomActionDispatcher({
+    roomService: disabledRoom.service,
+    providerConfig: { enabled: false },
+    aiAdapter: {
+      async generateStructuredResponse() {
+        throw new Error("provider should not run");
+      },
+    },
+  });
+  const disabled = await disabledDispatcher.dispatchRoomCommand({
+    type: "ai.turn.run",
+    roomId: disabledRoom.room.roomId,
+    actorPlayerId: disabledRoom.room.hostPlayerId,
+    payload: {},
+    now: "2026-06-02T19:19:00.000Z",
+  });
+
+  assert.equal(safe.ok, true);
+  assert.equal(safe.data.status, "broadcast_ready");
+  assert.deepEqual(safe.events.map((event) => event.type), [
+    "dice.rolled",
+    "ai.message",
+  ]);
+  assert.equal(low.ok, true);
+  assert.equal(low.data.status, "host_review_required");
+  assert.equal(low.events[0].type, "host.review.created");
+  assert.equal(spoiler.ok, true);
+  assert.equal(spoiler.data.status, "host_review_required");
+  assert.equal(spoiler.events[0].type, "host.review.created");
+  assert.equal(disabled.ok, true);
+  assert.equal(disabled.data.status, "provider_disabled");
 });
 
 async function createLoadedAiRoom() {

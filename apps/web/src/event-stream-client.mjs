@@ -1,8 +1,12 @@
 export function createRoomEventStreamUrl(input) {
   const baseUrl = normalizeBaseUrl(input.baseUrl ?? "");
-  const search = new URLSearchParams({
-    viewerRole: input.viewerRole,
-  });
+  const search = new URLSearchParams();
+  if (input.sessionToken) {
+    search.set("sessionToken", input.sessionToken);
+  }
+  if (input.viewerRole) {
+    search.set("viewerRole", input.viewerRole);
+  }
   if (input.viewerPlayerId) {
     search.set("viewerPlayerId", input.viewerPlayerId);
   }

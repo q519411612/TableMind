@@ -78,6 +78,67 @@ test("validation reports missing required fields", () => {
   );
 });
 
+test("validation rejects broken scene references and incomplete source or ending fields", async () => {
+  const adventure = await loadAdventureFixture(fixturePath);
+
+  assert.throws(
+    () =>
+      validateAdventureModule({
+        ...structuredClone(adventure),
+        scenes: [
+          {
+            ...structuredClone(adventure.scenes[0]),
+            clueIds: ["clue_missing"],
+          },
+        ],
+      }),
+    /scene clue not found: clue_missing/,
+  );
+  assert.throws(
+    () =>
+      validateAdventureModule({
+        ...structuredClone(adventure),
+        source: {
+          id: "bad_source",
+          title: "Bad Source",
+          contentClass: "embedded_original",
+        },
+      }),
+    /source.license/,
+  );
+  assert.throws(
+    () =>
+      validateAdventureModule({
+        ...structuredClone(adventure),
+        endings: [
+          {
+            id: "ending_bad",
+            title: "Bad Ending",
+          },
+        ],
+      }),
+    /ending.publicText/,
+  );
+});
+
+test("validation rejects encounter combatants without compendium references", async () => {
+  const adventure = await loadAdventureFixture(fixturePath);
+
+  assert.throws(
+    () =>
+      validateAdventureModule({
+        ...structuredClone(adventure),
+        encounters: [
+          {
+            ...structuredClone(adventure.encounters[0]),
+            combatants: [{ count: 1 }],
+          },
+        ],
+      }),
+    /encounter combatant compendiumEntryId/,
+  );
+});
+
 test("parser returns draft module with validation warnings preserved", () => {
   const result = parseAdventureMarkdown(`# Adventure: Tiny
 

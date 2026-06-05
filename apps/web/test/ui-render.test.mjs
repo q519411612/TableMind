@@ -79,12 +79,14 @@ test("Host renderer includes DM-only scene, review, combat, and recap controls",
   assert.ok(html.includes("data-command=\"clue.reveal\""));
   assert.ok(html.includes("data-command=\"scene.change\""));
   assert.ok(html.includes("data-command=\"host.review.update\""));
+  assert.ok(html.includes("data-command=\"ai.turn.run\""));
   assert.ok(html.includes("data-command=\"combat.start\""));
   assert.ok(html.includes("data-command=\"combat.patch_hp\""));
   assert.ok(html.includes("name=\"combatantId\""));
   assert.ok(html.includes("name=\"currentHp\""));
   assert.ok(html.includes("data-command=\"combat.advance_turn\""));
   assert.ok(html.includes("name=\"condition\""));
+  assert.ok(html.includes("<option value=\"apply\">Apply</option>"));
   assert.ok(html.includes("data-command=\"session.complete\""));
   assert.ok(html.includes("Secret: Broken Seal"));
 });
@@ -106,12 +108,14 @@ test("UI command clients use the transport contract and keep player snapshots pl
     api,
     roomId: "room_0001",
     hostPlayerId: "player_0001",
+    hostSessionToken: "host_session_token",
     now: () => "2026-06-02T16:00:00.000Z",
   });
   const player = createPlayerCommandClient({
     api,
     roomId: "room_0001",
     playerId: "player_0002",
+    playerSessionToken: "player_session_token",
     now: () => "2026-06-02T16:00:00.000Z",
   });
 
@@ -121,13 +125,20 @@ test("UI command clients use the transport contract and keep player snapshots pl
   await host.revealClue("clue_broken_lens");
   await host.setAiPaused(true, "Host review.");
   await host.updateReview("review_0001", "approve", "Safe.");
+  await host.listReviewQueue();
+  await host.runAiTurn({ randomValues: [0.7] });
   await host.startCombat({
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada"],
     compendiumEntries: [],
   });
   await host.patchHitPoints("combatant_monster_1", 0, "Host override.");
-  await host.patchCondition("combatant_monster_1", "prone", "add", "Knocked down.");
+  await host.patchCondition(
+    "combatant_monster_1",
+    "condition_prone",
+    "apply",
+    "Knocked down.",
+  );
   await host.advanceTurn();
   await host.endCombat("The scavenger flees.");
   await host.completeSession("Repair the Lantern", ["Village gratitude"]);
@@ -151,6 +162,8 @@ test("UI command clients use the transport contract and keep player snapshots pl
       "clue.reveal",
       "ai.pause",
       "host.review.update",
+      "host.review.list",
+      "ai.turn.run",
       "combat.start",
       "combat.patch_hp",
       "combat.patch_condition",
@@ -162,8 +175,21 @@ test("UI command clients use the transport contract and keep player snapshots pl
       "combat.attack",
     ],
   );
-  assert.ok(calls.at(-1).url.includes("viewerRole=player"));
+  assert.ok(calls.at(-1).url.includes("sessionToken=player_session_token"));
   assert.equal(calls.some((call) => call.url.includes("viewerRole=host")), false);
+  assert.equal(
+    calls
+      .filter((call) => call.url.endsWith("/actions"))
+      .every((call) => typeof call.body.sessionToken === "string"),
+    true,
+  );
+  const conditionCall = calls.find(
+    (call) => call.body?.type === "combat.patch_condition",
+  );
+  assert.deepEqual(conditionCall.body.payload.condition, {
+    conditionId: "condition_prone",
+  });
+  assert.equal(conditionCall.body.payload.action, "apply");
 });
 
 function jsonResponse(body) {

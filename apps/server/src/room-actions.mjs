@@ -1,8 +1,10 @@
 import { createSequenceRandomSource } from "../../../packages/rules-engine/src/index.mjs";
+import { runAiTurnForRoom } from "./ai-room-runner.mjs";
 
 const knownErrorCodes = new Set([
   "adventure_not_loaded",
   "forbidden",
+  "invalid_combat_action",
   "invalid_room_phase",
   "player_not_found",
   "review_item_not_approved",
@@ -24,6 +26,11 @@ export function createRoomActionDispatcher(input) {
       }
 
       const result = dispatchKnownCommand(command);
+      if (result && typeof result.then === "function") {
+        return result
+          .then((resolved) => successResult(command.type, resolved))
+          .catch((error) => errorResult(commandType, error));
+      }
       return successResult(command.type, result);
     } catch (error) {
       return errorResult(commandType, error);
@@ -32,6 +39,7 @@ export function createRoomActionDispatcher(input) {
 
   function dispatchKnownCommand(command) {
     const payload = command.payload ?? {};
+    validateCommandPayload(command.type, payload);
     switch (command.type) {
       case "room.create": {
         const result = roomService.createRoom({
@@ -141,6 +149,19 @@ export function createRoomActionDispatcher(input) {
           randomSource: randomSourceFromPayload(payload),
           now: requireNow(command),
         });
+      case "combat.attack_override":
+        return roomService.resolveCombatAttack({
+          roomId: requireRoomId(command),
+          actorPlayerId: requireHostActor(command, roomService),
+          attackerCombatantId: payload.attackerCombatantId,
+          targetCombatantId: payload.targetCombatantId,
+          attackId: payload.attackId,
+          advantage: payload.advantage,
+          reason: payload.reason,
+          hostOverrideReason: requirePayloadString(payload, "reason"),
+          randomSource: randomSourceFromPayload(payload),
+          now: requireNow(command),
+        });
       case "combat.advance_turn":
         return roomService.advanceCombatTurn({
           roomId: requireRoomId(command),
@@ -191,6 +212,23 @@ export function createRoomActionDispatcher(input) {
           proposedPayload: payload.proposedPayload,
           now: requireNow(command),
         });
+      case "host.review.list":
+        return {
+          reviewQueue: roomService.getHostReviewQueue({
+            roomId: requireRoomId(command),
+            hostPlayerId: requireHostActor(command, roomService),
+          }),
+        };
+      case "ai.turn.run":
+        return runAiTurnForRoom({
+          roomService,
+          roomId: requireRoomId(command),
+          hostPlayerId: requireHostActor(command, roomService),
+          adapter: payload.adapter ?? input.aiAdapter,
+          providerConfig: payload.providerConfig ?? input.providerConfig,
+          randomSource: randomSourceFromPayload(payload),
+          now: requireNow(command),
+        });
       case "ai.message.commit":
         return roomService.commitApprovedAiMessage({
           roomId: requireRoomId(command),
@@ -202,8 +240,12 @@ export function createRoomActionDispatcher(input) {
         });
       case "dice.commit":
         requireActor(command);
+        throw commandError("forbidden", "forbidden");
+      case "dice.override_commit":
+        requirePayloadString(payload, "reason");
         return roomService.commitDiceRoll({
           roomId: requireRoomId(command),
+          hostPlayerId: requireHostActor(command, roomService),
           roll: payload.roll,
           reason: payload.reason,
           now: requireNow(command),
@@ -224,12 +266,12 @@ export function createRoomActionDispatcher(input) {
     }
   }
 
-  return { dispatchRoomCommand };
+  return { dispatchRoomCommand, roomService };
 }
 
 function successResult(commandType, result) {
   const events = collectEvents(result);
-  return {
+  const output = {
     ok: true,
     commandType,
     events,
@@ -237,6 +279,8 @@ function successResult(commandType, result) {
     snapshot: result.snapshot,
     data: stripTransportFields(result),
   };
+  validateCommandSuccessResult(output);
+  return output;
 }
 
 function collectEvents(result) {
@@ -297,11 +341,99 @@ function requireActor(command) {
   return command.actorPlayerId;
 }
 
+function validateCommandPayload(type, payload) {
+  if (!payload || typeof payload !== "object") {
+    throw commandError("bad_request", "payload must be an object");
+  }
+  if (type === "message.send") {
+    if (typeof payload.text !== "string" || payload.text.length === 0) {
+      throw commandError("bad_request", "payload.text is required");
+    }
+  }
+  if (type === "combat.patch_condition") {
+    requirePayloadString(payload, "combatantId");
+    requirePayloadString(payload, "action");
+    requirePayloadString(payload, "reason");
+    if (
+      !payload.condition ||
+      typeof payload.condition !== "object" ||
+      typeof payload.condition.conditionId !== "string" ||
+      payload.condition.conditionId.length === 0
+    ) {
+      throw commandError("bad_request", "payload.condition.conditionId is required");
+    }
+    if (!["apply", "remove"].includes(payload.action)) {
+      throw commandError("bad_request", "payload.action must be apply or remove");
+    }
+  }
+  if (type === "ai.turn.run" && payload.adapter !== undefined) {
+    if (
+      !payload.adapter ||
+      typeof payload.adapter.generateStructuredResponse !== "function"
+    ) {
+      throw commandError("bad_request", "payload.adapter must be an AI adapter");
+    }
+  }
+}
+
+function validateCommandSuccessResult(result) {
+  if (result.ok !== true) {
+    throw new Error("Command success result must set ok true");
+  }
+  if (typeof result.commandType !== "string" || result.commandType.length === 0) {
+    throw new Error("Command success result requires commandType");
+  }
+  if (!Array.isArray(result.events)) {
+    throw new Error("Command success result requires events array");
+  }
+  if (!Array.isArray(result.broadcasts)) {
+    throw new Error("Command success result requires broadcasts array");
+  }
+  if (result.snapshot !== undefined) {
+    validateSnapshotShape(result.snapshot);
+  }
+}
+
+function validateSnapshotShape(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    throw new Error("snapshot must be an object");
+  }
+  if (snapshot.roomId !== undefined && typeof snapshot.roomId !== "string") {
+    throw new Error("snapshot.roomId must be a string");
+  }
+  if (snapshot.phase !== undefined && typeof snapshot.phase !== "string") {
+    throw new Error("snapshot.phase must be a string");
+  }
+  if (snapshot.players !== undefined && typeof snapshot.players !== "object") {
+    throw new Error("snapshot.players must be an object");
+  }
+}
+
+function requireHostActor(command, roomService) {
+  const actorPlayerId = requireActor(command);
+  const roomId = requireRoomId(command);
+  const snapshot = roomService.getSnapshot({
+    roomId,
+    viewerRole: "host",
+  });
+  if (snapshot.players[actorPlayerId]?.role !== "host") {
+    throw commandError("forbidden", "forbidden");
+  }
+  return actorPlayerId;
+}
+
 function requireNow(command) {
   if (!command.now) {
     throw commandError("bad_request", "now is required");
   }
   return command.now;
+}
+
+function requirePayloadString(payload, key) {
+  if (typeof payload?.[key] !== "string" || payload[key].length === 0) {
+    throw commandError("bad_request", `${key} is required`);
+  }
+  return payload[key];
 }
 
 function randomSourceFromPayload(payload) {
