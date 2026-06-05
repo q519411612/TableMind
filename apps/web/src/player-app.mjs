@@ -16,6 +16,8 @@ const appState = {
   stream: undefined,
 };
 
+await loadPlaytestConfig();
+
 const api = createTableMindApi({ baseUrl: appState.baseUrl });
 const root = document.querySelector("#app");
 
@@ -143,6 +145,15 @@ async function syncAdventureSnapshot() {
 
 function render() {
   root.innerHTML = renderPlayerRoom(appState);
+}
+
+async function loadPlaytestConfig() {
+  const response = await fetch("/playtest/config.json");
+  if (!response.ok) {
+    throw new Error("Failed to load playtest config");
+  }
+  const config = await response.json();
+  appState.baseUrl = appState.baseUrl || config.apiBaseUrl;
 }
 
 function defaultCharacter() {
