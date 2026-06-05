@@ -135,6 +135,47 @@ test("HTTP adapter returns structured errors without crashing", async () => {
   }
 });
 
+test("HTTP adapter returns typed client errors for invalid JSON, oversized bodies, and unsupported media types", async () => {
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: createRoomService(),
+    }),
+  });
+  const { baseUrl } = await app.start();
+  try {
+    const invalidJson = await fetch(`${baseUrl}/rooms`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: '{"hostDisplayName"',
+    });
+    const invalidJsonBody = await invalidJson.json();
+
+    const oversized = await fetch(`${baseUrl}/rooms`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ payload: "x".repeat(1_000_001) }),
+    });
+    const oversizedBody = await oversized.json();
+
+    const unsupported = await fetch(`${baseUrl}/rooms`, {
+      method: "POST",
+      headers: { "content-type": "text/plain" },
+      body: JSON.stringify(roomInput),
+    });
+    const unsupportedBody = await unsupported.json();
+
+    assert.equal(invalidJson.status, 400);
+    assert.equal(invalidJsonBody.error.code, "bad_request");
+    assert.equal(invalidJsonBody.error.message, "Invalid JSON body");
+    assert.equal(oversized.status, 413);
+    assert.equal(oversizedBody.error.code, "payload_too_large");
+    assert.equal(unsupported.status, 415);
+    assert.equal(unsupportedBody.error.code, "unsupported_media_type");
+  } finally {
+    await app.stop();
+  }
+});
+
 test("SSE stream sends player-safe snapshots and public broadcasts", async () => {
   const app = createHttpServer({
     dispatcher: createRoomActionDispatcher({
@@ -289,8 +330,10 @@ test("SSE publishes state-changing commands as role-specific snapshots without o
     assert.equal(hostBroadcast.data.broadcast.event.type, "state.patch");
     assert.equal(hostBroadcast.data.broadcast.snapshot.flags.aiPaused.value, true);
     assert.equal(playerBroadcast.event, "room.broadcast");
-    assert.equal(playerBroadcast.data.broadcast.event.type, "state.patch");
+    assert.equal(playerBroadcast.data.broadcast.event, undefined);
     assert.equal(playerBroadcast.data.broadcast.snapshot.flags.aiPaused, undefined);
+    assert.equal(JSON.stringify(playerBroadcast).includes("state.patch"), false);
+    assert.equal(JSON.stringify(playerBroadcast).includes("Host-only pause reason."), false);
 
     await hostReader.cancel();
     await playerReader.cancel();

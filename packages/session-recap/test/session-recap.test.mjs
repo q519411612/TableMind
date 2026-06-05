@@ -68,6 +68,17 @@ const events = [
     type: "dice.rolled",
     createdAt: "2026-06-02T09:01:00.000Z",
     roll: { formula: "1d20", total: 17 },
+    check: {
+      characterId: "char_ada",
+      requestType: "skill_check",
+      skill: "investigation",
+      ability: "intelligence",
+      dc: 15,
+      selectedD20: 17,
+      total: 22,
+      success: true,
+      reason: "Inspect the lantern soot.",
+    },
     reason: "Inspect the lantern soot.",
   },
   {
@@ -119,8 +130,23 @@ test("player recap includes public results and excludes DM-only truth", () => {
   assert.deepEqual(recap.rewards, ["Village gratitude", "A safe hill road"]);
   assert.equal(recap.unresolvedThreads, undefined);
   assert.equal(recap.markdown.includes("Mira broke the shrine seal"), false);
+  assert.deepEqual(recap.keyRolls[0].check, {
+    characterId: "char_ada",
+    requestType: "skill_check",
+    skill: "investigation",
+    ability: "intelligence",
+    dc: 15,
+    selectedD20: 17,
+    total: 22,
+    success: true,
+    reason: "Inspect the lantern soot.",
+  });
   assert.ok(recap.markdown.includes("## Timeline"));
-  assert.ok(recap.markdown.includes("Inspect the lantern soot."));
+  assert.ok(
+    recap.markdown.includes(
+      "Inspect the lantern soot.: skill_check investigation DC 15, d20 17, total 22, success.",
+    ),
+  );
   assert.ok(recap.markdown.includes("The remaining scavenger fled."));
 });
 

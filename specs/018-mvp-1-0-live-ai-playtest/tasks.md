@@ -4,84 +4,86 @@
 
 ### Context builder
 
-- [ ] Add `ai-context-builder` module or equivalent.
-- [ ] Include Host session snapshot.
-- [ ] Include current scene with DM-only context for AI only.
-- [ ] Include unrevealed clues and DM-only secrets for spoiler checking.
-- [ ] Include relevant recent public history.
-- [ ] Include active combat state when present.
+- [x] Add `ai-context-builder` module or equivalent.
+- [x] Include Host session snapshot.
+- [x] Include current scene with DM-only context for AI only.
+- [x] Include unrevealed clues and DM-only secrets for spoiler checking.
+- [x] Include relevant recent public history.
+- [x] Include active combat state when present.
 - [ ] Add context size guard or summary strategy.
-- [ ] Test context includes required fields and excludes secrets/config values.
+- [x] Test context includes required fields and excludes secrets/config values.
 
 ### Room-aware runner
 
-- [ ] Add `runAiTurnForRoom` or equivalent.
-- [ ] Load room/adventure context through room service boundaries.
-- [ ] Call injected AI adapter.
-- [ ] Validate structured AI response.
-- [ ] Run spoiler guard.
-- [ ] Route allowed rule requests through rules engine.
-- [ ] Commit safe public AI message events.
-- [ ] Create Host review item for review-required output.
-- [ ] Return role-aware broadcasts/snapshots.
+- [x] Add `runAiTurnForRoom` or equivalent.
+- [x] Load room/adventure context through room service boundaries.
+- [x] Call injected AI adapter.
+- [x] Validate structured AI response.
+- [x] Run spoiler guard.
+- [x] Route allowed rule requests through rules engine.
+- [x] Commit safe public AI message events.
+- [x] Create Host review item for review-required output.
+- [x] Return role-aware broadcasts/snapshots.
 
 ### Provider config gate
 
-- [ ] Add provider config loader with `enabled` default false.
-- [ ] Require endpoint/apiKey/model only when enabled.
-- [ ] Add timeout/error handling wrapper.
-- [ ] Ensure tests use mock provider and do not call network.
+- [x] Add provider config loader with `enabled` default false.
+- [x] Require endpoint/apiKey/model only when enabled.
+- [x] Add timeout/error handling wrapper.
+- [x] Ensure tests use mock provider and do not call network.
 - [ ] Document local env variables without committing secrets.
 
 ## MVP-1.0B AI eval gates
 
 ### Golden AI-turn tests
 
-- [ ] Test safe narration auto-commits.
-- [ ] Test exact DM-only secret blocks output.
+- [x] Test safe narration auto-commits.
+- [x] Test exact DM-only secret blocks output.
 - [ ] Test hidden entity alias blocks output.
-- [ ] Test low confidence requires Host review.
-- [ ] Test reveal proposal requires Host review.
-- [ ] Test state patch requires Host review.
-- [ ] Test fabricated dice results are rejected.
-- [ ] Test unsupported attack/action request is rejected or review-required.
-- [ ] Test skill check routes through rules engine with deterministic RNG.
-- [ ] Test provider disabled returns controlled error.
+- [x] Test low confidence requires Host review.
+- [x] Test reveal proposal requires Host review.
+- [x] Test state patch requires Host review.
+- [x] Test fabricated dice results are rejected.
+- [x] Test unsupported attack/action request is rejected or review-required.
+- [x] Test skill check routes through rules engine with deterministic RNG.
+- [x] Test provider disabled returns controlled error.
 
 ### Regression protection
 
-- [ ] Add no-live-provider default test guard.
-- [ ] Add player recap no rejected AI output test if not already covered.
+- [x] Add no-live-provider default test guard.
+- [x] Add player recap no rejected AI output test if not already covered.
 - [ ] Add player transport/event stream no AI private payload test.
 
 ## MVP-1.0C live playtest finalization
 
 ### Playtest docs
 
-- [ ] Add `docs/playtests/MVP_1_0_PLAYTEST_CHECKLIST.md`.
-- [ ] Add `docs/playtests/MVP_1_0_PLAYTEST_REPORT_TEMPLATE.md`.
-- [ ] Add `docs/playtests/README.md` explaining pass/fail evidence.
+- [x] Add `docs/playtests/MVP_1_0_PLAYTEST_CHECKLIST.md`.
+- [x] Add `docs/playtests/MVP_1_0_PLAYTEST_REPORT_TEMPLATE.md`.
+- [x] Add `docs/playtests/README.md` explaining pass/fail evidence.
 
 ### Final acceptance path
 
 - [ ] Add script or documented command sequence for local playtest setup.
-- [ ] Add final MVP-1.0 acceptance checklist.
-- [ ] Document known limitations and non-goals.
+- [x] Add final MVP-1.0 acceptance checklist.
+- [x] Document known limitations and non-goals.
 - [ ] Record completed playtest report before marking MVP-1.0 complete.
 
 ## Verification
 
-- [ ] Run `npm run check`.
-- [ ] Run `npm test`.
-- [ ] Run `npm run acceptance`.
-- [ ] Run `npm run build`.
+Latest verification in this workspace used a Node 20+ executable directly because `npm` is not installed.
+
+- [x] Run `node scripts/check-js.mjs`.
+- [x] Run `node scripts/run-tests.mjs packages apps tests`.
+- [x] Run `node scripts/run-tests.mjs tests/acceptance`.
+- [ ] Run `npm run build`; not runnable in this workspace because `npm` is unavailable. The equivalent build script commands passed.
 
 ## Deferrals
 
-- [ ] Do NOT allow AI direct state mutation.
-- [ ] Do NOT enable live provider calls in default tests.
-- [ ] Do NOT commit API keys or secrets.
-- [ ] Do NOT launch unsupervised public rooms.
-- [ ] Do NOT implement full campaign memory.
-- [ ] Do NOT implement full 5e automation.
-- [ ] Do NOT implement arbitrary PDF import.
+- [x] Do NOT allow AI direct state mutation.
+- [x] Do NOT enable live provider calls in default tests.
+- [x] Do NOT commit API keys or secrets.
+- [x] Do NOT launch unsupervised public rooms.
+- [x] Do NOT implement full campaign memory.
+- [x] Do NOT implement full 5e automation.
+- [x] Do NOT implement arbitrary PDF import.

@@ -100,6 +100,12 @@ test("routes skill check requests through the rules engine", async () => {
 
   assert.equal(result.status, "broadcast_ready");
   assert.equal(result.ruleResults[0].type, "skill_check");
+  assert.equal(result.ruleResults[0].characterId, "char_ada");
+  assert.equal(result.ruleResults[0].requestType, "skill_check");
+  assert.equal(result.ruleResults[0].skill, "investigation");
+  assert.equal(result.ruleResults[0].ability, "intelligence");
+  assert.equal(result.ruleResults[0].selectedD20, 15);
+  assert.equal(result.ruleResults[0].dc, 15);
   assert.equal(result.ruleResults[0].total, 20);
   assert.equal(result.ruleResults[0].success, true);
 });

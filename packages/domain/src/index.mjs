@@ -45,6 +45,8 @@ export const skillKeys = [
   "persuasion",
 ];
 
+const checkRequestTypes = ["skill_check", "ability_check", "saving_throw"];
+
 const eventValidators = {
   "player.joined": (event) => {
     if (!event.player || typeof event.player !== "object") {
@@ -110,6 +112,9 @@ const eventValidators = {
     requireString(event.roll, "formula");
     if (!Number.isFinite(event.roll.total)) {
       throw new Error("dice.rolled requires numeric roll.total");
+    }
+    if (event.check !== undefined) {
+      validateResolvedCheck(event.check);
     }
   },
   "state.patch": (event) => {
@@ -350,12 +355,16 @@ function applySessionEvent(state, event) {
       pushUnique(state.discoveredClueIds, event.clueId);
       break;
     case "dice.rolled":
-      state.diceLog.push({
+      const diceLogEntry = {
         eventId: event.id,
         formula: event.roll.formula,
         total: event.roll.total,
         reason: event.reason,
-      });
+      };
+      if (event.check) {
+        diceLogEntry.check = clone(event.check);
+      }
+      state.diceLog.push(diceLogEntry);
       break;
     case "combat.started":
       state.phase = "combat";
@@ -550,6 +559,54 @@ function validateHostReviewItem(item) {
 
   if (item.proposedPayload === undefined) {
     throw new Error("reviewItem.proposedPayload is required");
+  }
+}
+
+function validateResolvedCheck(check) {
+  if (!check || typeof check !== "object") {
+    throw new Error("dice.rolled check must be an object");
+  }
+
+  for (const key of ["characterId", "requestType", "reason"]) {
+    requireString(check, key);
+  }
+
+  if (!checkRequestTypes.includes(check.requestType)) {
+    throw new Error(`Unsupported check requestType: ${check.requestType}`);
+  }
+
+  if (!Number.isInteger(check.dc) || check.dc < 0) {
+    throw new Error("check.dc must be a non-negative integer");
+  }
+
+  if (
+    !Number.isInteger(check.selectedD20) ||
+    check.selectedD20 < 1 ||
+    check.selectedD20 > 20
+  ) {
+    throw new Error("check.selectedD20 must be an integer from 1 to 20");
+  }
+
+  if (!Number.isFinite(check.total)) {
+    throw new Error("check.total must be numeric");
+  }
+
+  if (typeof check.success !== "boolean") {
+    throw new Error("check.success must be boolean");
+  }
+
+  if (check.requestType === "skill_check") {
+    if (!skillKeys.includes(check.skill)) {
+      throw new Error(`Invalid check.skill: ${check.skill}`);
+    }
+    if (!abilityKeys.includes(check.ability)) {
+      throw new Error(`Invalid check.ability: ${check.ability}`);
+    }
+    return;
+  }
+
+  if (!abilityKeys.includes(check.ability)) {
+    throw new Error(`Invalid check.ability: ${check.ability}`);
   }
 }
 

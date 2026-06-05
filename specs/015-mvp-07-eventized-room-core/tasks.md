@@ -37,35 +37,39 @@
 
 ### Host review events
 
-- [ ] Add validator for `host.review.created`.
-- [ ] Add validator for `host.review.updated`.
-- [ ] Commit `host.review.created` when adding review items.
-- [ ] Commit `host.review.updated` when approving, rejecting, or editing review items.
-- [ ] Ensure rejected review payloads remain Host-only.
+- [x] Add validator for `host.review.created`.
+- [x] Add validator for `host.review.updated`.
+- [x] Commit `host.review.created` when adding review items.
+- [x] Commit `host.review.updated` when approving, rejecting, or editing review items.
+- [x] Ensure rejected review payloads remain Host-only.
 
 ### AI message commitment
 
-- [ ] Add or reuse `ai.message` event shape for approved public AI output.
-- [ ] Add room service helper to commit approved AI public messages.
-- [ ] Link committed AI message to review item ID when relevant.
-- [ ] Ensure player broadcasts contain only public AI message data.
+- [x] Add or reuse `ai.message` event shape for approved public AI output.
+- [x] Add room service helper to commit approved AI public messages.
+- [x] Link committed AI message to review item ID when relevant.
+- [x] Ensure player broadcasts contain only public AI message data.
 
 ### Projection and recap safety
 
-- [ ] Add player projection test for Host review events.
-- [ ] Add player recap test excluding rejected AI output.
-- [ ] Add Host recap/audit test including relevant review history without leaking to players.
+- [x] Add player projection test for Host review events.
+- [x] Add player recap test excluding rejected AI output.
+- [x] Add Host recap/audit test including relevant review history without leaking to players.
 
 ## Verification
 
-- [ ] Run `npm run check`.
-- [ ] Run `npm test`.
-- [ ] Run `npm run acceptance`.
-- [ ] Run `npm run build`.
+Latest verification in this workspace used a Node 20+ executable directly because `npm` is not installed.
+
+- [x] Run `node scripts/check-js.mjs`.
+- [x] Run `node scripts/run-tests.mjs packages apps tests`.
+- [x] Run `node scripts/run-tests.mjs tests/acceptance`.
+- [ ] Run `npm run build`; not runnable in this workspace because `npm` is unavailable. The equivalent build script commands passed.
 
 ## Deferrals
 
-- [ ] Do NOT implement HTTP server in MVP-0.7.
-- [ ] Do NOT implement browser UI in MVP-0.7.
-- [ ] Do NOT implement live AI provider calls in MVP-0.7.
-- [ ] Do NOT implement durable database persistence in MVP-0.7.
+These deferrals describe the MVP-0.7 slice boundary. Later MVP-0.8/MVP-0.9/MVP-1.0 slices add HTTP, UI, and provider-gated AI adapter code.
+
+- [x] Do NOT implement HTTP server in MVP-0.7.
+- [x] Do NOT implement browser UI in MVP-0.7.
+- [x] Do NOT implement live AI provider calls in MVP-0.7.
+- [x] Do NOT implement durable database persistence in MVP-0.7.
