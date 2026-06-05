@@ -40,6 +40,50 @@ test("AI context is room-aware and excludes provider secrets", async () => {
   assert.equal(JSON.stringify(context).includes("secret_provider_key"), false);
 });
 
+test("AI context bounds large public history and keeps newest public events", async () => {
+  const { service, room } = await createLoadedAiRoom();
+  for (let index = 0; index < 60; index += 1) {
+    service.sendPublicMessage({
+      roomId: room.roomId,
+      playerId: "player_0002",
+      text: `Older public note ${index} ${"x".repeat(600)}`,
+      now: publicHistoryTime(index),
+    });
+  }
+  service.sendPublicMessage({
+    roomId: room.roomId,
+    playerId: "player_0002",
+    text: "Newest relevant public note.",
+    now: "2026-06-02T20:20:00.000Z",
+  });
+
+  const context = buildAiContextForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    maxContextBytes: 8000,
+  });
+  const serialized = JSON.stringify(context);
+
+  assert.ok(serialized.length <= context.contextBudget.maxBytes);
+  assert.equal(context.contextBudget.truncatedRecentPublicEvents, true);
+  assert.ok(context.contextBudget.omittedRecentPublicEventCount > 0);
+  assert.ok(
+    context.recentPublicEvents.some(
+      (event) => event.message === "Newest relevant public note.",
+    ),
+  );
+  assert.equal(
+    context.recentPublicEvents.some((event) =>
+      event.message?.startsWith("Older public note 0"),
+    ),
+    false,
+  );
+  assert.ok(context.dmOnlySecrets[0].text.includes("broke the shrine seal"));
+  assert.ok(
+    context.unrevealedClues.some((clue) => clue.id === "clue_broken_lens"),
+  );
+});
+
 test("safe AI narration commits dice and public AI message through room events", async () => {
   const { service, room, player } = await createLoadedAiRoom();
 
@@ -103,6 +147,18 @@ test("AI output requiring supervision creates Host review without public broadca
       },
     },
     {
+      name: "hidden entity alias",
+      mutateAdventure(adventure) {
+        adventure.encounters.find(
+          (encounter) => encounter.id === "encounter_hill_scavengers",
+        ).aliases = ["stone-hushed raiders"];
+      },
+      response: {
+        publicMessage: "The stone-hushed raiders wait behind the fallen rocks.",
+        confidence: "high",
+      },
+    },
+    {
       name: "low confidence",
       response: {
         publicMessage: "The lantern trembles in the rain.",
@@ -138,7 +194,9 @@ test("AI output requiring supervision creates Host review without public broadca
   ];
 
   for (const testCase of cases) {
-    const { service, room } = await createLoadedAiRoom();
+    const { service, room, adventure } = await createLoadedAiRoom({
+      mutateAdventure: testCase.mutateAdventure,
+    });
 
     const result = await runAiTurnForRoom({
       roomService: service,
@@ -357,10 +415,11 @@ test("ai.turn.run dispatcher command covers safe, review, spoiler, and provider-
   assert.equal(disabled.data.status, "provider_disabled");
 });
 
-async function createLoadedAiRoom() {
+async function createLoadedAiRoom(options = {}) {
   const adventure = await loadAdventureFixture(
     "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
   );
+  options.mutateAdventure?.(adventure);
   const service = createRoomService();
   const room = service.createRoom({
     hostDisplayName: "Host",
@@ -438,4 +497,8 @@ function character() {
     inventory: [],
     conditions: [],
   };
+}
+
+function publicHistoryTime(index) {
+  return new Date(Date.UTC(2026, 5, 2, 19, 10 + index)).toISOString();
 }
