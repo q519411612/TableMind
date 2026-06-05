@@ -53,6 +53,17 @@ test("replay applies scene changes, clue reveals, and stored dice without reroll
         terms: [{ count: 1, sides: 20, rolls: [16], modifier: 2 }],
         total: 18,
       },
+      check: {
+        characterId: "char_ada",
+        requestType: "skill_check",
+        skill: "investigation",
+        ability: "intelligence",
+        dc: 15,
+        selectedD20: 16,
+        total: 20,
+        success: true,
+        reason: "Investigation check.",
+      },
       reason: "Investigation check.",
     }),
   ];
@@ -68,6 +79,17 @@ test("replay applies scene changes, clue reveals, and stored dice without reroll
       formula: "1d20+2",
       total: 18,
       reason: "Investigation check.",
+      check: {
+        characterId: "char_ada",
+        requestType: "skill_check",
+        skill: "investigation",
+        ability: "intelligence",
+        dc: 15,
+        selectedD20: 16,
+        total: 20,
+        success: true,
+        reason: "Investigation check.",
+      },
     },
   ]);
   assert.deepEqual(secondReplay, firstReplay);

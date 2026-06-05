@@ -3,6 +3,7 @@ import {
   resolveAbilityCheck,
   resolveSavingThrow,
   resolveSkillCheck,
+  skillAbilities,
 } from "../../../packages/rules-engine/src/index.mjs";
 
 const confidenceValues = ["low", "medium", "high"];
@@ -88,7 +89,7 @@ export async function runAiDmTurn(input) {
 function routeRuleRequests(input) {
   return input.ruleRequests.map((request) => {
     if (request.type === "skill_check") {
-      return resolveSkillCheck({
+      const result = resolveSkillCheck({
         character: rulesCharacter(input.context, request.characterId),
         skill: request.skill,
         dc: request.dc,
@@ -96,10 +97,16 @@ function routeRuleRequests(input) {
         reason: request.reason,
         randomSource: input.randomSource,
       });
+      return annotateRuleResult(result, {
+        characterId: request.characterId,
+        requestType: request.type,
+        skill: request.skill,
+        ability: skillAbilities[request.skill],
+      });
     }
 
     if (request.type === "ability_check") {
-      return resolveAbilityCheck({
+      const result = resolveAbilityCheck({
         character: rulesCharacter(input.context, request.characterId),
         ability: request.ability,
         dc: request.dc,
@@ -107,21 +114,38 @@ function routeRuleRequests(input) {
         reason: request.reason,
         randomSource: input.randomSource,
       });
+      return annotateRuleResult(result, {
+        characterId: request.characterId,
+        requestType: request.type,
+        ability: request.ability,
+      });
     }
 
     if (request.type === "saving_throw") {
-      return resolveSavingThrow({
+      const result = resolveSavingThrow({
         character: rulesCharacter(input.context, request.characterId),
         ability: request.ability,
         dc: request.dc,
         advantage: request.advantage,
         reason: request.reason,
         randomSource: input.randomSource,
+      });
+      return annotateRuleResult(result, {
+        characterId: request.characterId,
+        requestType: request.type,
+        ability: request.ability,
       });
     }
 
     throw new Error(`Unsupported rule request type: ${request.type}`);
   });
+}
+
+function annotateRuleResult(result, metadata) {
+  return {
+    ...result,
+    ...metadata,
+  };
 }
 
 function rulesCharacter(context, characterId) {

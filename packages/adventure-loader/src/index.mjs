@@ -101,6 +101,13 @@ export function validateAdventureModule(module) {
 export function projectAdventureForPlayers(adventure) {
   validateAdventureModule(adventure);
 
+  const visibleClues = adventure.clues.filter(isPlayerVisibleContent);
+  const visibleNpcs = adventure.npcs.filter(isPlayerVisibleContent);
+  const visibleEncounters = adventure.encounters.filter(isPlayerVisibleContent);
+  const clueHandleById = publicHandleMap(visibleClues, "clue");
+  const npcHandleById = publicHandleMap(visibleNpcs, "npc");
+  const encounterHandleById = publicHandleMap(visibleEncounters, "encounter");
+
   return {
     id: adventure.id,
     title: adventure.title,
@@ -114,23 +121,37 @@ export function projectAdventureForPlayers(adventure) {
       id: scene.id,
       title: scene.title,
       readAloud: scene.readAloud,
-      clueIds: scene.clueIds,
-      npcIds: scene.npcIds,
-      encounterId: scene.encounterId,
+      clueHandles: scene.clueIds
+        .filter((clueId) => clueHandleById.has(clueId))
+        .map((clueId) => clueHandleById.get(clueId)),
+      npcHandles: scene.npcIds
+        .filter((npcId) => npcHandleById.has(npcId))
+        .map((npcId) => npcHandleById.get(npcId)),
+      encounter:
+        scene.encounterId && encounterHandleById.has(scene.encounterId)
+          ? projectEncounterForPlayer(
+              visibleEncounters.find(
+                (encounter) => encounter.id === scene.encounterId,
+              ),
+              encounterHandleById.get(scene.encounterId),
+            )
+          : undefined,
     })),
-    npcs: adventure.npcs.map((npc) => ({
-      id: npc.id,
+    npcs: visibleNpcs.map((npc) => ({
+      publicHandle: npcHandleById.get(npc.id),
       name: npc.name,
       publicDescription: npc.publicDescription,
       visibility: npc.visibility,
     })),
-    clues: adventure.clues.filter((clue) => clue.visibility !== "dm_only"),
-    encounters: adventure.encounters.map((encounter) => ({
-      id: encounter.id,
-      title: encounter.title,
-      publicSetup: encounter.publicSetup,
-      combatants: encounter.combatants,
+    clues: visibleClues.map((clue) => ({
+      publicHandle: clueHandleById.get(clue.id),
+      title: clue.title,
+      text: clue.text,
+      visibility: clue.visibility,
     })),
+    encounters: visibleEncounters.map((encounter) =>
+      projectEncounterForPlayer(encounter, encounterHandleById.get(encounter.id)),
+    ),
     endings: adventure.endings.map((ending) => ({
       id: ending.id,
       title: ending.title,
@@ -138,6 +159,25 @@ export function projectAdventureForPlayers(adventure) {
     })),
     source: adventure.source,
     status: adventure.status,
+  };
+}
+
+function isPlayerVisibleContent(entity) {
+  return entity.visibility === "public" || entity.visibility === "revealed";
+}
+
+function publicHandleMap(items, prefix) {
+  return new Map(
+    items.map((item, index) => [item.id, `${prefix}_${index + 1}`]),
+  );
+}
+
+function projectEncounterForPlayer(encounter, publicHandle) {
+  return {
+    publicHandle,
+    title: encounter.title,
+    publicSetup: encounter.publicSetup,
+    visibility: encounter.visibility,
   };
 }
 

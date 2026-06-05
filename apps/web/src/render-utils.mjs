@@ -41,13 +41,26 @@ export function renderDiceLog(diceLog = []) {
   }
 
   return `<ul class="tm-list">${diceLog
-    .map(
-      (roll) =>
-        `<li><strong>${escapeHtml(roll.formula)}</strong> = ${escapeHtml(
-          roll.total,
-        )}<span>${escapeHtml(roll.reason ?? "")}</span></li>`,
-    )
+    .map((roll) => `<li>${renderDiceLogEntry(roll)}</li>`)
     .join("")}</ul>`;
+}
+
+function renderDiceLogEntry(roll) {
+  if (roll.check) {
+    const subject = roll.check.skill ?? roll.check.ability;
+    const outcome = roll.check.success ? "success" : "failure";
+    return `<strong>${escapeHtml(roll.check.requestType)} ${escapeHtml(
+      subject,
+    )}</strong><span>DC ${escapeHtml(roll.check.dc)}, d20 ${escapeHtml(
+      roll.check.selectedD20,
+    )}, total ${escapeHtml(roll.check.total)}, ${escapeHtml(
+      outcome,
+    )}</span><span>${escapeHtml(roll.check.reason)}</span>`;
+  }
+
+  return `<strong>${escapeHtml(roll.formula)}</strong> = ${escapeHtml(
+    roll.total,
+  )}<span>${escapeHtml(roll.reason ?? "")}</span>`;
 }
 
 export function renderCombat(combat) {
