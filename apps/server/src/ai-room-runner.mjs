@@ -1,5 +1,8 @@
 import { runAiDmTurn } from "./ai-dm-orchestrator.mjs";
 
+const defaultMaxContextBytes = 32000;
+const maxPublicEventTextCharacters = 320;
+
 const publicHistoryEventTypes = new Set([
   "player.joined",
   "character.created",
@@ -36,7 +39,7 @@ export function loadAiProviderConfig(env = {}) {
 }
 
 export function buildAiContextForRoom(input) {
-  const session = input.roomService.getSnapshot({
+  const sessionSnapshot = input.roomService.getSnapshot({
     roomId: input.roomId,
     viewerRole: "host",
   });
@@ -44,19 +47,22 @@ export function buildAiContextForRoom(input) {
     roomId: input.roomId,
     viewerRole: "host",
   });
-  const discoveredClues = new Set(session.discoveredClueIds ?? []);
+  const discoveredClues = new Set(sessionSnapshot.discoveredClueIds ?? []);
   const currentScene = adventure.currentScene;
+  const maxContextBytes = normalizeMaxContextBytes(
+    input.maxContextBytes ?? defaultMaxContextBytes,
+  );
 
-  return {
-    session,
+  const requiredContext = {
+    session: sessionBasicsForAi(sessionSnapshot),
     currentScene,
-    recentPublicEvents: publicHistory(session.eventLog ?? []),
+    recentPublicEvents: [],
     hiddenEntities: hiddenEntitiesForScene(currentScene),
     unrevealedClues: (currentScene.clues ?? []).filter(
       (clue) => clue.visibility === "dm_only" && !discoveredClues.has(clue.id),
     ),
     dmOnlySecrets: adventure.truth ?? [],
-    combat: session.combat,
+    combat: sessionSnapshot.combat,
     policy: {
       diceResults: "forbidden",
       stateMutation: "host_review_required",
@@ -64,6 +70,12 @@ export function buildAiContextForRoom(input) {
       allowedRuleRequests: ["skill_check", "ability_check", "saving_throw"],
     },
   };
+
+  return withBoundedPublicHistory({
+    context: requiredContext,
+    publicEvents: publicHistoryCandidates(sessionSnapshot.eventLog ?? []),
+    maxContextBytes,
+  });
 }
 
 export async function runAiTurnForRoom(input) {
@@ -170,12 +182,129 @@ export async function runAiTurnForRoom(input) {
   };
 }
 
-function publicHistory(events) {
+function publicHistoryCandidates(events) {
   return events
     .filter((event) => publicHistoryEventTypes.has(event.type))
     .filter((event) => event.visibility !== "dm_only")
-    .slice(-20)
-    .map((event) => structuredClone(event));
+    .map(summarizePublicEventForAi);
+}
+
+function withBoundedPublicHistory(input) {
+  const budget = {
+    maxBytes: input.maxContextBytes,
+    usedBytes: 0,
+    truncatedRecentPublicEvents: false,
+    omittedRecentPublicEventCount: 0,
+  };
+  const baseContext = {
+    ...input.context,
+    contextBudget: budget,
+  };
+
+  assertRequiredContextFits(baseContext, input.maxContextBytes);
+
+  let recentPublicEvents = [];
+  for (let index = input.publicEvents.length - 1; index >= 0; index -= 1) {
+    const nextEvents = [input.publicEvents[index], ...recentPublicEvents];
+    const candidate = withBudget(input.context, {
+      ...budget,
+      truncatedRecentPublicEvents: nextEvents.length < input.publicEvents.length,
+      omittedRecentPublicEventCount: input.publicEvents.length - nextEvents.length,
+    }, nextEvents);
+
+    if (serializedByteLength(candidate) <= input.maxContextBytes) {
+      recentPublicEvents = nextEvents;
+      continue;
+    }
+
+    break;
+  }
+
+  let output = withBudget(input.context, {
+    ...budget,
+    truncatedRecentPublicEvents: recentPublicEvents.length < input.publicEvents.length,
+    omittedRecentPublicEventCount: input.publicEvents.length - recentPublicEvents.length,
+  }, recentPublicEvents);
+  output.contextBudget.usedBytes = serializedByteLength(output);
+
+  while (
+    output.contextBudget.usedBytes > input.maxContextBytes &&
+    recentPublicEvents.length > 0
+  ) {
+    recentPublicEvents = recentPublicEvents.slice(1);
+    output = withBudget(input.context, {
+      ...budget,
+      truncatedRecentPublicEvents: recentPublicEvents.length < input.publicEvents.length,
+      omittedRecentPublicEventCount: input.publicEvents.length - recentPublicEvents.length,
+    }, recentPublicEvents);
+    output.contextBudget.usedBytes = serializedByteLength(output);
+  }
+
+  return output;
+}
+
+function withBudget(context, budget, recentPublicEvents) {
+  return {
+    ...context,
+    recentPublicEvents,
+    contextBudget: structuredClone(budget),
+  };
+}
+
+function assertRequiredContextFits(context, maxContextBytes) {
+  const requiredOnlyBytes = serializedByteLength(context);
+  if (requiredOnlyBytes > maxContextBytes) {
+    throw new Error(
+      `AI context required fields exceed maxContextBytes: ${requiredOnlyBytes} > ${maxContextBytes}`,
+    );
+  }
+}
+
+function sessionBasicsForAi(session) {
+  return {
+    id: session.id,
+    roomId: session.roomId,
+    rulesetId: session.rulesetId,
+    adventureModuleId: session.adventureModuleId,
+    currentSceneId: session.currentSceneId,
+    phase: session.phase,
+    players: structuredClone(session.players ?? {}),
+    characters: structuredClone(session.characters ?? {}),
+    discoveredClueIds: structuredClone(session.discoveredClueIds ?? []),
+    revealedSecretIds: structuredClone(session.revealedSecretIds ?? []),
+    diceLog: structuredClone(session.diceLog ?? []),
+    flags: structuredClone(session.flags ?? {}),
+    version: session.version,
+    updatedAt: session.updatedAt,
+  };
+}
+
+function summarizePublicEventForAi(event) {
+  const output = structuredClone(event);
+  for (const key of ["message", "reason"]) {
+    if (typeof output[key] === "string") {
+      output[key] = truncateTextForAi(output[key]);
+    }
+  }
+  return output;
+}
+
+function truncateTextForAi(text) {
+  if (text.length <= maxPublicEventTextCharacters) {
+    return text;
+  }
+  return `${text.slice(0, maxPublicEventTextCharacters)} [truncated ${text.length} chars]`;
+}
+
+function normalizeMaxContextBytes(value) {
+  if (!Number.isInteger(value) || value < 1024) {
+    throw new Error("maxContextBytes must be an integer greater than or equal to 1024");
+  }
+  return value;
+}
+
+function serializedByteLength(value) {
+  return Buffer.byteLength(JSON.stringify(value), "utf8");
 }
 
 function hiddenEntitiesForScene(scene) {

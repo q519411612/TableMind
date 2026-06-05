@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { loadAdventureFixture } from "../../../packages/adventure-loader/src/index.mjs";
+import { generateSessionRecap } from "../../../packages/session-recap/src/index.mjs";
+import { createMockAiAdapter } from "../src/ai-dm-orchestrator.mjs";
 import { createHttpServer } from "../src/http-server.mjs";
 import { createRoomActionDispatcher } from "../src/room-actions.mjs";
 import { createRoomService } from "../src/room-service.mjs";
@@ -56,6 +59,65 @@ test("HTTP adapter creates room, joins player, sends action, and returns project
     assert.equal(hostSnapshot.snapshot.flags.aiPaused.value, true);
     assert.equal(playerSnapshot.snapshot.flags.aiPaused, undefined);
     assert.equal(playerSnapshotText.includes("Host-only pause reason."), false);
+  } finally {
+    await app.stop();
+  }
+});
+
+test("HTTP player adventure snapshot excludes unrevealed Host-only adventure truth", async () => {
+  const service = createRoomService();
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: service,
+    }),
+  });
+  const adventure = await loadAdventureFixture(
+    "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
+  );
+  const { baseUrl } = await app.start();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "adventure.load",
+      sessionToken: created.data.hostSessionToken,
+      payload: { adventure },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "scene.change",
+      sessionToken: created.data.hostSessionToken,
+      payload: {
+        sceneId: "scene_lantern_tower",
+        reason: "Move to the tower for leak regression.",
+      },
+      now: "2026-06-02T14:03:00.000Z",
+    });
+
+    const playerResponse = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/adventure-snapshot?sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+    const playerText = await playerResponse.text();
+    const playerBody = JSON.parse(playerText);
+    const hostBody = await getJson(
+      `${baseUrl}/rooms/${created.data.roomId}/adventure-snapshot?sessionToken=${encodeURIComponent(created.data.hostSessionToken)}`,
+    );
+
+    assert.equal(playerResponse.status, 200);
+    assert.equal(playerBody.snapshot.currentScene.id, "scene_lantern_tower");
+    assert.equal(playerText.includes("broke the shrine seal"), false);
+    assert.equal(playerText.includes("clue_broken_lens"), false);
+    assert.equal(playerText.includes("clue_symbol_under_hatch"), false);
+    assert.equal(playerText.includes("encounter_hill_scavengers"), false);
+    assert.equal(playerText.includes("monster_hill_scavenger"), false);
+    assert.equal(playerText.includes("npc_mira"), false);
+    assert.equal(playerText.includes("combatants"), false);
+    assert.equal(hostBody.snapshot.truth[0].text.includes("broke the shrine seal"), true);
+    assert.equal(hostBody.snapshot.currentScene.encounter.id, "encounter_hill_scavengers");
+    assert.equal(hostBody.snapshot.currentScene.encounter.combatants[0].compendiumEntryId, "monster_hill_scavenger");
   } finally {
     await app.stop();
   }
@@ -131,6 +193,81 @@ test("HTTP adapter returns structured errors without crashing", async () => {
       },
     });
   } finally {
+    await app.stop();
+  }
+});
+
+test("AI private messages stay out of player SSE transport and public recap", async () => {
+  const service = createRoomService();
+  const adventure = await loadAdventureFixture(
+    "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
+  );
+  const privatePayload = "PRIVATE THREAD: Mira broke the shrine seal.";
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: service,
+      aiAdapter: createMockAiAdapter({
+        publicMessage: "Cold soot curls around the cracked lantern frame.",
+        privateMessages: [
+          {
+            playerId: "player_0002",
+            message: privatePayload,
+          },
+        ],
+        confidence: "high",
+      }),
+    }),
+  });
+  const { baseUrl } = await app.start();
+  const streamAbort = new AbortController();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "adventure.load",
+      sessionToken: created.data.hostSessionToken,
+      payload: { adventure },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+
+    const streamResponse = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/events?sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+      { signal: streamAbort.signal },
+    );
+    const reader = streamResponse.body.getReader();
+    await readSseEvent(reader);
+
+    const aiResult = await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "ai.turn.run",
+      sessionToken: created.data.hostSessionToken,
+      payload: {},
+      now: "2026-06-02T14:03:00.000Z",
+    });
+    const broadcastEvent = await readSseEvent(reader);
+    const events = service.getCommittedEvents(created.data.roomId);
+    const hostState = service.getSnapshot({
+      roomId: created.data.roomId,
+      viewerRole: "host",
+    });
+    const playerRecap = generateSessionRecap({
+      sessionState: hostState,
+      events,
+      adventure,
+      viewerRole: "player",
+    });
+
+    assert.equal(aiResult.ok, true);
+    assert.equal(aiResult.data.status, "broadcast_ready");
+    assert.equal(JSON.stringify(broadcastEvent.data).includes(privatePayload), false);
+    assert.equal(playerRecap.markdown.includes(privatePayload), false);
+    assert.ok(playerRecap.markdown.includes("Cold soot curls around the cracked lantern frame."));
+
+    await reader.cancel();
+  } finally {
+    streamAbort.abort();
     await app.stop();
   }
 });
