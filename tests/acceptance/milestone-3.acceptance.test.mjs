@@ -25,19 +25,20 @@ test("milestone 3 simulates role-aware adventure execution", async () => {
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T04:02:00.000Z",
   });
   const sceneChange = service.changeScene({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     sceneId: "scene_lantern_tower",
-    now: "2026-06-02T04:02:00.000Z",
+    now: "2026-06-02T04:03:00.000Z",
     reason: "The party reaches the lantern tower.",
   });
   service.revealClue({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     clueId: "clue_broken_lens",
-    now: "2026-06-02T04:03:00.000Z",
+    now: "2026-06-02T04:04:00.000Z",
   });
 
   const hostView = service.getAdventureSnapshot({
@@ -51,7 +52,7 @@ test("milestone 3 simulates role-aware adventure execution", async () => {
   });
 
   assert.equal(sceneChange.event.type, "scene.changed");
-  assert.equal(sceneChange.event.sequence, 1);
+  assert.equal(sceneChange.event.sequence, 4);
   assert.equal(hostView.currentScene.id, "scene_lantern_tower");
   assert.ok(hostView.currentScene.dmNotes.text.includes("hatch below the tower"));
   assert.ok(hostView.currentScene.encounter.dmNotes.includes("flee"));
@@ -68,8 +69,11 @@ test("milestone 3 simulates role-aware adventure execution", async () => {
       event.type,
     ]),
     [
-      [1, "scene.changed"],
-      [2, "clue.revealed"],
+      [1, "player.joined"],
+      [2, "player.joined"],
+      [3, "adventure.loaded"],
+      [4, "scene.changed"],
+      [5, "clue.revealed"],
     ],
   );
 });

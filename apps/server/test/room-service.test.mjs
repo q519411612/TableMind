@@ -55,6 +55,10 @@ test("host creates a room and receives a host snapshot and invite link", () => {
   assert.equal(room.hostPlayerId, "player_0001");
   assert.equal(room.snapshot.phase, "lobby");
   assert.equal(room.snapshot.players.player_0001.role, "host");
+  assert.deepEqual(
+    service.getCommittedEvents(room.roomId).map((event) => event.type),
+    ["player.joined"],
+  );
 });
 
 test("players join, leave, and reconnect with authoritative presence", () => {
@@ -92,7 +96,7 @@ test("players join, leave, and reconnect with authoritative presence", () => {
   assert.equal(service.getPresence(room.roomId)[1].connected, true);
 });
 
-test("host starts the session through a committed state patch event", () => {
+test("host starts the session through a committed lifecycle event", () => {
   const service = createRoomService();
   const room = service.createRoom(baseRoomInput);
   const started = service.startSession({
@@ -102,9 +106,9 @@ test("host starts the session through a committed state patch event", () => {
   });
 
   assert.equal(started.snapshot.phase, "playing");
-  assert.equal(started.event.type, "state.patch");
-  assert.equal(started.event.patch[0].path, "/phase");
-  assert.equal(started.event.sequence, 1);
+  assert.equal(started.event.type, "session.started");
+  assert.equal(started.event.reason, "Host started the session.");
+  assert.equal(started.event.sequence, 2);
 });
 
 test("public messages are persisted before broadcast and ordered by server sequence", () => {
@@ -130,10 +134,13 @@ test("public messages are persisted before broadcast and ordered by server seque
   });
 
   assert.equal(first.event.type, "player.message");
-  assert.equal(first.event.sequence, 1);
-  assert.equal(second.event.sequence, 2);
+  assert.equal(first.event.sequence, 3);
+  assert.equal(second.event.sequence, 4);
   assert.deepEqual(
-    service.getCommittedEvents(room.roomId).map((event) => event.message),
+    service
+      .getCommittedEvents(room.roomId)
+      .filter((event) => event.type === "player.message")
+      .map((event) => event.message),
     ["I inspect the lantern.", "I check the cracked lens."],
   );
 });
@@ -182,9 +189,14 @@ test("room service creates and attaches a validated character to a player", () =
     roomId: room.roomId,
     playerId: joined.playerId,
     character: characterInput,
+    now: "2026-06-02T01:02:00.000Z",
   });
 
   assert.equal(result.character.playerId, joined.playerId);
   assert.equal(result.snapshot.players[joined.playerId].characterId, "char_ada");
   assert.equal(result.snapshot.characters.char_ada.proficiencyBonus, 2);
+  assert.deepEqual(
+    service.getCommittedEvents(room.roomId).map((event) => event.type),
+    ["player.joined", "player.joined", "character.created"],
+  );
 });

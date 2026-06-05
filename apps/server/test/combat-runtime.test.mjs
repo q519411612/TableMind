@@ -65,11 +65,13 @@ async function createCombatRoom() {
     roomId: room.roomId,
     playerId: player.playerId,
     character,
+    now: "2026-06-02T07:02:00.000Z",
   });
   service.loadAdventureModule({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T07:03:00.000Z",
   });
 
   return { service, room, player, compendium };
@@ -85,7 +87,7 @@ test("Host starts combat from an encounter with deterministic initiative", async
     characterIds: ["char_ada"],
     compendiumEntries: compendium,
     randomSource: createSequenceRandomSource([0.5, 0.1, 0.2]),
-    now: "2026-06-02T07:02:00.000Z",
+    now: "2026-06-02T07:04:00.000Z",
   });
 
   assert.equal(started.event.type, "combat.started");
@@ -114,7 +116,7 @@ test("player attack resolves hit, damage, and defeated target through events", a
     characterIds: ["char_ada"],
     compendiumEntries: compendium,
     randomSource: createSequenceRandomSource([0.5, 0.1, 0.2]),
-    now: "2026-06-02T07:02:00.000Z",
+    now: "2026-06-02T07:04:00.000Z",
   });
 
   const result = service.resolveCombatAttack({

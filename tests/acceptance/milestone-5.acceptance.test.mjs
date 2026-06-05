@@ -65,11 +65,13 @@ test("milestone 5 simulates combat and Host override controls", async () => {
     roomId: room.roomId,
     playerId: player.playerId,
     character,
+    now: "2026-06-02T08:02:00.000Z",
   });
   service.loadAdventureModule({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
+    now: "2026-06-02T08:03:00.000Z",
   });
 
   const started = service.startCombatFromEncounter({
@@ -79,7 +81,7 @@ test("milestone 5 simulates combat and Host override controls", async () => {
     characterIds: ["char_ada"],
     compendiumEntries: compendium,
     randomSource: createSequenceRandomSource([0.5, 0.1, 0.2]),
-    now: "2026-06-02T08:02:00.000Z",
+    now: "2026-06-02T08:04:00.000Z",
   });
   const attack = service.resolveCombatAttack({
     roomId: room.roomId,
@@ -88,7 +90,7 @@ test("milestone 5 simulates combat and Host override controls", async () => {
     targetCombatantId: "combatant_monster_hill_scavenger_1",
     attackId: "attack_longsword",
     randomSource: createSequenceRandomSource([0.7, 0.5]),
-    now: "2026-06-02T08:03:00.000Z",
+    now: "2026-06-02T08:05:00.000Z",
   });
   const patched = service.patchCombatantHitPoints({
     roomId: room.roomId,
@@ -96,7 +98,7 @@ test("milestone 5 simulates combat and Host override controls", async () => {
     combatantId: "combatant_monster_hill_scavenger_2",
     currentHp: 2,
     reason: "Host adjusts the remaining scavenger HP.",
-    now: "2026-06-02T08:04:00.000Z",
+    now: "2026-06-02T08:06:00.000Z",
   });
   const conditioned = service.patchCombatantCondition({
     roomId: room.roomId,
@@ -105,20 +107,20 @@ test("milestone 5 simulates combat and Host override controls", async () => {
     condition: { conditionId: "condition_grappled", source: "Host" },
     action: "apply",
     reason: "Host applies grappled.",
-    now: "2026-06-02T08:05:00.000Z",
+    now: "2026-06-02T08:07:00.000Z",
   });
   const paused = service.setAiPaused({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     paused: true,
     reason: "Host pauses AI during combat correction.",
-    now: "2026-06-02T08:06:00.000Z",
+    now: "2026-06-02T08:08:00.000Z",
   });
   const ended = service.endCombat({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     reason: "The remaining scavenger flees.",
-    now: "2026-06-02T08:07:00.000Z",
+    now: "2026-06-02T08:09:00.000Z",
   });
 
   const conditionedTarget = conditioned.snapshot.combat.combatants.find(
@@ -148,6 +150,10 @@ test("milestone 5 simulates combat and Host override controls", async () => {
   assert.deepEqual(
     service.getCommittedEvents(room.roomId).map((event) => event.type),
     [
+      "player.joined",
+      "player.joined",
+      "character.created",
+      "adventure.loaded",
       "combat.started",
       "attack.resolved",
       "damage.applied",

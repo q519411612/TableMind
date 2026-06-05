@@ -37,6 +37,23 @@ export const skillKeys = [
 ];
 
 const eventValidators = {
+  "player.joined": (event) => {
+    validatePlayerRecord(event.player);
+  },
+  "character.created": (event) => {
+    requireString(event, "playerId");
+    validateCharacter(event.character);
+    if (event.character.playerId !== event.playerId) {
+      throw new Error("character.created character.playerId must match playerId");
+    }
+  },
+  "adventure.loaded": (event) => {
+    requireString(event, "adventureModuleId");
+    requireString(event, "startingSceneId");
+  },
+  "session.started": (event) => {
+    requireString(event, "reason");
+  },
   "player.message": (event) => {
     requireString(event, "message");
   },
@@ -260,6 +277,32 @@ export function validateCharacter(input) {
 
 function applySessionEvent(state, event) {
   switch (event.type) {
+    case "player.joined":
+      if (state.players[event.player.id]) {
+        throw new Error(`player already exists: ${event.player.id}`);
+      }
+      state.players[event.player.id] = clone(event.player);
+      break;
+    case "character.created":
+      if (!state.players[event.playerId]) {
+        throw new Error(`player not found: ${event.playerId}`);
+      }
+      if (state.characters[event.character.id]) {
+        throw new Error(`character already exists: ${event.character.id}`);
+      }
+      state.characters[event.character.id] = clone(event.character);
+      state.players[event.playerId] = {
+        ...state.players[event.playerId],
+        characterId: event.character.id,
+      };
+      break;
+    case "adventure.loaded":
+      state.adventureModuleId = event.adventureModuleId;
+      state.currentSceneId = event.startingSceneId;
+      break;
+    case "session.started":
+      state.phase = "playing";
+      break;
     case "scene.changed":
       state.currentSceneId = event.sceneId;
       break;
@@ -411,6 +454,24 @@ function pushUnique(list, value) {
 function requireString(object, key) {
   if (typeof object?.[key] !== "string" || object[key].length === 0) {
     throw new Error(`${key} is required`);
+  }
+}
+
+function validatePlayerRecord(player) {
+  if (!player || typeof player !== "object") {
+    throw new Error("player.joined requires player");
+  }
+
+  for (const key of ["id", "displayName", "role", "visibility"]) {
+    requireString(player, key);
+  }
+
+  if (!["host", "player"].includes(player.role)) {
+    throw new Error(`Unsupported player role: ${player.role}`);
+  }
+
+  if (player.visibility !== "public") {
+    throw new Error("player.joined player.visibility must be public");
   }
 }
 

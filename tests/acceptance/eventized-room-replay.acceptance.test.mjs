@@ -1,14 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { loadAdventureFixture } from "../../packages/adventure-loader/src/index.mjs";
-import { loadCompendiumFixture } from "../../packages/compendium/src/index.mjs";
-import { createSequenceRandomSource } from "../../packages/rules-engine/src/index.mjs";
-import { generateSessionRecap } from "../../packages/session-recap/src/index.mjs";
 import { createRoomService } from "../../apps/server/src/room-service.mjs";
+import { loadAdventureFixture } from "../../packages/adventure-loader/src/index.mjs";
 import {
-  createMockAiAdapter,
-  runAiDmTurn,
-} from "../../apps/server/src/ai-dm-orchestrator.mjs";
+  createInitialSessionState,
+  replaySessionEvents,
+} from "../../packages/domain/src/index.mjs";
+import {
+  createSequenceRandomSource,
+} from "../../packages/rules-engine/src/index.mjs";
+import { loadCompendiumFixture } from "../../packages/compendium/src/index.mjs";
 
 function character(input) {
   return {
@@ -33,37 +34,35 @@ function character(input) {
   };
 }
 
-test("MVP local playtest completes the demo one-shot with recap", async () => {
+test("eventized room lifecycle replays critical session truth", async () => {
   const adventure = await loadAdventureFixture(
     "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
   );
   const compendium = await loadCompendiumFixture(
     "packages/shared-test-fixtures/compendium/srd-mini.json",
   );
-  const service = createRoomService({
-    baseInviteUrl: "https://tablemind.local/r",
-  });
+  const service = createRoomService();
   const room = service.createRoom({
     hostDisplayName: "Host",
     rulesetId: adventure.rulesetId,
-    adventureModuleId: adventure.id,
-    startingSceneId: adventure.startingSceneId,
-    now: "2026-06-02T10:00:00.000Z",
+    adventureModuleId: "adventure_placeholder",
+    startingSceneId: "scene_placeholder",
+    now: "2026-06-02T11:00:00.000Z",
   });
   const ada = service.joinRoom({
     roomId: room.roomId,
     displayName: "Ada",
-    now: "2026-06-02T10:01:00.000Z",
+    now: "2026-06-02T11:01:00.000Z",
   });
   const bran = service.joinRoom({
     roomId: room.roomId,
     displayName: "Bran",
-    now: "2026-06-02T10:02:00.000Z",
+    now: "2026-06-02T11:02:00.000Z",
   });
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: ada.playerId,
-    now: "2026-06-02T10:03:00.000Z",
+    now: "2026-06-02T11:03:00.000Z",
     character: character({
       id: "char_ada",
       name: "Ada Thorne",
@@ -72,14 +71,14 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
         strength: 14,
         dexterity: 12,
         constitution: 14,
-        intelligence: 16,
+        intelligence: 12,
         wisdom: 11,
         charisma: 8,
       },
       armorClass: 16,
       maxHp: 12,
       savingThrowProficiencies: ["strength", "constitution"],
-      skillProficiencies: ["investigation"],
+      skillProficiencies: ["athletics"],
       attacks: [
         {
           id: "attack_longsword",
@@ -94,7 +93,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
   service.createCharacterForPlayer({
     roomId: room.roomId,
     playerId: bran.playerId,
-    now: "2026-06-02T10:04:00.000Z",
+    now: "2026-06-02T11:04:00.000Z",
     character: character({
       id: "char_bran",
       name: "Bran Vale",
@@ -126,65 +125,25 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     adventure,
-    now: "2026-06-02T10:05:00.000Z",
+    now: "2026-06-02T11:05:00.000Z",
   });
   service.startSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
-    now: "2026-06-02T10:06:00.000Z",
+    now: "2026-06-02T11:06:00.000Z",
   });
   service.changeScene({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     sceneId: "scene_lantern_tower",
     reason: "The party reaches the lantern tower.",
-    now: "2026-06-02T10:07:00.000Z",
-  });
-
-  const aiTurn = await runAiDmTurn({
-    adapter: createMockAiAdapter({
-      publicMessage: "Cold soot curls around the cracked lantern frame.",
-      ruleRequests: [
-        {
-          type: "skill_check",
-          characterId: "char_ada",
-          skill: "investigation",
-          dc: 15,
-          advantage: "normal",
-          reason: "Inspect the lantern soot.",
-        },
-      ],
-      confidence: "high",
-    }),
-    context: {
-      session: service.getSnapshot({
-        roomId: room.roomId,
-        viewerRole: "host",
-      }),
-      currentScene: service.getAdventureSnapshot({
-        roomId: room.roomId,
-        viewerRole: "host",
-      }).currentScene,
-      hiddenEntities: [],
-      unrevealedClues: service.getAdventureSnapshot({
-        roomId: room.roomId,
-        viewerRole: "host",
-      }).currentScene.clues,
-      dmOnlySecrets: adventure.truth,
-    },
-    randomSource: createSequenceRandomSource([0.7]),
-  });
-  service.commitDiceRoll({
-    roomId: room.roomId,
-    roll: aiTurn.ruleResults[0].d20,
-    reason: aiTurn.ruleResults[0].reason,
-    now: "2026-06-02T10:08:00.000Z",
+    now: "2026-06-02T11:07:00.000Z",
   });
   service.revealClue({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     clueId: "clue_broken_lens",
-    now: "2026-06-02T10:09:00.000Z",
+    now: "2026-06-02T11:08:00.000Z",
   });
   service.startCombatFromEncounter({
     roomId: room.roomId,
@@ -193,7 +152,7 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     characterIds: ["char_ada", "char_bran"],
     compendiumEntries: compendium,
     randomSource: createSequenceRandomSource([0.5, 0.45, 0.1, 0.2]),
-    now: "2026-06-02T10:10:00.000Z",
+    now: "2026-06-02T11:09:00.000Z",
   });
   service.resolveCombatAttack({
     roomId: room.roomId,
@@ -202,65 +161,60 @@ test("MVP local playtest completes the demo one-shot with recap", async () => {
     targetCombatantId: "combatant_monster_hill_scavenger_1",
     attackId: "attack_longsword",
     randomSource: createSequenceRandomSource([0.7, 0.5]),
-    now: "2026-06-02T10:11:00.000Z",
-  });
-  service.setAiPaused({
-    roomId: room.roomId,
-    hostPlayerId: room.hostPlayerId,
-    paused: true,
-    reason: "Host reviews the closing narration.",
-    now: "2026-06-02T10:12:00.000Z",
+    now: "2026-06-02T11:10:00.000Z",
   });
   service.endCombat({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
-    reason: "The remaining scavenger flees into the rain.",
-    now: "2026-06-02T10:13:00.000Z",
+    reason: "The remaining scavenger flees.",
+    now: "2026-06-02T11:11:00.000Z",
   });
-  const completed = service.completeSession({
+  service.completeSession({
     roomId: room.roomId,
     hostPlayerId: room.hostPlayerId,
     ending: "Repair the Lantern",
     rewards: ["Village gratitude", "A safe hill road"],
-    now: "2026-06-02T10:14:00.000Z",
+    now: "2026-06-02T11:12:00.000Z",
   });
 
-  const hostState = service.getSnapshot({
+  const liveState = service.getSnapshot({
     roomId: room.roomId,
     viewerRole: "host",
   });
-  const playerState = service.getSnapshot({
-    roomId: room.roomId,
-    viewerRole: "player",
-    viewerPlayerId: ada.playerId,
-  });
-  const playerRecap = generateSessionRecap({
-    sessionState: hostState,
-    events: service.getCommittedEvents(room.roomId),
-    adventure,
-    viewerRole: "player",
-  });
-  const hostRecap = generateSessionRecap({
-    sessionState: hostState,
-    events: service.getCommittedEvents(room.roomId),
-    adventure,
-    viewerRole: "host",
-  });
-
-  assert.equal(completed.snapshot.phase, "ended");
-  assert.equal(aiTurn.status, "broadcast_ready");
-  assert.equal(aiTurn.ruleResults[0].success, true);
-  assert.equal(playerState.flags.hiddenTruth, undefined);
-  assert.equal(playerRecap.markdown.includes("Mira broke the shrine seal"), false);
-  assert.ok(playerRecap.markdown.includes("Broken Lantern Lens"));
-  assert.ok(playerRecap.markdown.includes("Inspect the lantern soot."));
-  assert.ok(hostRecap.markdown.includes("Secret: Broken Seal"));
-  assert.deepEqual(playerRecap.rewards, [
-    "Village gratitude",
-    "A safe hill road",
-  ]);
-  assert.deepEqual(
-    Object.values(hostState.players).map((playerRecord) => playerRecord.characterId).filter(Boolean),
-    ["char_ada", "char_bran"],
+  const committedEvents = service.getCommittedEvents(room.roomId);
+  const replayedState = replaySessionEvents(
+    committedEvents,
+    createInitialSessionState({
+      id: liveState.id,
+      roomId: liveState.roomId,
+      rulesetId: liveState.rulesetId,
+      adventureModuleId: "adventure_placeholder",
+      currentSceneId: "scene_placeholder",
+      now: "2026-06-02T11:00:00.000Z",
+    }),
   );
+
+  assert.deepEqual(
+    committedEvents.slice(0, 7).map((event) => event.type),
+    [
+      "player.joined",
+      "player.joined",
+      "player.joined",
+      "character.created",
+      "character.created",
+      "adventure.loaded",
+      "session.started",
+    ],
+  );
+  assert.equal(replayedState.phase, liveState.phase);
+  assert.deepEqual(replayedState.players, liveState.players);
+  assert.deepEqual(replayedState.characters, liveState.characters);
+  assert.equal(replayedState.adventureModuleId, adventure.id);
+  assert.equal(replayedState.currentSceneId, liveState.currentSceneId);
+  assert.deepEqual(replayedState.discoveredClueIds, ["clue_broken_lens"]);
+  assert.equal(replayedState.lastAttackResult.total, liveState.lastAttackResult.total);
+  assert.equal(replayedState.lastDamageResult.resultingHp, 0);
+  assert.deepEqual(replayedState.flags.ending, liveState.flags.ending);
+  assert.deepEqual(replayedState.flags.rewards, liveState.flags.rewards);
+  assert.equal(replayedState.eventLog.length, committedEvents.length);
 });
