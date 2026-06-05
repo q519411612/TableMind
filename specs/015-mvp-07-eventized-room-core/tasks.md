@@ -4,34 +4,34 @@
 
 ### Domain event validation
 
-- [ ] Add validator for `player.joined`.
-- [ ] Add validator for `character.created`.
-- [ ] Add validator for `adventure.loaded`.
-- [ ] Add validator for `session.started`.
-- [ ] Add unit tests for valid and invalid lifecycle events.
+- [x] Add validator for `player.joined`.
+- [x] Add validator for `character.created`.
+- [x] Add validator for `adventure.loaded`.
+- [x] Add validator for `session.started`.
+- [x] Add unit tests for valid and invalid lifecycle events.
 
 ### Domain reducer
 
-- [ ] Apply `player.joined` to `state.players`.
-- [ ] Apply `character.created` to `state.characters` and player `characterId`.
-- [ ] Apply `adventure.loaded` to `adventureModuleId` and `currentSceneId`.
-- [ ] Apply `session.started` to `phase = "playing"`.
-- [ ] Reject `character.created` when the player is missing.
+- [x] Apply `player.joined` to `state.players`.
+- [x] Apply `character.created` to `state.characters` and player `characterId`.
+- [x] Apply `adventure.loaded` to `adventureModuleId` and `currentSceneId`.
+- [x] Apply `session.started` to `phase = "playing"`.
+- [x] Reject `character.created` when the player is missing.
 
 ### Room service refactor
 
-- [ ] Refactor `joinRoom` to commit `player.joined`.
-- [ ] Keep presence as runtime state in `joinRoom`.
-- [ ] Refactor `createCharacterForPlayer` to commit `character.created`.
-- [ ] Refactor `loadAdventureModule` to commit `adventure.loaded` while caching full adventure side state.
-- [ ] Refactor `startSession` to commit `session.started` instead of `state.patch`.
-- [ ] Ensure returned snapshots remain unchanged from caller perspective.
+- [x] Refactor `joinRoom` to commit `player.joined`.
+- [x] Keep presence as runtime state in `joinRoom`.
+- [x] Refactor `createCharacterForPlayer` to commit `character.created`.
+- [x] Refactor `loadAdventureModule` to commit `adventure.loaded` while caching full adventure side state.
+- [x] Refactor `startSession` to commit `session.started` instead of `state.patch`.
+- [x] Ensure returned snapshots remain unchanged from caller perspective.
 
 ### Replay acceptance
 
-- [ ] Add replay acceptance test covering join, character creation, adventure load, session start, scene/clue/combat/session completion.
-- [ ] Compare replayed critical fields against live room state.
-- [ ] Exclude presence, counters, and cached adventure module content from replay comparison.
+- [x] Add replay acceptance test covering join, character creation, adventure load, session start, scene/clue/combat/session completion.
+- [x] Compare replayed critical fields against live room state.
+- [x] Exclude presence, counters, and cached adventure module content from replay comparison.
 
 ## MVP-0.7B review and AI message eventization
 

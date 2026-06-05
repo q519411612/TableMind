@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   appendSessionEvent,
+  createCharacter,
   createInitialSessionState,
   projectSessionState,
   replaySessionEvents,
@@ -171,6 +172,180 @@ test("append rejects invalid events before mutating state", () => {
 
   assert.equal(initial.version, 0);
   assert.deepEqual(initial.discoveredClueIds, []);
+});
+
+test("lifecycle events validate and replay persistent room truth", () => {
+  const initial = createInitialSessionState({
+    id: "session_test",
+    roomId: "room_test",
+    rulesetId: "5e-srd-5.2.1",
+    adventureModuleId: "adventure_placeholder",
+    currentSceneId: "scene_placeholder",
+    now: "2026-06-02T00:00:00.000Z",
+  });
+  const character = createCharacter({
+    id: "char_ada",
+    playerId: "player_2",
+    name: "Ada Thorne",
+    className: "Fighter",
+    level: 1,
+    abilities: {
+      strength: 14,
+      dexterity: 12,
+      constitution: 14,
+      intelligence: 10,
+      wisdom: 11,
+      charisma: 8,
+    },
+    armorClass: 16,
+    hitPoints: {
+      current: 12,
+      max: 12,
+      temporary: 0,
+    },
+    speed: 30,
+    savingThrowProficiencies: ["strength", "constitution"],
+    skillProficiencies: ["athletics"],
+    attacks: [
+      {
+        id: "attack_longsword",
+        name: "Longsword",
+        attackBonus: 5,
+        damage: "1d8+3",
+        damageType: "slashing",
+      },
+    ],
+    spells: [],
+    inventory: [],
+    conditions: [],
+  });
+  const events = [
+    baseEvent({
+      id: "event_host",
+      type: "player.joined",
+      actorRole: "system",
+      player: {
+        id: "player_1",
+        displayName: "Host",
+        role: "host",
+        visibility: "public",
+      },
+    }),
+    baseEvent({
+      id: "event_player",
+      type: "player.joined",
+      actorRole: "system",
+      player: {
+        id: "player_2",
+        displayName: "Ada",
+        role: "player",
+        visibility: "public",
+      },
+    }),
+    baseEvent({
+      id: "event_character",
+      type: "character.created",
+      actorRole: "system",
+      playerId: "player_2",
+      character,
+    }),
+    baseEvent({
+      id: "event_adventure",
+      type: "adventure.loaded",
+      actorRole: "host",
+      adventureModuleId: "adventure_lantern_beneath_hill",
+      startingSceneId: "scene_village_square",
+    }),
+    baseEvent({
+      id: "event_started",
+      type: "session.started",
+      actorRole: "host",
+      reason: "Host started the session.",
+    }),
+  ];
+
+  const replayed = replaySessionEvents(events, initial);
+
+  assert.equal(replayed.players.player_1.role, "host");
+  assert.equal(replayed.players.player_2.displayName, "Ada");
+  assert.equal(replayed.players.player_2.characterId, "char_ada");
+  assert.equal(replayed.characters.char_ada.proficiencyBonus, 2);
+  assert.equal(replayed.adventureModuleId, "adventure_lantern_beneath_hill");
+  assert.equal(replayed.currentSceneId, "scene_village_square");
+  assert.equal(replayed.phase, "playing");
+  assert.deepEqual(
+    replayed.eventLog.map((event) => event.type),
+    [
+      "player.joined",
+      "player.joined",
+      "character.created",
+      "adventure.loaded",
+      "session.started",
+    ],
+  );
+});
+
+test("character creation event requires an existing player", () => {
+  const initial = createInitialSessionState({
+    id: "session_test",
+    roomId: "room_test",
+    rulesetId: "5e-srd-5.2.1",
+    adventureModuleId: "adventure_placeholder",
+    currentSceneId: "scene_placeholder",
+    now: "2026-06-02T00:00:00.000Z",
+  });
+  const character = createCharacter({
+    id: "char_ada",
+    playerId: "player_missing",
+    name: "Ada Thorne",
+    className: "Fighter",
+    level: 1,
+    abilities: {
+      strength: 14,
+      dexterity: 12,
+      constitution: 14,
+      intelligence: 10,
+      wisdom: 11,
+      charisma: 8,
+    },
+    armorClass: 16,
+    hitPoints: {
+      current: 12,
+      max: 12,
+      temporary: 0,
+    },
+    speed: 30,
+    savingThrowProficiencies: ["strength", "constitution"],
+    skillProficiencies: ["athletics"],
+    attacks: [
+      {
+        id: "attack_longsword",
+        name: "Longsword",
+        attackBonus: 5,
+        damage: "1d8+3",
+        damageType: "slashing",
+      },
+    ],
+    spells: [],
+    inventory: [],
+    conditions: [],
+  });
+
+  assert.throws(
+    () =>
+      appendSessionEvent(
+        initial,
+        baseEvent({
+          id: "event_character",
+          type: "character.created",
+          actorRole: "system",
+          playerId: "player_missing",
+          character,
+        }),
+      ),
+    /player_not_found/,
+  );
+  assert.deepEqual(initial.characters, {});
 });
 
 test("player projection strips dm_only data but keeps own player_specific data", () => {
