@@ -58,6 +58,15 @@ test("host creates a room and receives a host snapshot and invite link", () => {
   assert.equal(room.snapshot.players.player_0001.role, "host");
 });
 
+test("room invite link can use a browser query template", () => {
+  const service = createRoomService({
+    baseInviteUrl: "/player.html?roomId={roomId}",
+  });
+  const room = service.createRoom(baseRoomInput);
+
+  assert.equal(room.inviteLink, `/player.html?roomId=${room.roomId}`);
+});
+
 test("players join, leave, and reconnect with authoritative presence", () => {
   const service = createRoomService();
   const room = service.createRoom(baseRoomInput);

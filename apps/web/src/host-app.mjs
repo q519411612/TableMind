@@ -7,12 +7,17 @@ import { renderHostRoom } from "./render-host.mjs";
 
 const appState = {
   baseUrl: globalThis.localStorage?.getItem("tablemind.apiBaseUrl") ?? "",
+  fixtureUrls: undefined,
+  demoAdventure: undefined,
+  compendiumEntries: [],
   room: undefined,
   snapshot: undefined,
   adventureSnapshot: undefined,
   reviewQueue: [],
   stream: undefined,
 };
+
+await loadPlaytestBootstrap();
 
 const api = createTableMindApi({ baseUrl: appState.baseUrl });
 const root = document.querySelector("#app");
@@ -116,7 +121,7 @@ function hostClient() {
 async function dispatchHostCommand(button) {
   const client = hostClient();
   if (button.dataset.command === "adventure.load") {
-    const result = await client.loadAdventure(demoAdventure());
+    const result = await client.loadAdventure(await demoAdventure());
     appState.adventureSnapshot = result.snapshot;
     return result;
   }
@@ -146,7 +151,7 @@ async function dispatchHostCommand(button) {
     return client.startCombat({
       encounterId: "encounter_hill_scavengers",
       characterIds: Object.keys(appState.snapshot?.characters ?? {}),
-      compendiumEntries: globalThis.tableMindCompendiumEntries ?? [],
+      compendiumEntries: appState.compendiumEntries,
     });
   }
   if (button.dataset.command === "combat.patch_hp") {
@@ -215,28 +220,31 @@ function render() {
   root.innerHTML = renderHostRoom(appState);
 }
 
-function demoAdventure() {
-  return (
-    globalThis.tableMindDemoAdventure ?? {
-      id: "adventure_lantern_beneath_hill",
-      rulesetId: "5e-srd-5.2.1",
-      startingSceneId: "scene_village_square",
-      scenes: [
-        {
-          id: "scene_village_square",
-          title: "Village Square",
-          readAloud: {
-            text: "The village square smells of wet rope, chimney smoke, and rain.",
-          },
-          clues: [],
-          npcs: [],
-        },
-      ],
-      truth: [],
-      clues: [],
-      npcs: [],
-      encounters: [],
-      endings: [],
-    }
+async function demoAdventure() {
+  if (appState.demoAdventure) {
+    return structuredClone(appState.demoAdventure);
+  }
+  const search = new URLSearchParams({
+    roomId: appState.room.roomId,
+    sessionToken: appState.room.hostSessionToken,
+  });
+  appState.demoAdventure = await loadJson(
+    `${appState.fixtureUrls.adventureUrl}?${search.toString()}`,
   );
+  return structuredClone(appState.demoAdventure);
+}
+
+async function loadPlaytestBootstrap() {
+  const config = await loadJson("/playtest/config.json");
+  appState.baseUrl = appState.baseUrl || config.apiBaseUrl;
+  appState.fixtureUrls = config.fixtures;
+  appState.compendiumEntries = (await loadJson(appState.fixtureUrls.compendiumUrl)).entries;
+}
+
+async function loadJson(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${url}`);
+  }
+  return await response.json();
 }

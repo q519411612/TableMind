@@ -19,36 +19,8 @@ const statusByErrorCode = {
 };
 
 export function createHttpServer(input) {
-  const dispatcher = input.dispatcher;
-  if (!dispatcher) {
-    throw new Error("dispatcher is required");
-  }
-  if (!dispatcher.roomService) {
-    throw new Error("dispatcher.roomService is required");
-  }
-  const eventStreamHub = input.eventStreamHub ?? createRoomEventStreamHub();
-
-  const server = createServer(async (request, response) => {
-    try {
-      if (isEventStreamRequest(request)) {
-        await handleEventStream(dispatcher, eventStreamHub, request, response);
-        return;
-      }
-
-      const result = await routeRequest(dispatcher, eventStreamHub, request);
-      writeJson(response, statusForResult(result), result);
-    } catch (error) {
-      const code = statusByErrorCode[error.code] ? error.code : "internal_error";
-      writeJson(response, statusByErrorCode[code], {
-        ok: false,
-        commandType: "http.request",
-        error: {
-          code,
-          message: error.message,
-        },
-      });
-    }
-  });
+  const handler = createHttpRequestHandler(input);
+  const server = createServer(handler);
 
   return {
     server,
@@ -78,6 +50,39 @@ export function createHttpServer(input) {
         });
       });
     },
+  };
+}
+
+export function createHttpRequestHandler(input) {
+  const dispatcher = input.dispatcher;
+  if (!dispatcher) {
+    throw new Error("dispatcher is required");
+  }
+  if (!dispatcher.roomService) {
+    throw new Error("dispatcher.roomService is required");
+  }
+  const eventStreamHub = input.eventStreamHub ?? createRoomEventStreamHub();
+
+  return async (request, response) => {
+    try {
+      if (isEventStreamRequest(request)) {
+        await handleEventStream(dispatcher, eventStreamHub, request, response);
+        return;
+      }
+
+      const result = await routeRequest(dispatcher, eventStreamHub, request);
+      writeJson(response, statusForResult(result), result);
+    } catch (error) {
+      const code = statusByErrorCode[error.code] ? error.code : "internal_error";
+      writeJson(response, statusByErrorCode[code], {
+        ok: false,
+        commandType: "http.request",
+        error: {
+          code,
+          message: error.message,
+        },
+      });
+    }
   };
 }
 

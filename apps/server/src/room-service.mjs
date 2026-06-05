@@ -41,7 +41,7 @@ export function createRoomService(options = {}) {
     const room = {
       roomId,
       hostPlayerId,
-      inviteLink: `${baseInviteUrl}/${roomId}`,
+      inviteLink: formatInviteLink(baseInviteUrl, roomId),
       state,
       adventure: undefined,
       presence: new Map(),
@@ -1232,6 +1232,13 @@ function requireHost(room, playerId) {
   if (room.hostPlayerId !== playerId) {
     throw new Error("forbidden");
   }
+}
+
+function formatInviteLink(baseInviteUrl, roomId) {
+  if (baseInviteUrl.includes("{roomId}")) {
+    return baseInviteUrl.replace("{roomId}", encodeURIComponent(roomId));
+  }
+  return `${baseInviteUrl}/${roomId}`;
 }
 
 function nextCounter(value) {
