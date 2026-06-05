@@ -65,6 +65,7 @@ root.addEventListener("submit", async (event) => {
       "Host patched condition.",
     );
     appState.snapshot = result.snapshot;
+    await syncReviewQueue();
     render();
   }
 });
@@ -84,6 +85,8 @@ root.addEventListener("click", async (event) => {
     }
     const result = await hostClient().refreshSnapshot();
     appState.snapshot = result.snapshot;
+    await syncAdventureSnapshot();
+    await syncReviewQueue();
     render();
     return;
   }
@@ -96,6 +99,8 @@ root.addEventListener("click", async (event) => {
   if (result?.snapshot) {
     appState.snapshot = result.snapshot;
   }
+  await syncAdventureSnapshot();
+  await syncReviewQueue();
   render();
 });
 
@@ -104,6 +109,7 @@ function hostClient() {
     api,
     roomId: appState.room.roomId,
     hostPlayerId: appState.room.hostPlayerId,
+    hostSessionToken: appState.room.hostSessionToken,
   });
 }
 
@@ -133,6 +139,9 @@ async function dispatchHostCommand(button) {
       "Host reviewed output.",
     );
   }
+  if (button.dataset.command === "ai.turn.run") {
+    return client.runAiTurn();
+  }
   if (button.dataset.command === "combat.start") {
     return client.startCombat({
       encounterId: "encounter_hill_scavengers",
@@ -155,6 +164,28 @@ async function dispatchHostCommand(button) {
   return undefined;
 }
 
+async function syncAdventureSnapshot() {
+  if (!appState.room) {
+    return;
+  }
+  const result = await api.getAdventureSnapshot(appState.room.roomId, {
+    sessionToken: appState.room.hostSessionToken,
+  });
+  if (result.ok) {
+    appState.adventureSnapshot = result.snapshot;
+  }
+}
+
+async function syncReviewQueue() {
+  if (!appState.room) {
+    return;
+  }
+  const result = await hostClient().listReviewQueue();
+  if (result.ok) {
+    appState.reviewQueue = result.data.reviewQueue;
+  }
+}
+
 function connectStream() {
   appState.stream?.close();
   if (!appState.room) {
@@ -164,13 +195,17 @@ function connectStream() {
   appState.stream = connectRoomEventStream({
     baseUrl: appState.baseUrl,
     roomId: appState.room.roomId,
-    viewerRole: "host",
-    onSnapshot(payload) {
+    sessionToken: appState.room.hostSessionToken,
+    async onSnapshot(payload) {
       appState.snapshot = payload.snapshot;
+      await syncAdventureSnapshot();
+      await syncReviewQueue();
       render();
     },
-    onBroadcast(payload) {
+    async onBroadcast(payload) {
       appState.snapshot = payload.broadcast.snapshot;
+      await syncAdventureSnapshot();
+      await syncReviewQueue();
       render();
     },
   });

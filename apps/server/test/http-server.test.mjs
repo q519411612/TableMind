@@ -27,13 +27,13 @@ test("HTTP adapter creates room, joins player, sends action, and returns project
     });
     const message = await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
       type: "message.send",
-      actorPlayerId: joined.data.playerId,
+      sessionToken: joined.data.playerSessionToken,
       payload: { text: "I inspect the lantern." },
       now: "2026-06-02T14:02:00.000Z",
     });
     await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
       type: "ai.pause",
-      actorPlayerId: created.data.hostPlayerId,
+      sessionToken: created.data.hostSessionToken,
       payload: {
         paused: true,
         reason: "Host-only pause reason.",
@@ -42,10 +42,10 @@ test("HTTP adapter creates room, joins player, sends action, and returns project
     });
 
     const hostSnapshot = await getJson(
-      `${baseUrl}/rooms/${created.data.roomId}/snapshot?viewerRole=host`,
+      `${baseUrl}/rooms/${created.data.roomId}/snapshot?sessionToken=${encodeURIComponent(created.data.hostSessionToken)}`,
     );
     const playerSnapshotResponse = await fetch(
-      `${baseUrl}/rooms/${created.data.roomId}/snapshot?viewerRole=player&viewerPlayerId=${joined.data.playerId}`,
+      `${baseUrl}/rooms/${created.data.roomId}/snapshot?sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
     );
     const playerSnapshotText = await playerSnapshotResponse.text();
     const playerSnapshot = JSON.parse(playerSnapshotText);
@@ -61,6 +61,47 @@ test("HTTP adapter creates room, joins player, sends action, and returns project
   }
 });
 
+test("HTTP snapshot derives viewer identity from session tokens and rejects Host impersonation", async () => {
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: createRoomService(),
+    }),
+  });
+  const { baseUrl } = await app.start();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "ai.pause",
+      sessionToken: created.data.hostSessionToken,
+      payload: {
+        paused: true,
+        reason: "Host-only pause reason.",
+      },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+
+    const forgedHost = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/snapshot?viewerRole=host&viewerPlayerId=${joined.data.playerId}&sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+    const noCredentialHost = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/snapshot?viewerRole=host`,
+    );
+    const playerSnapshot = await getJson(
+      `${baseUrl}/rooms/${created.data.roomId}/snapshot?viewerPlayerId=${created.data.hostPlayerId}&sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+
+    assert.equal(forgedHost.status, 403);
+    assert.equal(noCredentialHost.status, 403);
+    assert.equal(playerSnapshot.status, 403);
+  } finally {
+    await app.stop();
+  }
+});
+
 test("HTTP adapter returns structured errors without crashing", async () => {
   const app = createHttpServer({
     dispatcher: createRoomActionDispatcher({
@@ -69,10 +110,14 @@ test("HTTP adapter returns structured errors without crashing", async () => {
   });
   const { baseUrl } = await app.start();
   try {
-    const response = await fetch(`${baseUrl}/rooms/room_missing/actions`, {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const response = await fetch(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ type: "dragon.arrive" }),
+      body: JSON.stringify({
+        type: "dragon.arrive",
+        sessionToken: created.data.hostSessionToken,
+      }),
     });
     const body = await response.json();
 
@@ -106,7 +151,7 @@ test("SSE stream sends player-safe snapshots and public broadcasts", async () =>
     });
     await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
       type: "ai.pause",
-      actorPlayerId: created.data.hostPlayerId,
+      sessionToken: created.data.hostSessionToken,
       payload: {
         paused: true,
         reason: "Host-only pause reason.",
@@ -115,7 +160,7 @@ test("SSE stream sends player-safe snapshots and public broadcasts", async () =>
     });
 
     const streamResponse = await fetch(
-      `${baseUrl}/rooms/${created.data.roomId}/events?viewerRole=player&viewerPlayerId=${joined.data.playerId}`,
+      `${baseUrl}/rooms/${created.data.roomId}/events?sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
       { signal: streamAbort.signal },
     );
     const reader = streamResponse.body.getReader();
@@ -128,7 +173,7 @@ test("SSE stream sends player-safe snapshots and public broadcasts", async () =>
 
     await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
       type: "message.send",
-      actorPlayerId: joined.data.playerId,
+      sessionToken: joined.data.playerSessionToken,
       payload: { text: "I inspect the lantern." },
       now: "2026-06-02T14:03:00.000Z",
     });
@@ -143,11 +188,11 @@ test("SSE stream sends player-safe snapshots and public broadcasts", async () =>
     streamAbort.abort();
     await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
       type: "room.reconnect",
-      actorPlayerId: joined.data.playerId,
+      sessionToken: joined.data.playerSessionToken,
       now: "2026-06-02T14:04:00.000Z",
     });
     const snapshotAfterReconnect = await getJson(
-      `${baseUrl}/rooms/${created.data.roomId}/snapshot?viewerRole=player&viewerPlayerId=${joined.data.playerId}`,
+      `${baseUrl}/rooms/${created.data.roomId}/snapshot?sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
     );
 
     assert.equal(snapshotAfterReconnect.status, 200);
@@ -158,6 +203,100 @@ test("SSE stream sends player-safe snapshots and public broadcasts", async () =>
     );
   } finally {
     streamAbort.abort();
+    await app.stop();
+  }
+});
+
+test("SSE rejects Host subscriptions without Host session credentials", async () => {
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: createRoomService(),
+    }),
+  });
+  const { baseUrl } = await app.start();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+
+    const noCredential = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/events?viewerRole=host`,
+    );
+    const forgedByPlayer = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/events?viewerRole=host&sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+
+    assert.equal(noCredential.status, 403);
+    assert.equal(forgedByPlayer.status, 403);
+    assert.deepEqual(await noCredential.json(), {
+      ok: false,
+      commandType: "room.snapshot",
+      error: {
+        code: "forbidden",
+        message: "forbidden",
+      },
+    });
+  } finally {
+    await app.stop();
+  }
+});
+
+test("SSE publishes state-changing commands as role-specific snapshots without overwriting Host projection", async () => {
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: createRoomService(),
+    }),
+  });
+  const { baseUrl } = await app.start();
+  const hostAbort = new AbortController();
+  const playerAbort = new AbortController();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+
+    const hostStream = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/events?sessionToken=${encodeURIComponent(created.data.hostSessionToken)}`,
+      { signal: hostAbort.signal },
+    );
+    const playerStream = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/events?sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+      { signal: playerAbort.signal },
+    );
+    const hostReader = hostStream.body.getReader();
+    const playerReader = playerStream.body.getReader();
+    await readSseEvent(hostReader);
+    await readSseEvent(playerReader);
+
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "ai.pause",
+      sessionToken: created.data.hostSessionToken,
+      payload: {
+        paused: true,
+        reason: "Host-only pause reason.",
+      },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+
+    const hostBroadcast = await readSseEvent(hostReader);
+    const playerBroadcast = await readSseEvent(playerReader);
+
+    assert.equal(hostBroadcast.event, "room.broadcast");
+    assert.equal(hostBroadcast.data.broadcast.event.type, "state.patch");
+    assert.equal(hostBroadcast.data.broadcast.snapshot.flags.aiPaused.value, true);
+    assert.equal(playerBroadcast.event, "room.broadcast");
+    assert.equal(playerBroadcast.data.broadcast.event.type, "state.patch");
+    assert.equal(playerBroadcast.data.broadcast.snapshot.flags.aiPaused, undefined);
+
+    await hostReader.cancel();
+    await playerReader.cancel();
+  } finally {
+    hostAbort.abort();
+    playerAbort.abort();
     await app.stop();
   }
 });

@@ -36,11 +36,33 @@ export function createRoomEventStreamHub() {
 
   function publish(input) {
     const roomSubscribers = subscribersByRoom.get(input.roomId);
-    if (!roomSubscribers || !Array.isArray(input.broadcasts)) {
+    if (!roomSubscribers) {
       return 0;
     }
 
     let delivered = 0;
+    if (Array.isArray(input.events)) {
+      for (const subscriber of roomSubscribers.values()) {
+        for (const event of input.events) {
+          subscriber.send({
+            event: "room.broadcast",
+            data: {
+              broadcast: {
+                event: eventForSubscriber(subscriber, event),
+                snapshot: input.snapshotForSubscriber(subscriber),
+              },
+            },
+          });
+          delivered += 1;
+        }
+      }
+      return delivered;
+    }
+
+    if (!Array.isArray(input.broadcasts)) {
+      return 0;
+    }
+
     for (const subscriber of roomSubscribers.values()) {
       for (const broadcast of input.broadcasts) {
         if (canReceiveBroadcast(subscriber, broadcast)) {
@@ -60,6 +82,33 @@ export function createRoomEventStreamHub() {
     subscribe,
     publish,
   };
+}
+
+const playerHiddenEventTypes = new Set([
+  "host.review.created",
+  "host.review.updated",
+  "state.patch",
+  "host.override",
+]);
+
+function eventForSubscriber(subscriber, event) {
+  if (subscriber.viewerRole === "host") {
+    return structuredClone(event);
+  }
+
+  if (playerHiddenEventTypes.has(event.type) || event.visibility === "dm_only") {
+    return {
+      id: event.id,
+      sessionId: event.sessionId,
+      sequence: event.sequence,
+      correlationId: event.correlationId,
+      type: event.type,
+      createdAt: event.createdAt,
+      visibility: "redacted",
+    };
+  }
+
+  return structuredClone(event);
 }
 
 function canReceiveBroadcast(subscriber, broadcast) {

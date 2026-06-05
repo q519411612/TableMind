@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { loadAdventureFixture } from "../../../packages/adventure-loader/src/index.mjs";
 import { loadCompendiumFixture } from "../../../packages/compendium/src/index.mjs";
 import { createSequenceRandomSource } from "../../../packages/rules-engine/src/index.mjs";
+import { createRoomActionDispatcher } from "../src/room-actions.mjs";
 import { createRoomService } from "../src/room-service.mjs";
 
 const character = {
@@ -170,4 +171,118 @@ test("turns advance and combat can end through committed events", async () => {
   assert.equal(ended.event.type, "combat.ended");
   assert.equal(ended.snapshot.phase, "playing");
   assert.equal(ended.snapshot.combat, undefined);
+});
+
+test("combat rejects non-active-turn player attacks and defeated attackers", async () => {
+  const { service, room, player, compendium } = await createCombatRoom();
+  service.startCombatFromEncounter({
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    encounterId: "encounter_hill_scavengers",
+    characterIds: ["char_ada"],
+    compendiumEntries: compendium,
+    randomSource: createSequenceRandomSource([0.1, 0.5, 0.2]),
+    now: "2026-06-02T07:02:00.000Z",
+  });
+
+  assert.throws(
+    () =>
+      service.resolveCombatAttack({
+        roomId: room.roomId,
+        actorPlayerId: player.playerId,
+        attackerCombatantId: "combatant_char_ada",
+        targetCombatantId: "combatant_monster_hill_scavenger_1",
+        attackId: "attack_longsword",
+        randomSource: createSequenceRandomSource([0.7, 0.5]),
+        now: "2026-06-02T07:03:00.000Z",
+      }),
+    /invalid_combat_action/,
+  );
+
+  service.patchCombatantHitPoints({
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    combatantId: "combatant_char_ada",
+    currentHp: 0,
+    reason: "Host test setup.",
+    now: "2026-06-02T07:03:30.000Z",
+  });
+  service.advanceCombatTurn({
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    now: "2026-06-02T07:04:00.000Z",
+  });
+
+  assert.throws(
+    () =>
+      service.resolveCombatAttack({
+        roomId: room.roomId,
+        actorPlayerId: player.playerId,
+        attackerCombatantId: "combatant_char_ada",
+        targetCombatantId: "combatant_monster_hill_scavenger_1",
+        attackId: "attack_longsword",
+        randomSource: createSequenceRandomSource([0.7, 0.5]),
+        now: "2026-06-02T07:05:00.000Z",
+      }),
+    /invalid_combat_action/,
+  );
+});
+
+test("dispatcher rejects player dice commits and requires Host override reason", () => {
+  const dispatcher = createRoomActionDispatcher({
+    roomService: createRoomService(),
+  });
+  const created = dispatcher.dispatchRoomCommand({
+    type: "room.create",
+    now: "2026-06-02T07:00:00.000Z",
+    payload: {
+      hostDisplayName: "Host",
+      rulesetId: "5e-srd-5.2.1",
+      adventureModuleId: "adventure_lantern_beneath_hill",
+      startingSceneId: "scene_village_square",
+    },
+  });
+  const joined = dispatcher.dispatchRoomCommand({
+    type: "room.join",
+    roomId: created.data.roomId,
+    now: "2026-06-02T07:01:00.000Z",
+    payload: { displayName: "Ada" },
+  });
+
+  const playerCommit = dispatcher.dispatchRoomCommand({
+    type: "dice.commit",
+    roomId: created.data.roomId,
+    actorPlayerId: joined.data.playerId,
+    payload: {
+      roll: { formula: "1d20", total: 20 },
+      reason: "Player forged dice.",
+    },
+    now: "2026-06-02T07:02:00.000Z",
+  });
+  const missingReason = dispatcher.dispatchRoomCommand({
+    type: "dice.override_commit",
+    roomId: created.data.roomId,
+    actorPlayerId: created.data.hostPlayerId,
+    payload: {
+      roll: { formula: "1d20", total: 20 },
+    },
+    now: "2026-06-02T07:03:00.000Z",
+  });
+  const hostOverride = dispatcher.dispatchRoomCommand({
+    type: "dice.override_commit",
+    roomId: created.data.roomId,
+    actorPlayerId: created.data.hostPlayerId,
+    payload: {
+      roll: { formula: "1d20", total: 20 },
+      reason: "Host override for a table-visible manual roll.",
+    },
+    now: "2026-06-02T07:04:00.000Z",
+  });
+
+  assert.equal(playerCommit.ok, false);
+  assert.equal(playerCommit.error.code, "forbidden");
+  assert.equal(missingReason.ok, false);
+  assert.equal(missingReason.error.code, "bad_request");
+  assert.equal(hostOverride.ok, true);
+  assert.equal(hostOverride.events[0].type, "dice.rolled");
 });

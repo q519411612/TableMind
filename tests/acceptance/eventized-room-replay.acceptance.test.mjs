@@ -137,7 +137,7 @@ test("MVP-0.7A replay reconstructs lifecycle and gameplay-critical room state", 
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada", "char_bran"],
     compendiumEntries: compendium,
-    randomSource: createSequenceRandomSource([0.5, 0.45, 0.1, 0.2]),
+    randomSource: createSequenceRandomSource([0.9, 0.1, 0.2, 0.3]),
     now: "2026-06-02T11:07:00.000Z",
   });
   service.resolveCombatAttack({

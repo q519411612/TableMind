@@ -9,6 +9,8 @@ const appState = {
   baseUrl: globalThis.localStorage?.getItem("tablemind.apiBaseUrl") ?? "",
   roomId: new URL(globalThis.location.href).searchParams.get("roomId") ?? "",
   playerId: globalThis.localStorage?.getItem("tablemind.playerId") ?? "",
+  playerSessionToken:
+    globalThis.localStorage?.getItem("tablemind.playerSessionToken") ?? "",
   snapshot: undefined,
   adventureSnapshot: undefined,
   stream: undefined,
@@ -31,8 +33,14 @@ root.addEventListener("submit", async (event) => {
       now: new Date().toISOString(),
     });
     appState.playerId = result.data.playerId;
+    appState.playerSessionToken = result.data.playerSessionToken;
     appState.snapshot = result.snapshot;
     globalThis.localStorage?.setItem("tablemind.playerId", appState.playerId);
+    globalThis.localStorage?.setItem(
+      "tablemind.playerSessionToken",
+      appState.playerSessionToken,
+    );
+    await syncAdventureSnapshot();
     connectStream();
     render();
   }
@@ -42,6 +50,7 @@ root.addEventListener("submit", async (event) => {
     const client = playerClient();
     const result = await client.sendMessage(body.get("message"));
     appState.snapshot = result.snapshot;
+    await syncAdventureSnapshot();
     render();
   }
 
@@ -58,6 +67,7 @@ root.addEventListener("submit", async (event) => {
       attackId: attack?.id,
     });
     appState.snapshot = result.snapshot;
+    await syncAdventureSnapshot();
     render();
   }
 });
@@ -71,12 +81,14 @@ root.addEventListener("click", async (event) => {
   if (target.dataset.action === "refresh-snapshot") {
     const result = await playerClient().refreshSnapshot();
     appState.snapshot = result.snapshot;
+    await syncAdventureSnapshot();
     render();
   }
 
   if (target.dataset.action === "create-character") {
     const result = await playerClient().createCharacter(defaultCharacter());
     appState.snapshot = result.snapshot;
+    await syncAdventureSnapshot();
     render();
   }
 });
@@ -86,6 +98,7 @@ function playerClient() {
     api,
     roomId: appState.roomId,
     playerId: appState.playerId,
+    playerSessionToken: appState.playerSessionToken,
   });
 }
 
@@ -98,17 +111,34 @@ function connectStream() {
   appState.stream = connectRoomEventStream({
     baseUrl: appState.baseUrl,
     roomId: appState.roomId,
-    viewerRole: "player",
-    viewerPlayerId: appState.playerId,
-    onSnapshot(payload) {
+    sessionToken: appState.playerSessionToken,
+    async onSnapshot(payload) {
       appState.snapshot = payload.snapshot;
+      await syncAdventureSnapshot();
       render();
     },
-    onBroadcast(payload) {
+    async onBroadcast(payload) {
       appState.snapshot = payload.broadcast.snapshot;
+      await syncAdventureSnapshot();
       render();
     },
   });
+}
+
+async function syncAdventureSnapshot() {
+  if (!appState.roomId || !appState.playerSessionToken) {
+    return;
+  }
+  const result = await api.getAdventureSnapshot(appState.roomId, {
+    sessionToken: appState.playerSessionToken,
+  });
+  if (result.ok) {
+    appState.adventureSnapshot = result.snapshot;
+    return;
+  }
+  if (result.error?.code === "adventure_not_loaded") {
+    appState.adventureSnapshot = undefined;
+  }
 }
 
 function render() {

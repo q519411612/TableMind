@@ -62,8 +62,14 @@ test("player adventure snapshot hides truth, DM notes, and unrevealed clues", as
 
   assert.equal(playerView.truth, undefined);
   assert.equal(playerView.currentScene.dmNotes, undefined);
+  assert.equal(playerView.currentScene.clueIds, undefined);
+  assert.equal(playerView.currentScene.npcIds, undefined);
+  assert.equal(playerView.currentScene.encounterId, undefined);
   assert.deepEqual(playerView.currentScene.clues, []);
   assert.ok(playerView.currentScene.readAloud.text.includes("The village square"));
+  assert.equal(JSON.stringify(playerView).includes("clue_old_record"), false);
+  assert.equal(JSON.stringify(playerView).includes("npc_mayor_elric"), false);
+  assert.equal(JSON.stringify(playerView).includes("encounter_hill_scavengers"), false);
 });
 
 test("revealed clues become visible to player projections through committed events", async () => {
@@ -90,7 +96,12 @@ test("revealed clues become visible to player projections through committed even
   assert.equal(reveal.event.type, "clue.revealed");
   assert.equal(reveal.event.sequence, 4);
   assert.deepEqual(
-    playerView.currentScene.clues.map((clue) => clue.id),
-    ["clue_old_record"],
+    playerView.currentScene.clues.map((clue) => [
+      clue.publicHandle,
+      clue.title,
+      clue.id,
+    ]),
+    [["clue_1", "Old Record", undefined]],
   );
+  assert.equal(JSON.stringify(playerView).includes("clue_old_record"), false);
 });

@@ -48,6 +48,7 @@ export function renderHostRoom(input = {}) {
         <article class="tm-panel" data-panel="ai">
           <h2>AI</h2>
           <p>Paused: ${escapeHtml(Boolean(snapshot?.flags?.aiPaused?.value))}</p>
+          <button type="button" data-command="ai.turn.run">Run AI</button>
           <button type="button" data-command="ai.pause" data-paused="true">Pause AI</button>
           <button type="button" data-command="ai.pause" data-paused="false">Resume AI</button>
         </article>
@@ -214,7 +215,7 @@ function renderCombatControls() {
       <label>
         Action
         <select name="action">
-          <option value="add">Add</option>
+          <option value="apply">Apply</option>
           <option value="remove">Remove</option>
         </select>
       </label>

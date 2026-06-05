@@ -111,6 +111,50 @@ test("dispatcher rejects unknown commands and missing player actors", () => {
   );
 });
 
+test("dispatcher validates command payload contracts before mutating state", () => {
+  const dispatcher = createRoomActionDispatcher({
+    roomService: createRoomService(),
+  });
+  const created = dispatcher.dispatchRoomCommand({
+    type: "room.create",
+    now: "2026-06-02T13:00:00.000Z",
+    payload: roomInput,
+  });
+  const joined = dispatcher.dispatchRoomCommand({
+    type: "room.join",
+    roomId: created.data.roomId,
+    now: "2026-06-02T13:01:00.000Z",
+    payload: { displayName: "Ada" },
+  });
+
+  const missingText = dispatcher.dispatchRoomCommand({
+    type: "message.send",
+    roomId: created.data.roomId,
+    actorPlayerId: joined.data.playerId,
+    now: "2026-06-02T13:02:00.000Z",
+    payload: {},
+  });
+  const invalidCondition = dispatcher.dispatchRoomCommand({
+    type: "combat.patch_condition",
+    roomId: created.data.roomId,
+    actorPlayerId: created.data.hostPlayerId,
+    now: "2026-06-02T13:03:00.000Z",
+    payload: {
+      combatantId: "combatant_missing",
+      condition: "condition_prone",
+      action: "apply",
+      reason: "Invalid contract.",
+    },
+  });
+
+  assert.equal(missingText.ok, false);
+  assert.equal(missingText.error.code, "bad_request");
+  assert.match(missingText.error.message, /payload.text/);
+  assert.equal(invalidCondition.ok, false);
+  assert.equal(invalidCondition.error.code, "bad_request");
+  assert.match(invalidCondition.error.message, /payload.condition.conditionId/);
+});
+
 test("dispatcher snapshots are role projected", () => {
   const roomService = createRoomService();
   const dispatcher = createRoomActionDispatcher({ roomService });
@@ -148,4 +192,52 @@ test("dispatcher snapshots are role projected", () => {
 
   assert.equal(playerSnapshot.snapshot.flags.hiddenTruth, undefined);
   assert.equal(hostSnapshot.snapshot.flags.hiddenTruth.value, "Mira broke the shrine seal.");
+});
+
+test("dispatcher exposes Host review list only to the Host actor", () => {
+  const roomService = createRoomService();
+  const dispatcher = createRoomActionDispatcher({ roomService });
+  const created = dispatcher.dispatchRoomCommand({
+    type: "room.create",
+    now: "2026-06-02T13:00:00.000Z",
+    payload: roomInput,
+  });
+  const joined = dispatcher.dispatchRoomCommand({
+    type: "room.join",
+    roomId: created.data.roomId,
+    now: "2026-06-02T13:01:00.000Z",
+    payload: { displayName: "Ada" },
+  });
+  roomService.addHostReviewItem({
+    roomId: created.data.roomId,
+    type: "ai_output",
+    proposedPayload: { publicMessage: "The lantern flickers." },
+    reason: "AI confidence is low.",
+    riskLevel: "medium",
+    now: "2026-06-02T13:02:00.000Z",
+  });
+
+  const hostList = dispatcher.dispatchRoomCommand({
+    type: "host.review.list",
+    roomId: created.data.roomId,
+    actorPlayerId: created.data.hostPlayerId,
+    now: "2026-06-02T13:03:00.000Z",
+  });
+  const playerList = dispatcher.dispatchRoomCommand({
+    type: "host.review.list",
+    roomId: created.data.roomId,
+    actorPlayerId: joined.data.playerId,
+    now: "2026-06-02T13:03:00.000Z",
+  });
+
+  assert.equal(hostList.ok, true);
+  assert.equal(hostList.data.reviewQueue[0].reason, "AI confidence is low.");
+  assert.deepEqual(playerList, {
+    ok: false,
+    commandType: "host.review.list",
+    error: {
+      code: "forbidden",
+      message: "forbidden",
+    },
+  });
 });

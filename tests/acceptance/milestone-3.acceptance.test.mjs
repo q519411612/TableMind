@@ -58,10 +58,15 @@ test("milestone 3 simulates role-aware adventure execution", async () => {
   assert.ok(hostView.currentScene.encounter.dmNotes.includes("flee"));
   assert.equal(playerView.truth, undefined);
   assert.equal(playerView.currentScene.dmNotes, undefined);
-  assert.equal(playerView.currentScene.encounter.dmNotes, undefined);
+  assert.equal(playerView.currentScene.encounter, undefined);
   assert.deepEqual(
-    playerView.currentScene.clues.map((clue) => [clue.id, clue.visibility]),
-    [["clue_broken_lens", "revealed"]],
+    playerView.currentScene.clues.map((clue) => [
+      clue.publicHandle,
+      clue.title,
+      clue.id,
+      clue.visibility,
+    ]),
+    [["clue_1", "Broken Lantern Lens", undefined, "revealed"]],
   );
   assert.deepEqual(
     service.getCommittedEvents(room.roomId).map((event) => [

@@ -96,6 +96,17 @@ export async function runAiTurnForRoom(input) {
       randomSource: input.randomSource,
     });
   } catch (error) {
+    if (error.code === "provider_timeout" || error.code === "provider_request_failed") {
+      return {
+        status: "rejected",
+        error: {
+          code: error.code,
+          message: error.message,
+        },
+        events: [],
+        broadcasts: [],
+      };
+    }
     return {
       status: "rejected",
       error: {

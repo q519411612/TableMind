@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { validateAdventureModule } from "../../../packages/adventure-loader/src/index.mjs";
 import {
   appendSessionEvent,
   createCharacter,
@@ -43,12 +45,14 @@ export function createRoomService(options = {}) {
       state,
       adventure: undefined,
       presence: new Map(),
+      sessionTokens: new Map(),
       committedEvents: [],
       reviewQueue: [],
       nextPlayerNumber: 2,
       nextEventNumber: 1,
       nextReviewNumber: 1,
     };
+    const hostSessionToken = issueSessionToken(room, hostPlayerId, options);
 
     const event = buildEvent(room, {
       type: "player.joined",
@@ -70,6 +74,7 @@ export function createRoomService(options = {}) {
     return {
       roomId,
       hostPlayerId,
+      hostSessionToken,
       inviteLink: room.inviteLink,
       snapshot: projectSessionState({ state: room.state, viewerRole: "host" }),
     };
@@ -93,6 +98,7 @@ export function createRoomService(options = {}) {
       player,
     });
     commitEvent(room, event);
+    const playerSessionToken = issueSessionToken(room, playerId, options);
     room.nextPlayerNumber += 1;
     room.presence.set(playerId, {
       playerId,
@@ -104,6 +110,7 @@ export function createRoomService(options = {}) {
 
     return {
       playerId,
+      playerSessionToken,
       event,
       snapshot: getSnapshot({
         roomId: input.roomId,
@@ -262,11 +269,15 @@ export function createRoomService(options = {}) {
   }
 
   function getHostReviewQueue(input) {
-    requireRoom(input.roomId);
+    const room = requireRoom(input.roomId);
+    if (input.hostPlayerId) {
+      requireHost(room, input.hostPlayerId);
+      return structuredClone(room.reviewQueue);
+    }
     if (input.viewerRole !== "host") {
       throw new Error("forbidden");
     }
-    return structuredClone(requireRoom(input.roomId).reviewQueue);
+    return structuredClone(room.reviewQueue);
   }
 
   function updateHostReviewItem(input) {
@@ -502,6 +513,15 @@ export function createRoomService(options = {}) {
     const target = requireCombatant(combat, input.targetCombatantId);
     if (actor.role !== "host" && attacker.playerId !== input.actorPlayerId) {
       throw new Error("forbidden");
+    }
+    if (input.hostOverrideReason && actor.role !== "host") {
+      throw new Error("forbidden");
+    }
+    if (["defeated", "dead", "fled"].includes(attacker.status)) {
+      throw new Error("invalid_combat_action");
+    }
+    if (combat.activeCombatantId !== attacker.id && !input.hostOverrideReason) {
+      throw new Error("invalid_combat_action");
     }
     const attack = requireAttack(attacker, input.attackId);
     const attackResult = resolveAttack({
@@ -776,6 +796,27 @@ export function createRoomService(options = {}) {
     });
   }
 
+  function resolveSessionIdentity(input) {
+    const room = requireRoom(input.roomId);
+    if (typeof input.sessionToken !== "string" || input.sessionToken.length === 0) {
+      throw new Error("forbidden");
+    }
+    const playerId = room.sessionTokens.get(input.sessionToken);
+    if (!playerId) {
+      throw new Error("forbidden");
+    }
+    const player = room.state.players[playerId];
+    if (!player) {
+      throw new Error("forbidden");
+    }
+    return {
+      roomId: input.roomId,
+      playerId,
+      viewerPlayerId: playerId,
+      viewerRole: player.role === "host" ? "host" : "player",
+    };
+  }
+
   function buildBroadcasts(room, event) {
     return getPresence(room.roomId)
       .filter((presence) => presence.connected)
@@ -844,18 +885,27 @@ export function createRoomService(options = {}) {
     getPresence,
     getCommittedEvents,
     getSnapshot,
+    resolveSessionIdentity,
   };
 }
 
-function validateAdventureForRoom(room, adventure) {
-  if (!adventure || typeof adventure !== "object") {
-    throw new Error("adventure is required");
+function issueSessionToken(room, playerId, options) {
+  const token =
+    options.sessionTokenFactory?.({
+      roomId: room.roomId,
+      playerId,
+    }) ?? `tm_session_${randomUUID()}`;
+  if (typeof token !== "string" || token.length === 0) {
+    throw new Error("session token factory must return a non-empty string");
   }
+  room.sessionTokens.set(token, playerId);
+  return token;
+}
+
+function validateAdventureForRoom(room, adventure) {
+  validateAdventureModule(adventure);
   if (adventure.rulesetId !== room.state.rulesetId) {
     throw new Error("adventure ruleset does not match room");
-  }
-  if (!adventure.scenes?.some((scene) => scene.id === adventure.startingSceneId)) {
-    throw new Error("adventure starting scene is missing");
   }
 }
 
@@ -883,6 +933,9 @@ function buildPlayerAdventureSnapshot(room) {
   const adventure = room.adventure;
   const currentScene = requireCurrentScene(room);
   const revealed = new Set(room.state.discoveredClueIds);
+  const visibleClues = sceneClues(adventure, currentScene).filter(
+    (clue) => clue.visibility === "public" || revealed.has(clue.id),
+  );
 
   return {
     id: adventure.id,
@@ -891,15 +944,12 @@ function buildPlayerAdventureSnapshot(room) {
       id: currentScene.id,
       title: currentScene.title,
       readAloud: structuredClone(currentScene.readAloud),
-      clueIds: structuredClone(currentScene.clueIds),
-      npcIds: structuredClone(currentScene.npcIds),
-      encounterId: currentScene.encounterId,
-      clues: sceneClues(adventure, currentScene)
-        .filter((clue) => clue.visibility === "public" || revealed.has(clue.id))
-        .map((clue) => ({
-          ...structuredClone(clue),
-          visibility: clue.visibility === "public" ? "public" : "revealed",
-        })),
+      clues: visibleClues.map((clue, index) => ({
+        publicHandle: `clue_${index + 1}`,
+        title: clue.title,
+        text: clue.text,
+        visibility: clue.visibility === "public" ? "public" : "revealed",
+      })),
       npcs: sceneNpcs(adventure, currentScene, "player"),
       encounter: sceneEncounter(adventure, currentScene, "player"),
     },
@@ -936,13 +986,16 @@ function sceneNpcs(adventure, scene, viewerRole) {
     if (viewerRole === "host") {
       return structuredClone(npc);
     }
+    if (!["public", "revealed"].includes(npc.visibility)) {
+      return undefined;
+    }
     return {
-      id: npc.id,
+      publicHandle: `npc_${scene.npcIds.indexOf(npcId) + 1}`,
       name: npc.name,
       publicDescription: npc.publicDescription,
       visibility: npc.visibility,
     };
-  });
+  }).filter(Boolean);
 }
 
 function sceneEncounter(adventure, scene, viewerRole) {
@@ -958,11 +1011,14 @@ function sceneEncounter(adventure, scene, viewerRole) {
   if (viewerRole === "host") {
     return structuredClone(encounter);
   }
+  if (!["public", "revealed"].includes(encounter.visibility)) {
+    return undefined;
+  }
   return {
-    id: encounter.id,
+    publicHandle: "encounter_1",
     title: encounter.title,
     publicSetup: encounter.publicSetup,
-    combatants: structuredClone(encounter.combatants),
+    visibility: encounter.visibility,
   };
 }
 

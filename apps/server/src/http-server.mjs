@@ -11,6 +11,7 @@ const statusByErrorCode = {
   review_item_not_found: 404,
   adventure_not_loaded: 404,
   invalid_room_phase: 409,
+  invalid_combat_action: 409,
   review_item_not_approved: 409,
   internal_error: 500,
 };
@@ -19,6 +20,9 @@ export function createHttpServer(input) {
   const dispatcher = input.dispatcher;
   if (!dispatcher) {
     throw new Error("dispatcher is required");
+  }
+  if (!dispatcher.roomService) {
+    throw new Error("dispatcher.roomService is required");
   }
   const eventStreamHub = input.eventStreamHub ?? createRoomEventStreamHub();
 
@@ -80,7 +84,7 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
 
   if (request.method === "POST" && path.length === 1 && path[0] === "rooms") {
     const body = await readJsonBody(request);
-    return dispatcher.dispatchRoomCommand({
+    return await dispatcher.dispatchRoomCommand({
       type: "room.create",
       now: body.now,
       payload: body,
@@ -94,12 +98,14 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
     path[2] === "join"
   ) {
     const body = await readJsonBody(request);
-    return dispatcher.dispatchRoomCommand({
+    const result = await dispatcher.dispatchRoomCommand({
       type: "room.join",
       roomId: decodeURIComponent(path[1]),
       now: body.now,
       payload: body,
     });
+    publishResultEvents(dispatcher, eventStreamHub, decodeURIComponent(path[1]), result);
+    return result;
   }
 
   if (
@@ -110,16 +116,23 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
   ) {
     const body = await readJsonBody(request);
     const roomId = decodeURIComponent(path[1]);
-    const result = dispatcher.dispatchRoomCommand({
+    const identityResult = resolveHttpViewer({
+      dispatcher,
+      request,
+      url,
+      body,
+      roomId,
+      commandType: body.type ?? "room.action",
+    });
+    if (!identityResult.ok) {
+      return identityResult;
+    }
+    const result = await dispatcher.dispatchRoomCommand({
       ...body,
       roomId,
+      actorPlayerId: identityResult.identity.playerId,
     });
-    if (result.ok) {
-      eventStreamHub.publish({
-        roomId,
-        broadcasts: result.broadcasts,
-      });
-    }
+    publishResultEvents(dispatcher, eventStreamHub, roomId, result);
     return result;
   }
 
@@ -129,11 +142,22 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
     path[0] === "rooms" &&
     path[2] === "snapshot"
   ) {
-    return dispatcher.dispatchRoomCommand({
+    const roomId = decodeURIComponent(path[1]);
+    const identityResult = resolveHttpViewer({
+      dispatcher,
+      request,
+      url,
+      roomId,
+      commandType: "room.snapshot",
+    });
+    if (!identityResult.ok) {
+      return identityResult;
+    }
+    return await dispatcher.dispatchRoomCommand({
       type: "room.snapshot",
-      roomId: decodeURIComponent(path[1]),
-      viewerRole: url.searchParams.get("viewerRole"),
-      viewerPlayerId: url.searchParams.get("viewerPlayerId") ?? undefined,
+      roomId,
+      viewerRole: identityResult.identity.viewerRole,
+      viewerPlayerId: identityResult.identity.viewerPlayerId,
     });
   }
 
@@ -143,11 +167,22 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
     path[0] === "rooms" &&
     path[2] === "adventure-snapshot"
   ) {
-    return dispatcher.dispatchRoomCommand({
+    const roomId = decodeURIComponent(path[1]);
+    const identityResult = resolveHttpViewer({
+      dispatcher,
+      request,
+      url,
+      roomId,
+      commandType: "adventure.snapshot",
+    });
+    if (!identityResult.ok) {
+      return identityResult;
+    }
+    return await dispatcher.dispatchRoomCommand({
       type: "adventure.snapshot",
-      roomId: decodeURIComponent(path[1]),
-      viewerRole: url.searchParams.get("viewerRole"),
-      viewerPlayerId: url.searchParams.get("viewerPlayerId") ?? undefined,
+      roomId,
+      viewerRole: identityResult.identity.viewerRole,
+      viewerPlayerId: identityResult.identity.viewerPlayerId,
     });
   }
 
@@ -165,13 +200,23 @@ async function handleEventStream(dispatcher, eventStreamHub, request, response) 
   const url = new URL(request.url, "http://localhost");
   const path = url.pathname.split("/").filter(Boolean);
   const roomId = decodeURIComponent(path[1]);
-  const viewerRole = url.searchParams.get("viewerRole");
-  const viewerPlayerId = url.searchParams.get("viewerPlayerId") ?? undefined;
-  const snapshotResult = dispatcher.dispatchRoomCommand({
+  const identityResult = resolveHttpViewer({
+    dispatcher,
+    request,
+    url,
+    roomId,
+    commandType: "room.snapshot",
+  });
+  if (!identityResult.ok) {
+    writeJson(response, statusForResult(identityResult), identityResult);
+    return;
+  }
+  const identity = identityResult.identity;
+  const snapshotResult = await dispatcher.dispatchRoomCommand({
     type: "room.snapshot",
     roomId,
-    viewerRole,
-    viewerPlayerId,
+    viewerRole: identity.viewerRole,
+    viewerPlayerId: identity.viewerPlayerId,
   });
 
   if (!snapshotResult.ok) {
@@ -187,8 +232,8 @@ async function handleEventStream(dispatcher, eventStreamHub, request, response) 
 
   const unsubscribe = eventStreamHub.subscribe({
     roomId,
-    viewerRole,
-    viewerPlayerId,
+    viewerRole: identity.viewerRole,
+    viewerPlayerId: identity.viewerPlayerId,
     send: (payload) => writeSse(response, payload.event, payload.data),
   });
   request.on("close", unsubscribe);
@@ -196,6 +241,110 @@ async function handleEventStream(dispatcher, eventStreamHub, request, response) 
   writeSse(response, "room.snapshot", {
     snapshot: snapshotResult.snapshot,
   });
+}
+
+function publishResultEvents(dispatcher, eventStreamHub, roomId, result) {
+  if (!result.ok || !Array.isArray(result.events) || result.events.length === 0) {
+    return;
+  }
+
+  eventStreamHub.publish({
+    roomId,
+    events: result.events,
+    snapshotForSubscriber(subscriber) {
+      return dispatcher.roomService.getSnapshot({
+        roomId,
+        viewerRole: subscriber.viewerRole,
+        viewerPlayerId: subscriber.viewerPlayerId,
+      });
+    },
+  });
+}
+
+function resolveHttpViewer(input) {
+  const sessionToken = extractSessionToken(input.request, input.url, input.body);
+  if (!sessionToken) {
+    return forbiddenResult(input.commandType);
+  }
+
+  try {
+    const identity = input.dispatcher.roomService.resolveSessionIdentity({
+      roomId: input.roomId,
+      sessionToken,
+    });
+    if (!requestedViewerMatches(input.url, identity)) {
+      return forbiddenResult(input.commandType);
+    }
+    return {
+      ok: true,
+      identity,
+    };
+  } catch (error) {
+    return errorResult(input.commandType, error);
+  }
+}
+
+function extractSessionToken(request, url, body = {}) {
+  const authorization = request.headers.authorization;
+  if (authorization?.startsWith("Bearer ")) {
+    return authorization.slice("Bearer ".length);
+  }
+
+  const headerToken = request.headers["x-tablemind-session-token"];
+  if (typeof headerToken === "string" && headerToken.length > 0) {
+    return headerToken;
+  }
+
+  if (typeof body.sessionToken === "string" && body.sessionToken.length > 0) {
+    return body.sessionToken;
+  }
+
+  return url.searchParams.get("sessionToken") ?? undefined;
+}
+
+function requestedViewerMatches(url, identity) {
+  const requestedRole = url.searchParams.get("viewerRole");
+  const requestedPlayerId = url.searchParams.get("viewerPlayerId");
+  if (requestedRole && requestedRole !== identity.viewerRole) {
+    return false;
+  }
+  if (requestedPlayerId && requestedPlayerId !== identity.viewerPlayerId) {
+    return false;
+  }
+  return true;
+}
+
+function forbiddenResult(commandType) {
+  return {
+    ok: false,
+    commandType,
+    error: {
+      code: "forbidden",
+      message: "forbidden",
+    },
+  };
+}
+
+function errorResult(commandType, error) {
+  const code = error.code ?? error.message;
+  if (statusByErrorCode[code]) {
+    return {
+      ok: false,
+      commandType,
+      error: {
+        code,
+        message: code,
+      },
+    };
+  }
+  return {
+    ok: false,
+    commandType,
+    error: {
+      code: "internal_error",
+      message: error.message,
+    },
+  };
 }
 
 function isEventStreamRequest(request) {

@@ -13,27 +13,58 @@ export function createProviderAiAdapter(config) {
         throw new Error("fetchImpl is required");
       }
 
-      const response = await config.fetchImpl(config.endpoint, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${config.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: config.model,
-          responseFormat: "tablemind.ai_dm_response.v1",
-          context,
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = timeoutFor(config, controller);
+      let response;
+      try {
+        response = await config.fetchImpl(config.endpoint, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${config.apiKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: config.model,
+            responseFormat: "tablemind.ai_dm_response.v1",
+            context,
+          }),
+        });
+      } catch (error) {
+        if (controller.signal.aborted || error.name === "AbortError") {
+          throw providerError("provider_timeout", "AI provider request timed out.");
+        }
+        throw providerError("provider_request_failed", "AI provider request failed.");
+      } finally {
+        if (timeout) {
+          clearTimeout(timeout);
+        }
+      }
 
       if (!response.ok) {
-        throw new Error("provider AI request failed");
+        throw providerError("provider_request_failed", "AI provider request failed.");
       }
 
       const payload = await response.json();
       return validateAiDmResponse(payload);
     },
   };
+}
+
+function timeoutFor(config, controller) {
+  if (config.timeoutMs === undefined) {
+    return undefined;
+  }
+  if (!Number.isInteger(config.timeoutMs) || config.timeoutMs < 1) {
+    throw new Error("timeoutMs must be a positive integer");
+  }
+  return setTimeout(() => controller.abort(), config.timeoutMs);
+}
+
+function providerError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function requireString(object, key) {

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { loadAdventureFixture } from "../../packages/adventure-loader/src/index.mjs";
 import { loadCompendiumFixture } from "../../packages/compendium/src/index.mjs";
-import { createSequenceRandomSource } from "../../packages/rules-engine/src/index.mjs";
 import { generateSessionRecap } from "../../packages/session-recap/src/index.mjs";
 import {
   createHostCommandClient,
@@ -11,10 +10,7 @@ import {
 } from "../../apps/web/src/api-client.mjs";
 import { renderHostRoom } from "../../apps/web/src/render-host.mjs";
 import { renderPlayerRoom } from "../../apps/web/src/render-player.mjs";
-import {
-  createMockAiAdapter,
-  runAiDmTurn,
-} from "../../apps/server/src/ai-dm-orchestrator.mjs";
+import { createMockAiAdapter } from "../../apps/server/src/ai-dm-orchestrator.mjs";
 import { createHttpServer } from "../../apps/server/src/http-server.mjs";
 import { createRoomActionDispatcher } from "../../apps/server/src/room-actions.mjs";
 import { createRoomService } from "../../apps/server/src/room-service.mjs";
@@ -32,6 +28,20 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
   const app = createHttpServer({
     dispatcher: createRoomActionDispatcher({
       roomService: service,
+      aiAdapter: createMockAiAdapter({
+        publicMessage: "Cold soot curls around the cracked lantern frame.",
+        ruleRequests: [
+          {
+            type: "skill_check",
+            characterId: "char_ada",
+            skill: "investigation",
+            dc: 15,
+            advantage: "normal",
+            reason: "Inspect the lantern soot.",
+          },
+        ],
+        confidence: "high",
+      }),
     }),
   });
   const { baseUrl } = await app.start();
@@ -51,6 +61,7 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       api,
       roomId,
       hostPlayerId,
+      hostSessionToken: created.data.hostSessionToken,
       now: () => "2026-06-02T18:01:00.000Z",
     });
     const ada = await api.joinRoom(roomId, {
@@ -65,12 +76,14 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       api,
       roomId,
       playerId: ada.data.playerId,
+      playerSessionToken: ada.data.playerSessionToken,
       now: () => "2026-06-02T18:04:00.000Z",
     });
     const branClient = createPlayerCommandClient({
       api,
       roomId,
       playerId: bran.data.playerId,
+      playerSessionToken: bran.data.playerSessionToken,
       now: () => "2026-06-02T18:04:30.000Z",
     });
 
@@ -132,53 +145,13 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     );
     await adaClient.sendMessage("I inspect the cracked lantern.");
 
-    const aiTurn = await runAiDmTurn({
-      adapter: createMockAiAdapter({
-        publicMessage: "Cold soot curls around the cracked lantern frame.",
-        ruleRequests: [
-          {
-            type: "skill_check",
-            characterId: "char_ada",
-            skill: "investigation",
-            dc: 15,
-            advantage: "normal",
-            reason: "Inspect the lantern soot.",
-          },
-        ],
-        confidence: "high",
-      }),
-      context: {
-        session: service.getSnapshot({ roomId, viewerRole: "host" }),
-        currentScene: service.getAdventureSnapshot({
-          roomId,
-          viewerRole: "host",
-        }).currentScene,
-        hiddenEntities: [],
-        unrevealedClues: service.getAdventureSnapshot({
-          roomId,
-          viewerRole: "host",
-        }).currentScene.clues,
-        dmOnlySecrets: adventure.truth,
-      },
-      randomSource: createSequenceRandomSource([0.7]),
-    });
-
-    await api.sendAction(roomId, {
-      type: "dice.commit",
-      actorPlayerId: hostPlayerId,
-      payload: {
-        roll: aiTurn.ruleResults[0].d20,
-        reason: aiTurn.ruleResults[0].reason,
-      },
-      now: "2026-06-02T18:05:00.000Z",
-    });
-    await host.commitAiMessage(aiTurn.response.publicMessage, undefined, "auto_approved");
+    const aiTurn = await host.runAiTurn({ randomValues: [0.7] });
     await host.revealClue("clue_broken_lens");
     await host.startCombat({
       encounterId: "encounter_hill_scavengers",
       characterIds: ["char_ada", "char_bran"],
       compendiumEntries: compendium,
-      randomValues: [0.5, 0.45, 0.1, 0.2],
+      randomValues: [0.9, 0.1, 0.2, 0.3],
     });
     await adaClient.attack({
       attackerCombatantId: "combatant_char_ada",
@@ -193,18 +166,16 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     ]);
 
     const playerSnapshot = await api.getSnapshot(roomId, {
-      viewerRole: "player",
-      viewerPlayerId: ada.data.playerId,
+      sessionToken: ada.data.playerSessionToken,
     });
     const hostSnapshot = await api.getSnapshot(roomId, {
-      viewerRole: "host",
+      sessionToken: created.data.hostSessionToken,
     });
     const playerAdventure = await api.getAdventureSnapshot(roomId, {
-      viewerRole: "player",
-      viewerPlayerId: ada.data.playerId,
+      sessionToken: ada.data.playerSessionToken,
     });
     const hostAdventure = await api.getAdventureSnapshot(roomId, {
-      viewerRole: "host",
+      sessionToken: created.data.hostSessionToken,
     });
     const events = service.getCommittedEvents(roomId);
     const playerRecap = generateSessionRecap({
@@ -238,7 +209,7 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       recap: hostRecap,
     });
 
-    assert.equal(aiTurn.status, "broadcast_ready");
+    assert.equal(aiTurn.data.status, "broadcast_ready");
     assert.equal(playerSnapshot.snapshot.phase, "ended");
     assert.ok(playerHtml.includes("Lantern Tower"));
     assert.ok(playerHtml.includes("Cold soot curls around the cracked lantern frame."));
