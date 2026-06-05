@@ -157,6 +157,7 @@ export async function runAiTurnForRoom(input) {
     const committed = input.roomService.commitDiceRoll({
       roomId: input.roomId,
       roll: ruleResult.d20,
+      check: checkEventData(ruleResult),
       reason: ruleResult.reason,
       now: input.now,
     });
@@ -327,6 +328,20 @@ function hiddenEntitiesForScene(scene) {
         }
       : undefined,
   ].filter(Boolean);
+}
+
+function checkEventData(ruleResult) {
+  return {
+    characterId: ruleResult.characterId,
+    requestType: ruleResult.requestType ?? ruleResult.type,
+    skill: ruleResult.skill,
+    ability: ruleResult.ability,
+    dc: ruleResult.dc,
+    selectedD20: ruleResult.selectedD20,
+    total: ruleResult.total,
+    success: ruleResult.success,
+    reason: ruleResult.reason,
+  };
 }
 
 function requireEnv(env, key) {

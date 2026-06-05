@@ -44,13 +44,17 @@ export function createRoomEventStreamHub() {
     if (Array.isArray(input.events)) {
       for (const subscriber of roomSubscribers.values()) {
         for (const event of input.events) {
+          const subscriberEvent = eventForSubscriber(subscriber, event);
+          const broadcast = {
+            snapshot: input.snapshotForSubscriber(subscriber),
+          };
+          if (subscriberEvent) {
+            broadcast.event = subscriberEvent;
+          }
           subscriber.send({
             event: "room.broadcast",
             data: {
-              broadcast: {
-                event: eventForSubscriber(subscriber, event),
-                snapshot: input.snapshotForSubscriber(subscriber),
-              },
+              broadcast,
             },
           });
           delivered += 1;
@@ -97,15 +101,7 @@ function eventForSubscriber(subscriber, event) {
   }
 
   if (playerHiddenEventTypes.has(event.type) || event.visibility === "dm_only") {
-    return {
-      id: event.id,
-      sessionId: event.sessionId,
-      sequence: event.sequence,
-      correlationId: event.correlationId,
-      type: event.type,
-      createdAt: event.createdAt,
-      visibility: "redacted",
-    };
+    return undefined;
   }
 
   return structuredClone(event);

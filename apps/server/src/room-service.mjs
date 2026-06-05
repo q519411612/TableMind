@@ -724,13 +724,17 @@ export function createRoomService(options = {}) {
 
   function commitDiceRoll(input) {
     const room = requireRoom(input.roomId);
-    const event = buildEvent(room, {
+    const eventInput = {
       type: "dice.rolled",
       actorRole: "system",
       createdAt: input.now,
       roll: input.roll,
       reason: input.reason,
-    });
+    };
+    if (input.check) {
+      eventInput.check = structuredClone(input.check);
+    }
+    const event = buildEvent(room, eventInput);
     commitEvent(room, event);
 
     return {

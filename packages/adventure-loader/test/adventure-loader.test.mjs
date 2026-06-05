@@ -55,6 +55,7 @@ test("parses public scenes, DM-only truth, clues, NPCs, encounter, and endings",
 test("player projection removes hidden truth and DM-only notes", async () => {
   const adventure = await loadAdventureFixture(fixturePath);
   const playerView = projectAdventureForPlayers(adventure);
+  const serialized = JSON.stringify(playerView);
 
   assert.equal(playerView.truth, undefined);
   assert.equal(playerView.scenes[0].dmNotes, undefined);
@@ -64,6 +65,11 @@ test("player projection removes hidden truth and DM-only notes", async () => {
     JSON.stringify(playerView).includes("apprentice broke the seal"),
     false,
   );
+  assert.equal(serialized.includes("clue_miras_charm"), false);
+  assert.equal(serialized.includes("npc_mira"), false);
+  assert.equal(serialized.includes("encounter_hill_scavengers"), false);
+  assert.equal(serialized.includes("monster_hill_scavenger"), false);
+  assert.equal(serialized.includes("Mira's Dropped Charm"), false);
 });
 
 test("validation reports missing required fields", () => {

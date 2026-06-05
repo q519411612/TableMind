@@ -13,6 +13,8 @@ const statusByErrorCode = {
   invalid_room_phase: 409,
   invalid_combat_action: 409,
   review_item_not_approved: 409,
+  payload_too_large: 413,
+  unsupported_media_type: 415,
   internal_error: 500,
 };
 
@@ -36,11 +38,12 @@ export function createHttpServer(input) {
       const result = await routeRequest(dispatcher, eventStreamHub, request);
       writeJson(response, statusForResult(result), result);
     } catch (error) {
-      writeJson(response, 500, {
+      const code = statusByErrorCode[error.code] ? error.code : "internal_error";
+      writeJson(response, statusByErrorCode[code], {
         ok: false,
         commandType: "http.request",
         error: {
-          code: "internal_error",
+          code,
           message: error.message,
         },
       });
@@ -359,12 +362,17 @@ function isEventStreamRequest(request) {
 }
 
 async function readJsonBody(request) {
+  const contentType = request.headers["content-type"];
+  if (contentType && !isJsonContentType(contentType)) {
+    throw httpRequestError("unsupported_media_type", "Unsupported media type");
+  }
+
   const chunks = [];
   let total = 0;
   for await (const chunk of request) {
     total += chunk.length;
     if (total > 1_000_000) {
-      throw new Error("Request body too large");
+      throw httpRequestError("payload_too_large", "Request body too large");
     }
     chunks.push(chunk);
   }
@@ -376,8 +384,18 @@ async function readJsonBody(request) {
   try {
     return JSON.parse(Buffer.concat(chunks).toString("utf8"));
   } catch {
-    return {};
+    throw httpRequestError("bad_request", "Invalid JSON body");
   }
+}
+
+function isJsonContentType(contentType) {
+  return contentType.split(";")[0].trim().toLowerCase() === "application/json";
+}
+
+function httpRequestError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function statusForResult(result) {

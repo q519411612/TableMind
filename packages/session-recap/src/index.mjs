@@ -56,6 +56,9 @@ function timelineText(event) {
     return `Clue revealed: ${event.clueId}.`;
   }
   if (event.type === "dice.rolled") {
+    if (event.check) {
+      return checkText(event.check);
+    }
     return `${event.reason} (${event.roll.formula} = ${event.roll.total}).`;
   }
   if (event.type === "combat.started") {
@@ -88,12 +91,18 @@ function timelineText(event) {
 function buildKeyRolls(events) {
   return events
     .filter((event) => event.type === "dice.rolled")
-    .map((event) => ({
-      eventId: event.id,
-      formula: event.roll.formula,
-      total: event.roll.total,
-      reason: event.reason,
-    }));
+    .map((event) => {
+      const roll = {
+        eventId: event.id,
+        formula: event.roll.formula,
+        total: event.roll.total,
+        reason: event.reason,
+      };
+      if (event.check) {
+        roll.check = structuredClone(event.check);
+      }
+      return roll;
+    });
 }
 
 function buildDiscoveredClues(input) {
@@ -208,7 +217,7 @@ function renderMarkdown(recap) {
     renderList(recap.timeline.map((item) => item.text)),
     "",
     "## Key Rolls",
-    renderList(recap.keyRolls.map((roll) => `${roll.reason}: ${roll.formula} = ${roll.total}`)),
+    renderList(recap.keyRolls.map(renderKeyRoll)),
     "",
     "## Discovered Clues",
     renderList(recap.discoveredClues),
@@ -228,6 +237,19 @@ function renderMarkdown(recap) {
   }
 
   return `${sections.join("\n")}\n`;
+}
+
+function renderKeyRoll(roll) {
+  if (roll.check) {
+    return checkText(roll.check);
+  }
+  return `${roll.reason}: ${roll.formula} = ${roll.total}`;
+}
+
+function checkText(check) {
+  const subject = check.skill ?? check.ability;
+  const outcome = check.success ? "success" : "failure";
+  return `${check.reason}: ${check.requestType} ${subject} DC ${check.dc}, d20 ${check.selectedD20}, total ${check.total}, ${outcome}.`;
 }
 
 function renderList(items) {

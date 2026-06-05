@@ -119,7 +119,19 @@ test("safe AI narration commits dice and public AI message through room events",
   assert.equal(result.status, "broadcast_ready");
   assert.deepEqual(events.map((event) => event.type), ["dice.rolled", "ai.message"]);
   assert.equal(result.ruleResults[0].total, 20);
+  assert.deepEqual(events[0].check, {
+    characterId: "char_ada",
+    requestType: "skill_check",
+    skill: "investigation",
+    ability: "intelligence",
+    dc: 15,
+    selectedD20: 15,
+    total: 20,
+    success: true,
+    reason: "Inspect the lantern soot.",
+  });
   assert.equal(playerSnapshot.diceLog.at(-1).reason, "Inspect the lantern soot.");
+  assert.deepEqual(playerSnapshot.diceLog.at(-1).check, events[0].check);
   assert.ok(
     playerSnapshot.eventLog.some(
       (event) =>
@@ -405,6 +417,17 @@ test("ai.turn.run dispatcher command covers safe, review, spoiler, and provider-
     "dice.rolled",
     "ai.message",
   ]);
+  assert.deepEqual(safe.events[0].check, {
+    characterId: "char_ada",
+    requestType: "skill_check",
+    skill: "investigation",
+    ability: "intelligence",
+    dc: 15,
+    selectedD20: 15,
+    total: 20,
+    success: true,
+    reason: "Inspect the lantern soot.",
+  });
   assert.equal(low.ok, true);
   assert.equal(low.data.status, "host_review_required");
   assert.equal(low.events[0].type, "host.review.created");

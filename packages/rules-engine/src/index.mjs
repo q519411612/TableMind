@@ -258,6 +258,8 @@ function resolveD20Check(input) {
 
   return {
     type: input.type,
+    ability: input.ability,
+    skill: input.skill,
     d20: d20.roll,
     selectedD20: d20.selected,
     abilityModifier: abilityBonus,
