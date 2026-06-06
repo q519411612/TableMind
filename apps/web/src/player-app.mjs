@@ -2,11 +2,13 @@ import {
   createPlayerCommandClient,
   createTableMindApi,
 } from "./api-client.mjs";
+import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
 import { renderPlayerRoom } from "./render-player.mjs";
 
 const appState = {
   baseUrl: globalThis.localStorage?.getItem("tablemind.apiBaseUrl") ?? "",
+  locale: readBrowserLocale(),
   roomId: new URL(globalThis.location.href).searchParams.get("roomId") ?? "",
   playerId: globalThis.localStorage?.getItem("tablemind.playerId") ?? "",
   playerSessionToken:
@@ -80,6 +82,12 @@ root.addEventListener("click", async (event) => {
     return;
   }
 
+  if (target.dataset.action === "set-language") {
+    appState.locale = storeBrowserLocale(target.dataset.locale);
+    render();
+    return;
+  }
+
   if (target.dataset.action === "refresh-snapshot") {
     const result = await playerClient().refreshSnapshot();
     appState.snapshot = result.snapshot;
@@ -144,6 +152,7 @@ async function syncAdventureSnapshot() {
 }
 
 function render() {
+  globalThis.document.documentElement.lang = appState.locale;
   root.innerHTML = renderPlayerRoom(appState);
 }
 

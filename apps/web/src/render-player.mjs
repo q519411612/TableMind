@@ -1,3 +1,4 @@
+import { renderLanguageSwitcher, uiText } from "./i18n.mjs";
 import {
   escapeHtml,
   ownCharacters,
@@ -11,57 +12,61 @@ import {
 export function renderPlayerRoom(input = {}) {
   const snapshot = input.snapshot;
   const scene = input.adventureSnapshot?.currentScene;
+  const labels = uiText(input.locale);
 
   return `
     <main class="tm-shell tm-player" data-viewer-role="player">
       <header class="tm-topbar">
         <div>
-          <p class="tm-kicker">Player Room</p>
-          <h1>${escapeHtml(input.roomId ?? "Join a room")}</h1>
+          <p class="tm-kicker">${escapeHtml(labels.playerRoom)}</p>
+          <h1>${escapeHtml(input.roomId ?? labels.joinARoom)}</h1>
         </div>
-        <button type="button" data-action="refresh-snapshot">Refresh</button>
+        <div class="tm-topbar-actions">
+          ${renderLanguageSwitcher(input.locale)}
+          <button type="button" data-action="refresh-snapshot">${escapeHtml(labels.refresh)}</button>
+        </div>
       </header>
 
-      ${renderJoinPanel(input)}
+      ${renderJoinPanel(input, labels)}
 
       <section class="tm-grid">
         <article class="tm-panel tm-panel-wide" data-panel="scene">
-          <h2>Current Scene</h2>
-          ${renderPlayerScene(snapshot, scene)}
+          <h2>${escapeHtml(labels.currentScene)}</h2>
+          ${renderPlayerScene(snapshot, scene, labels)}
         </article>
 
         <article class="tm-panel" data-panel="character">
-          <h2>Character</h2>
-          ${renderCharacters(snapshot, input.playerId)}
+          <h2>${escapeHtml(labels.character)}</h2>
+          ${renderCharacters(snapshot, input.playerId, labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="feed">
-          <h2>Public Feed</h2>
-          ${renderEventFeed(snapshot?.eventLog ?? [])}
-          ${renderMessageForm(snapshot)}
+          <h2>${escapeHtml(labels.publicFeed)}</h2>
+          ${renderEventFeed(snapshot?.eventLog ?? [], labels)}
+          ${renderMessageForm(snapshot, labels)}
         </article>
 
         <article class="tm-panel" data-panel="dice">
-          <h2>Dice Log</h2>
-          ${renderDiceLog(snapshot?.diceLog ?? [])}
+          <h2>${escapeHtml(labels.diceLog)}</h2>
+          ${renderDiceLog(snapshot?.diceLog ?? [], labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="combat">
-          <h2>Combat</h2>
-          ${renderCombat(snapshot?.combat)}
-          ${renderAttackForm(snapshot)}
+          <h2>${escapeHtml(labels.combat)}</h2>
+          ${renderCombat(snapshot?.combat, labels)}
+          ${renderAttackForm(snapshot, labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="recap">
-          <h2>Recap</h2>
-          ${renderMarkdown(input.recap?.markdown)}
+          <h2>${escapeHtml(labels.recap)}</h2>
+          ${renderMarkdown(input.recap?.markdown, labels)}
         </article>
       </section>
     </main>
   `;
 }
 
-function renderJoinPanel(input) {
+function renderJoinPanel(input, labels) {
   if (input.playerId) {
     return "";
   }
@@ -70,22 +75,22 @@ function renderJoinPanel(input) {
     <section class="tm-panel tm-join">
       <form data-action="join-room">
         <label>
-          Room ID
+          ${escapeHtml(labels.roomId)}
           <input name="roomId" value="${escapeHtml(input.roomId ?? "")}" required />
         </label>
         <label>
-          Display name
+          ${escapeHtml(labels.displayName)}
           <input name="displayName" required />
         </label>
-        <button type="submit">Join Room</button>
+        <button type="submit">${escapeHtml(labels.joinRoom)}</button>
       </form>
     </section>
   `;
 }
 
-function renderPlayerScene(snapshot, scene) {
+function renderPlayerScene(snapshot, scene, labels) {
   if (!snapshot) {
-    return renderEmpty("Join a room to see the scene.");
+    return renderEmpty(labels.joinRoomToSeeScene);
   }
 
   const title = scene?.title ?? snapshot.currentSceneId;
@@ -110,12 +115,12 @@ function renderPlayerScene(snapshot, scene) {
   `;
 }
 
-function renderCharacters(snapshot, playerId) {
+function renderCharacters(snapshot, playerId, labels) {
   const characters = ownCharacters(snapshot, playerId);
   if (characters.length === 0) {
     return `
-      ${renderEmpty("No character yet.")}
-      <button type="button" data-action="create-character">Create Fighter</button>
+      ${renderEmpty(labels.noCharacterYet)}
+      <button type="button" data-action="create-character">${escapeHtml(labels.createFighter)}</button>
     `;
   }
 
@@ -124,9 +129,9 @@ function renderCharacters(snapshot, playerId) {
       (character) => `
         <li>
           <strong>${escapeHtml(character.name)}</strong>
-          <span>${escapeHtml(character.className)} level ${escapeHtml(character.level)}</span>
+          <span>${escapeHtml(character.className)} ${escapeHtml(labels.level)} ${escapeHtml(character.level)}</span>
           <span>AC ${escapeHtml(character.armorClass)}</span>
-          <span>HP ${escapeHtml(character.hitPoints?.current)}/${escapeHtml(
+          <span>${escapeHtml(labels.hp)} ${escapeHtml(character.hitPoints?.current)}/${escapeHtml(
             character.hitPoints?.max,
           )}</span>
         </li>
@@ -135,7 +140,7 @@ function renderCharacters(snapshot, playerId) {
     .join("")}</ul>`;
 }
 
-function renderMessageForm(snapshot) {
+function renderMessageForm(snapshot, labels) {
   if (!snapshot) {
     return "";
   }
@@ -143,15 +148,15 @@ function renderMessageForm(snapshot) {
   return `
     <form data-action="send-message" class="tm-inline-form">
       <label>
-        Message
+        ${escapeHtml(labels.message)}
         <input name="message" required />
       </label>
-      <button type="submit">Send</button>
+      <button type="submit">${escapeHtml(labels.send)}</button>
     </form>
   `;
 }
 
-function renderAttackForm(snapshot) {
+function renderAttackForm(snapshot, labels) {
   if (!snapshot?.combat) {
     return "";
   }
@@ -159,10 +164,10 @@ function renderAttackForm(snapshot) {
   return `
     <form data-action="combat-attack" class="tm-inline-form">
       <label>
-        Target
+        ${escapeHtml(labels.target)}
         <input name="targetCombatantId" required />
       </label>
-      <button type="submit">Attack</button>
+      <button type="submit">${escapeHtml(labels.attack)}</button>
     </form>
   `;
 }
