@@ -47,6 +47,38 @@ test("player renderer shows play panels without rendering Host-only input", () =
   assert.equal(html.includes(hostPauseReason), false);
 });
 
+test("renderers can render fixed UI labels in English", () => {
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    snapshot: playerSnapshot(),
+    adventureSnapshot: playerAdventureSnapshot(),
+    recap: {
+      markdown: "Repair the Lantern\nVillage gratitude",
+    },
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(playerHtml.includes("Player Room"));
+  assert.ok(playerHtml.includes("Current Scene"));
+  assert.ok(playerHtml.includes("Public Feed"));
+  assert.ok(playerHtml.includes("Dice Log"));
+  assert.ok(playerHtml.includes("Recap"));
+  assert.ok(hostHtml.includes("Host Console"));
+  assert.ok(hostHtml.includes("Create Room"));
+  assert.ok(hostHtml.includes("Review Queue"));
+  assert.ok(hostHtml.includes("Run AI"));
+});
+
 test("player renderer can render fixed UI labels in Chinese", () => {
   const joinHtml = renderPlayerRoom({
     locale: "zh-CN",
@@ -69,6 +101,30 @@ test("player renderer can render fixed UI labels in Chinese", () => {
   assert.ok(html.includes("骰子记录"));
   assert.ok(html.includes("角色"));
   assert.ok(html.includes("刷新"));
+  assert.equal(html.includes(secretText), false);
+});
+
+test("localized UI keeps authored gameplay text unchanged", () => {
+  const html = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "room_0001",
+    playerId: "player_0002",
+    snapshot: playerSnapshot(),
+    adventureSnapshot: playerAdventureSnapshot(),
+    recap: {
+      markdown: "Repair the Lantern\nVillage gratitude",
+    },
+  });
+
+  assert.ok(html.includes("当前场景"));
+  assert.ok(html.includes("Lantern Tower"));
+  assert.ok(html.includes("The lantern tower squats against the black sky."));
+  assert.ok(html.includes("Ada Thorne"));
+  assert.ok(html.includes("I inspect the lantern."));
+  assert.ok(html.includes("Cold soot curls around the cracked lantern frame."));
+  assert.ok(html.includes("Inspect the lantern soot."));
+  assert.ok(html.includes("Repair the Lantern"));
+  assert.ok(html.includes("Village gratitude"));
   assert.equal(html.includes(secretText), false);
 });
 
