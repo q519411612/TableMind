@@ -45,8 +45,15 @@ export function createProviderAiAdapter(config) {
         throw providerError("provider_request_failed", "AI provider request failed.");
       }
 
-      const payload = await response.json();
-      return validateAiDmResponse(payload);
+      try {
+        const payload = await response.json();
+        return validateAiDmResponse(payload);
+      } catch {
+        throw providerError(
+          "invalid_provider_payload",
+          "AI provider returned invalid structured payload.",
+        );
+      }
     },
   };
 }

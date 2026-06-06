@@ -8,6 +8,7 @@ import {
   runAiTurnForRoom,
 } from "../src/ai-room-runner.mjs";
 import { createMockAiAdapter } from "../src/ai-dm-orchestrator.mjs";
+import { createProviderAiAdapter } from "../src/provider-ai-adapter.mjs";
 import { createRoomActionDispatcher } from "../src/room-actions.mjs";
 import { createRoomService } from "../src/room-service.mjs";
 
@@ -139,6 +140,190 @@ test("safe AI narration commits dice and public AI message through room events",
         event.message === "Cold soot curls around the cracked lantern frame.",
     ),
   );
+});
+
+test("provider bridge safe structured response auto-commits through room runner", async () => {
+  const { service, room, player } = await createLoadedAiRoom();
+  const calls = [];
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    providerConfig: { enabled: true },
+    adapter: createProviderAiAdapter({
+      enabled: true,
+      endpoint: "https://provider.invalid/v1/respond",
+      apiKey: "secret-api-key",
+      model: "structured-dm",
+      fetchImpl: async (url, init) => {
+        calls.push({ url, init });
+        return {
+          ok: true,
+          async json() {
+            return {
+              publicMessage: "Cold soot curls around the cracked lantern frame.",
+              ruleRequests: [],
+              confidence: "high",
+            };
+          },
+        };
+      },
+    }),
+    randomSource: createSequenceRandomSource([]),
+    now: "2026-06-02T19:11:30.000Z",
+  });
+
+  const playerSnapshot = service.getSnapshot({
+    roomId: room.roomId,
+    viewerRole: "player",
+    viewerPlayerId: player.playerId,
+  });
+
+  assert.equal(result.status, "broadcast_ready");
+  assert.equal(result.events.at(-1).type, "ai.message");
+  assert.equal(result.events.at(-1).message, "Cold soot curls around the cracked lantern frame.");
+  assert.equal(JSON.stringify(playerSnapshot).includes("secret-api-key"), false);
+  assert.equal(JSON.parse(calls[0].init.body).model, "structured-dm");
+  assert.equal(JSON.stringify(JSON.parse(calls[0].init.body)).includes("secret-api-key"), false);
+});
+
+test("provider bridge reveal proposal creates Host review without broadcast", async () => {
+  const { service, room } = await createLoadedAiRoom();
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    providerConfig: { enabled: true },
+    adapter: createProviderAiAdapter({
+      enabled: true,
+      endpoint: "https://provider.invalid/v1/respond",
+      apiKey: "secret-api-key",
+      model: "structured-dm",
+      fetchImpl: async () => ({
+        ok: true,
+        async json() {
+          return {
+            publicMessage: "The lantern trembles in the rain.",
+            revealProposals: [
+              {
+                entityType: "clue",
+                entityId: "clue_broken_lens",
+                reason: "The player inspected the lens.",
+              },
+            ],
+            confidence: "high",
+          };
+        },
+      }),
+    }),
+    randomSource: createSequenceRandomSource([]),
+    now: "2026-06-02T19:11:40.000Z",
+  });
+
+  const events = service.getCommittedEvents(room.roomId);
+
+  assert.equal(result.status, "host_review_required");
+  assert.equal(result.reviewItem.status, "pending");
+  assert.equal(events.at(-1).type, "host.review.created");
+  assert.equal(events.some((event) => event.type === "ai.message"), false);
+  assert.deepEqual(result.broadcasts, []);
+});
+
+test("provider bridge timeout maps to controlled runner error", async () => {
+  const { service, room } = await createLoadedAiRoom();
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    providerConfig: { enabled: true },
+    adapter: createProviderAiAdapter({
+      enabled: true,
+      endpoint: "https://provider.invalid/v1/respond",
+      apiKey: "secret-api-key",
+      model: "structured-dm",
+      timeoutMs: 1,
+      fetchImpl: async (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => {
+            const error = new Error("timeout with secret-api-key");
+            error.name = "AbortError";
+            reject(error);
+          });
+        }),
+    }),
+    randomSource: createSequenceRandomSource([]),
+    now: "2026-06-02T19:11:50.000Z",
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.error.code, "provider_timeout");
+  assert.equal(result.error.message.includes("secret-api-key"), false);
+  assert.deepEqual(result.events, []);
+  assert.deepEqual(result.broadcasts, []);
+});
+
+test("provider bridge request failure maps to controlled runner error", async () => {
+  const { service, room } = await createLoadedAiRoom();
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    providerConfig: { enabled: true },
+    adapter: createProviderAiAdapter({
+      enabled: true,
+      endpoint: "https://provider.invalid/v1/respond",
+      apiKey: "secret-api-key",
+      model: "structured-dm",
+      fetchImpl: async () => {
+        throw new Error("request failed with secret-api-key");
+      },
+    }),
+    randomSource: createSequenceRandomSource([]),
+    now: "2026-06-02T19:11:55.000Z",
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.error.code, "provider_request_failed");
+  assert.equal(result.error.message.includes("secret-api-key"), false);
+  assert.deepEqual(result.events, []);
+  assert.deepEqual(result.broadcasts, []);
+});
+
+test("provider bridge invalid payload maps to controlled runner error", async () => {
+  const { service, room } = await createLoadedAiRoom();
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    providerConfig: { enabled: true },
+    adapter: createProviderAiAdapter({
+      enabled: true,
+      endpoint: "https://provider.invalid/v1/respond",
+      apiKey: "secret-api-key",
+      model: "structured-dm",
+      fetchImpl: async () => ({
+        ok: true,
+        async json() {
+          return {
+            confidence: "high",
+          };
+        },
+      }),
+    }),
+    randomSource: createSequenceRandomSource([]),
+    now: "2026-06-02T19:11:58.000Z",
+  });
+
+  assert.equal(result.status, "rejected");
+  assert.equal(result.error.code, "invalid_provider_payload");
+  assert.equal(result.error.message.includes("secret-api-key"), false);
+  assert.deepEqual(result.events, []);
+  assert.deepEqual(result.broadcasts, []);
 });
 
 test("AI output requiring supervision creates Host review without public broadcast", async () => {
@@ -296,6 +481,23 @@ test("provider config is disabled by default and runner refuses provider calls",
   assert.deepEqual(config, { enabled: false });
   assert.equal(result.status, "provider_disabled");
   assert.equal(result.error.code, "provider_disabled");
+});
+
+test("provider config applies default timeout when enabled", () => {
+  const config = loadAiProviderConfig({
+    TABLEMIND_AI_PROVIDER_ENABLED: "true",
+    TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
+    TABLEMIND_AI_PROVIDER_API_KEY: "secret-api-key",
+    TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
+  });
+
+  assert.deepEqual(config, {
+    enabled: true,
+    endpoint: "https://provider.invalid/v1/respond",
+    apiKey: "secret-api-key",
+    model: "structured-dm",
+    timeoutMs: 30000,
+  });
 });
 
 test("review-required AI output does not consume deterministic RNG or expose rule result previews", async () => {

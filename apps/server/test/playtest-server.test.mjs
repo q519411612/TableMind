@@ -14,7 +14,7 @@ test("playtest server serves static pages, browser modules, and API config", asy
     },
     logger: quietLogger(),
   });
-  const launch = await app.start();
+  const launch = await app.start({ port: 0 });
   try {
     const hostPage = await fetchText(`${launch.baseUrl}/host.html`);
     const hostModule = await fetchText(`${launch.baseUrl}/src/host-app.mjs`);
@@ -49,7 +49,7 @@ test("playtest fixture routes expose approved content without provider secrets",
     },
     logger: quietLogger(),
   });
-  const launch = await app.start();
+  const launch = await app.start({ port: 0 });
   try {
     const created = await postJson(`${launch.baseUrl}/rooms`, {
       hostDisplayName: "Host",
@@ -111,6 +111,35 @@ test("provider preflight validates enabled config and never prints API keys", ()
   assert.match(preflight.messages.join("\n"), /API key: configured/);
 });
 
+test("playtest server launch logs never print provider API keys", async () => {
+  const secret = "sk-provider-secret";
+  const captured = captureLogger();
+  const app = await createPlaytestServer({
+    env: {
+      TABLEMIND_AI_PROVIDER_ENABLED: "true",
+      TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
+      TABLEMIND_AI_PROVIDER_API_KEY: secret,
+      TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
+    },
+    logger: captured.logger,
+    fetchImpl: async () => {
+      throw new Error("fetch should not run during preflight");
+    },
+  });
+  const launch = await app.start({ port: 0 });
+  try {
+    const logs = captured.messages.join("\n");
+
+    assert.match(logs, /Provider mode: enabled/);
+    assert.match(logs, /API key: configured/);
+    assert.match(logs, new RegExp(launch.hostUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.equal(logs.includes(secret), false);
+    assert.equal(logs.includes("TABLEMIND_AI_PROVIDER_API_KEY"), false);
+  } finally {
+    await app.stop();
+  }
+});
+
 test("provider preflight reports disabled mode and rejects invalid enabled config", () => {
   const disabled = buildProviderPreflight({
     TABLEMIND_AI_PROVIDER_ENABLED: "false",
@@ -147,6 +176,21 @@ function quietLogger() {
   return {
     log() {},
     error() {},
+  };
+}
+
+function captureLogger() {
+  const messages = [];
+  return {
+    messages,
+    logger: {
+      log(message) {
+        messages.push(String(message));
+      },
+      error(message) {
+        messages.push(String(message));
+      },
+    },
   };
 }
 
