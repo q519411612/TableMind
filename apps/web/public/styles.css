@@ -92,6 +92,30 @@ p {
   margin-bottom: 1rem;
 }
 
+.tm-topbar-actions,
+.tm-language-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.tm-language-switcher span {
+  color: var(--tm-muted);
+  font-size: 0.85rem;
+}
+
+.tm-language-switcher button {
+  min-height: 2rem;
+  padding: 0.3rem 0.55rem;
+}
+
+.tm-language-switcher button[aria-pressed="false"] {
+  background: transparent;
+  color: var(--tm-action);
+}
+
 .tm-kicker {
   margin-bottom: 0.15rem;
   color: var(--tm-action);
@@ -184,9 +208,14 @@ pre {
   }
 
   .tm-topbar,
+  .tm-topbar-actions,
   .tm-inline-form,
   .tm-command-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .tm-language-switcher {
+    justify-content: flex-start;
   }
 }

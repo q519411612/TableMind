@@ -11,19 +11,21 @@
       <header class="tm-topbar">
         <div>
           <p class="tm-kicker">TableMind</p>
-          <h1>Room Console</h1>
+          <h1 data-i18n="roomConsole">Room Console</h1>
         </div>
+        <div data-language-switcher></div>
       </header>
       <section class="tm-grid">
         <article class="tm-panel">
           <h2>Host</h2>
-          <a class="tm-link-button" href="./host.html">Open Host Console</a>
+          <a class="tm-link-button" href="./host.html" data-i18n="openHostConsole" data-locale-link>Open Host Console</a>
         </article>
         <article class="tm-panel">
           <h2>Player</h2>
-          <a class="tm-link-button" href="./player.html">Open Player Room</a>
+          <a class="tm-link-button" href="./player.html" data-i18n="openPlayerRoom" data-locale-link>Open Player Room</a>
         </article>
       </section>
     </main>
+    <script type="module" src="../src/index-app.mjs"></script>
   </body>
 </html>

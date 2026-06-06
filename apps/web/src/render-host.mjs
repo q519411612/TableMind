@@ -1,3 +1,4 @@
+import { renderLanguageSwitcher, uiText } from "./i18n.mjs";
 import {
   escapeHtml,
   renderCombat,
@@ -10,92 +11,96 @@ export function renderHostRoom(input = {}) {
   const snapshot = input.snapshot;
   const scene = input.adventureSnapshot?.currentScene;
   const room = input.room;
+  const labels = uiText(input.locale);
 
   return `
     <main class="tm-shell tm-host" data-viewer-role="host">
       <header class="tm-topbar">
         <div>
-          <p class="tm-kicker">Host Console</p>
-          <h1>${escapeHtml(room?.roomId ?? "Create room")}</h1>
+          <p class="tm-kicker">${escapeHtml(labels.hostConsole)}</p>
+          <h1>${escapeHtml(room?.roomId ?? labels.createRoomHeading)}</h1>
         </div>
-        <button type="button" data-action="refresh-snapshot">Refresh</button>
+        <div class="tm-topbar-actions">
+          ${renderLanguageSwitcher(input.locale)}
+          <button type="button" data-action="refresh-snapshot">${escapeHtml(labels.refresh)}</button>
+        </div>
       </header>
 
       <section class="tm-grid">
         <article class="tm-panel" data-panel="create-room">
-          <h2>Room</h2>
+          <h2>${escapeHtml(labels.room)}</h2>
           <form data-action="create-room">
             <label>
-              Host name
+              ${escapeHtml(labels.hostName)}
               <input name="hostDisplayName" value="Host" required />
             </label>
-            <button type="submit">Create Room</button>
+            <button type="submit">${escapeHtml(labels.createRoom)}</button>
           </form>
-          ${renderInvite(room)}
+          ${renderInvite(room, labels)}
         </article>
 
         <article class="tm-panel" data-panel="players">
-          <h2>Players</h2>
-          ${renderPlayers(snapshot)}
+          <h2>${escapeHtml(labels.players)}</h2>
+          ${renderPlayers(snapshot, labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="scene">
-          <h2>Scene</h2>
-          ${renderHostScene(snapshot, scene, input.adventureSnapshot?.truth ?? [])}
-          ${renderAdventureControls(scene)}
+          <h2>${escapeHtml(labels.scene)}</h2>
+          ${renderHostScene(snapshot, scene, input.adventureSnapshot?.truth ?? [], labels)}
+          ${renderAdventureControls(scene, labels)}
         </article>
 
         <article class="tm-panel" data-panel="ai">
-          <h2>AI</h2>
-          <p>Paused: ${escapeHtml(Boolean(snapshot?.flags?.aiPaused?.value))}</p>
-          <button type="button" data-command="ai.turn.run">Run AI</button>
-          <button type="button" data-command="ai.pause" data-paused="true">Pause AI</button>
-          <button type="button" data-command="ai.pause" data-paused="false">Resume AI</button>
+          <h2>${escapeHtml(labels.ai)}</h2>
+          <p>${escapeHtml(labels.paused)}: ${escapeHtml(Boolean(snapshot?.flags?.aiPaused?.value))}</p>
+          <button type="button" data-command="ai.turn.run">${escapeHtml(labels.runAi)}</button>
+          <button type="button" data-command="ai.pause" data-paused="true">${escapeHtml(labels.pauseAi)}</button>
+          <button type="button" data-command="ai.pause" data-paused="false">${escapeHtml(labels.resumeAi)}</button>
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="review">
-          <h2>Review Queue</h2>
-          ${renderReviewQueue(input.reviewQueue ?? [])}
+          <h2>${escapeHtml(labels.reviewQueue)}</h2>
+          ${renderReviewQueue(input.reviewQueue ?? [], labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="feed">
-          <h2>Audit Feed</h2>
-          ${renderEventFeed(snapshot?.eventLog ?? [])}
+          <h2>${escapeHtml(labels.auditFeed)}</h2>
+          ${renderEventFeed(snapshot?.eventLog ?? [], labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="combat">
-          <h2>Combat</h2>
-          ${renderCombat(snapshot?.combat)}
-          ${renderCombatControls()}
+          <h2>${escapeHtml(labels.combat)}</h2>
+          ${renderCombat(snapshot?.combat, labels)}
+          ${renderCombatControls(labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="recap">
-          <h2>Recap</h2>
-          ${renderSessionComplete()}
-          ${renderMarkdown(input.recap?.markdown)}
+          <h2>${escapeHtml(labels.recap)}</h2>
+          ${renderSessionComplete(labels)}
+          ${renderMarkdown(input.recap?.markdown, labels)}
         </article>
       </section>
     </main>
   `;
 }
 
-function renderInvite(room) {
+function renderInvite(room, labels) {
   if (!room) {
-    return renderEmpty("No active room.");
+    return renderEmpty(labels.noActiveRoom);
   }
 
   return `
     <dl class="tm-facts">
-      <div><dt>Host ID</dt><dd>${escapeHtml(room.hostPlayerId)}</dd></div>
-      <div><dt>Invite</dt><dd>${escapeHtml(room.inviteLink)}</dd></div>
+      <div><dt>${escapeHtml(labels.hostId)}</dt><dd>${escapeHtml(room.hostPlayerId)}</dd></div>
+      <div><dt>${escapeHtml(labels.invite)}</dt><dd>${escapeHtml(room.inviteLink)}</dd></div>
     </dl>
   `;
 }
 
-function renderPlayers(snapshot) {
+function renderPlayers(snapshot, labels) {
   const players = Object.values(snapshot?.players ?? {});
   if (players.length === 0) {
-    return renderEmpty("No players yet.");
+    return renderEmpty(labels.noPlayersYet);
   }
 
   return `<ul class="tm-list">${players
@@ -104,16 +109,16 @@ function renderPlayers(snapshot) {
         <li>
           <strong>${escapeHtml(player.displayName)}</strong>
           <span>${escapeHtml(player.role)}</span>
-          <span>${escapeHtml(player.characterId ?? "No character")}</span>
+          <span>${escapeHtml(player.characterId ?? labels.noCharacter)}</span>
         </li>
       `,
     )
     .join("")}</ul>`;
 }
 
-function renderHostScene(snapshot, scene, truth) {
+function renderHostScene(snapshot, scene, truth, labels) {
   if (!snapshot) {
-    return renderEmpty("Create a room to load the adventure.");
+    return renderEmpty(labels.createRoomToLoadAdventure);
   }
 
   return `
@@ -135,14 +140,14 @@ function renderHostScene(snapshot, scene, truth) {
   `;
 }
 
-function renderAdventureControls(scene) {
+function renderAdventureControls(scene, labels) {
   const clues = scene?.clues ?? [];
 
   return `
     <div class="tm-command-row">
-      <button type="button" data-command="adventure.load">Load Demo Adventure</button>
-      <button type="button" data-command="session.start">Start Session</button>
-      <button type="button" data-command="scene.change">Change Scene</button>
+      <button type="button" data-command="adventure.load">${escapeHtml(labels.loadDemoAdventure)}</button>
+      <button type="button" data-command="session.start">${escapeHtml(labels.startSession)}</button>
+      <button type="button" data-command="scene.change">${escapeHtml(labels.changeScene)}</button>
     </div>
     <div class="tm-command-row">
       ${clues
@@ -150,17 +155,17 @@ function renderAdventureControls(scene) {
           (clue) =>
             `<button type="button" data-command="clue.reveal" data-clue-id="${escapeHtml(
               clue.id,
-            )}">Reveal ${escapeHtml(clue.title ?? clue.id)}</button>`,
+            )}">${escapeHtml(labels.reveal)} ${escapeHtml(clue.title ?? clue.id)}</button>`,
         )
         .join("")}
-      <button type="button" data-command="clue.reveal">Reveal Clue</button>
+      <button type="button" data-command="clue.reveal">${escapeHtml(labels.revealClue)}</button>
     </div>
   `;
 }
 
-function renderReviewQueue(reviewQueue) {
+function renderReviewQueue(reviewQueue, labels) {
   if (reviewQueue.length === 0) {
-    return renderEmpty("No pending review items.");
+    return renderEmpty(labels.noPendingReviewItems);
   }
 
   return `<ul class="tm-list">${reviewQueue
@@ -172,66 +177,66 @@ function renderReviewQueue(reviewQueue) {
           <pre>${escapeHtml(JSON.stringify(item.proposedPayload, null, 2))}</pre>
           <button type="button" data-command="host.review.update" data-action-value="approve" data-review-id="${escapeHtml(
             item.id,
-          )}">Approve</button>
+          )}">${escapeHtml(labels.approve)}</button>
           <button type="button" data-command="host.review.update" data-action-value="edit" data-review-id="${escapeHtml(
             item.id,
-          )}">Edit</button>
+          )}">${escapeHtml(labels.edit)}</button>
           <button type="button" data-command="host.review.update" data-action-value="reject" data-review-id="${escapeHtml(
             item.id,
-          )}">Reject</button>
+          )}">${escapeHtml(labels.reject)}</button>
         </li>
       `,
     )
     .join("")}</ul>`;
 }
 
-function renderCombatControls() {
+function renderCombatControls(labels) {
   return `
     <div class="tm-command-row">
-      <button type="button" data-command="combat.start">Start Encounter</button>
-      <button type="button" data-command="combat.advance_turn">Advance Turn</button>
-      <button type="button" data-command="combat.end">End Combat</button>
+      <button type="button" data-command="combat.start">${escapeHtml(labels.startEncounter)}</button>
+      <button type="button" data-command="combat.advance_turn">${escapeHtml(labels.advanceTurn)}</button>
+      <button type="button" data-command="combat.end">${escapeHtml(labels.endCombat)}</button>
     </div>
     <form data-command="combat.patch_hp" class="tm-inline-form">
       <label>
-        Combatant
+        ${escapeHtml(labels.combatant)}
         <input name="combatantId" required />
       </label>
       <label>
-        Current HP
+        ${escapeHtml(labels.currentHp)}
         <input name="currentHp" type="number" min="0" required />
       </label>
-      <button type="submit" data-command="combat.patch_hp">Patch HP</button>
+      <button type="submit" data-command="combat.patch_hp">${escapeHtml(labels.patchHp)}</button>
     </form>
     <form data-command="combat.patch_condition" class="tm-inline-form">
       <label>
-        Combatant
+        ${escapeHtml(labels.combatant)}
         <input name="combatantId" required />
       </label>
       <label>
-        Condition
+        ${escapeHtml(labels.condition)}
         <input name="condition" required />
       </label>
       <label>
-        Action
+        ${escapeHtml(labels.action)}
         <select name="action">
-          <option value="apply">Apply</option>
-          <option value="remove">Remove</option>
+          <option value="apply">${escapeHtml(labels.apply)}</option>
+          <option value="remove">${escapeHtml(labels.remove)}</option>
         </select>
       </label>
-      <button type="submit" data-command="combat.patch_condition">Patch Condition</button>
+      <button type="submit" data-command="combat.patch_condition">${escapeHtml(labels.patchCondition)}</button>
     </form>
   `;
 }
 
-function renderSessionComplete() {
+function renderSessionComplete(labels) {
   return `
     <form data-command="session.complete" class="tm-inline-form">
       <label>
-        Ending
+        ${escapeHtml(labels.ending)}
         <input name="ending" value="Repair the Lantern" required />
       </label>
-      <button type="submit" data-command="session.complete">Complete Session</button>
+      <button type="submit" data-command="session.complete">${escapeHtml(labels.completeSession)}</button>
     </form>
   `;
 }
