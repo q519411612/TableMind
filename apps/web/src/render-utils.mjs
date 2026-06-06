@@ -1,3 +1,5 @@
+import { uiText } from "./i18n.mjs";
+
 export function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -11,9 +13,9 @@ export function renderEmpty(text) {
   return `<p class="tm-empty">${escapeHtml(text)}</p>`;
 }
 
-export function renderMarkdown(markdown) {
+export function renderMarkdown(markdown, labels = uiText()) {
   if (!markdown) {
-    return renderEmpty("No recap yet.");
+    return renderEmpty(labels.noRecapYet);
   }
 
   return escapeHtml(markdown)
@@ -23,37 +25,37 @@ export function renderMarkdown(markdown) {
     .join("");
 }
 
-export function renderEventFeed(events = []) {
+export function renderEventFeed(events = [], labels = uiText()) {
   const feedItems = events
-    .map((event) => renderEvent(event))
+    .map((event) => renderEvent(event, labels))
     .filter((item) => item.length > 0);
 
   if (feedItems.length === 0) {
-    return renderEmpty("No public events yet.");
+    return renderEmpty(labels.noPublicEventsYet);
   }
 
   return `<ol class="tm-feed">${feedItems.join("")}</ol>`;
 }
 
-export function renderDiceLog(diceLog = []) {
+export function renderDiceLog(diceLog = [], labels = uiText()) {
   if (diceLog.length === 0) {
-    return renderEmpty("No dice rolled yet.");
+    return renderEmpty(labels.noDiceRolledYet);
   }
 
   return `<ul class="tm-list">${diceLog
-    .map((roll) => `<li>${renderDiceLogEntry(roll)}</li>`)
+    .map((roll) => `<li>${renderDiceLogEntry(roll, labels)}</li>`)
     .join("")}</ul>`;
 }
 
-function renderDiceLogEntry(roll) {
+function renderDiceLogEntry(roll, labels) {
   if (roll.check) {
     const subject = roll.check.skill ?? roll.check.ability;
-    const outcome = roll.check.success ? "success" : "failure";
+    const outcome = roll.check.success ? labels.success : labels.failure;
     return `<strong>${escapeHtml(roll.check.requestType)} ${escapeHtml(
       subject,
     )}</strong><span>DC ${escapeHtml(roll.check.dc)}, d20 ${escapeHtml(
       roll.check.selectedD20,
-    )}, total ${escapeHtml(roll.check.total)}, ${escapeHtml(
+    )}, ${escapeHtml(labels.total)} ${escapeHtml(roll.check.total)}, ${escapeHtml(
       outcome,
     )}</span><span>${escapeHtml(roll.check.reason)}</span>`;
   }
@@ -63,15 +65,15 @@ function renderDiceLogEntry(roll) {
   )}<span>${escapeHtml(roll.reason ?? "")}</span>`;
 }
 
-export function renderCombat(combat) {
+export function renderCombat(combat, labels = uiText()) {
   if (!combat) {
-    return renderEmpty("No active combat.");
+    return renderEmpty(labels.noActiveCombat);
   }
 
   return `
     <div class="tm-combat-summary">
-      <span>Active: ${escapeHtml(combat.activeCombatantId)}</span>
-      <span>Round ${escapeHtml(combat.round ?? 1)}</span>
+      <span>${escapeHtml(labels.active)}: ${escapeHtml(combat.activeCombatantId)}</span>
+      <span>${escapeHtml(labels.round)} ${escapeHtml(combat.round ?? 1)}</span>
     </div>
     <ul class="tm-list">
       ${(combat.combatants ?? [])
@@ -80,7 +82,7 @@ export function renderCombat(combat) {
             <li>
               <strong>${escapeHtml(combatant.displayName ?? combatant.id)}</strong>
               <span>${escapeHtml(combatant.id)}</span>
-              <span>HP ${escapeHtml(combatant.hitPoints?.current ?? "?")}/${escapeHtml(
+              <span>${escapeHtml(labels.hp)} ${escapeHtml(combatant.hitPoints?.current ?? "?")}/${escapeHtml(
                 combatant.hitPoints?.max ?? "?",
               )}</span>
               <span>${escapeHtml(combatant.status ?? "active")}</span>
@@ -98,29 +100,29 @@ export function ownCharacters(snapshot, playerId) {
   );
 }
 
-function renderEvent(event) {
+function renderEvent(event, labels) {
   if (event.type === "player.message") {
-    return `<li><strong>Player</strong><p>${escapeHtml(event.message)}</p></li>`;
+    return `<li><strong>${escapeHtml(labels.player)}</strong><p>${escapeHtml(event.message)}</p></li>`;
   }
   if (event.type === "ai.message") {
-    return `<li><strong>AI</strong><p>${escapeHtml(event.message)}</p></li>`;
+    return `<li><strong>${escapeHtml(labels.ai)}</strong><p>${escapeHtml(event.message)}</p></li>`;
   }
   if (event.type === "system.message") {
-    return `<li><strong>System</strong><p>${escapeHtml(event.message)}</p></li>`;
+    return `<li><strong>${escapeHtml(labels.system)}</strong><p>${escapeHtml(event.message)}</p></li>`;
   }
   if (event.type === "dice.rolled") {
-    return `<li><strong>Dice</strong><p>${escapeHtml(
+    return `<li><strong>${escapeHtml(labels.dice)}</strong><p>${escapeHtml(
       event.roll?.formula,
     )} = ${escapeHtml(event.roll?.total)} ${escapeHtml(event.reason ?? "")}</p></li>`;
   }
   if (event.type === "scene.changed") {
-    return `<li><strong>Scene</strong><p>${escapeHtml(event.sceneId)}</p></li>`;
+    return `<li><strong>${escapeHtml(labels.scene)}</strong><p>${escapeHtml(event.sceneId)}</p></li>`;
   }
   if (event.type === "clue.revealed") {
-    return `<li><strong>Clue</strong><p>${escapeHtml(event.clueId)}</p></li>`;
+    return `<li><strong>${escapeHtml(labels.revealClue)}</strong><p>${escapeHtml(event.clueId)}</p></li>`;
   }
   if (event.type?.startsWith("combat.") || event.type === "attack.resolved") {
-    return `<li><strong>Combat</strong><p>${escapeHtml(event.type)}</p></li>`;
+    return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${escapeHtml(event.type)}</p></li>`;
   }
   return "";
 }

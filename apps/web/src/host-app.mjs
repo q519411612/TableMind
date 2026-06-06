@@ -2,11 +2,13 @@ import {
   createHostCommandClient,
   createTableMindApi,
 } from "./api-client.mjs";
+import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
 import { renderHostRoom } from "./render-host.mjs";
 
 const appState = {
   baseUrl: globalThis.localStorage?.getItem("tablemind.apiBaseUrl") ?? "",
+  locale: readBrowserLocale(),
   fixtureUrls: undefined,
   demoAdventure: undefined,
   compendiumEntries: [],
@@ -81,6 +83,12 @@ root.addEventListener("click", async (event) => {
     return;
   }
   if (button.type === "submit") {
+    return;
+  }
+
+  if (button.dataset.action === "set-language") {
+    appState.locale = storeBrowserLocale(button.dataset.locale);
+    render();
     return;
   }
 
@@ -217,6 +225,7 @@ function connectStream() {
 }
 
 function render() {
+  globalThis.document.documentElement.lang = appState.locale;
   root.innerHTML = renderHostRoom(appState);
 }
 

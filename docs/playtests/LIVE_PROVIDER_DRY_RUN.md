@@ -12,6 +12,7 @@ This runbook is for the first supervised live-provider session. It documents how
 - Assign one Host and two players.
 - Use `The Lantern Beneath the Hill` original fixture.
 - Keep Host review visible for spoiler, low-confidence, reveal, and state-patch review items.
+- When using DeepSeek through a local bridge, expect that reveal proposals can appear even during an otherwise safe rules/check flow. Treat those proposals as Host-review-required output, not safe narration.
 
 ## Host And Two-Player Flow
 
@@ -23,6 +24,7 @@ This runbook is for the first supervised live-provider session. It documents how
 - Players send public actions through the player UI.
 - Host runs live AI turns only while supervising output and review state.
 - Host approves, edits, or rejects review items before any risky output reaches players.
+- Host confirms rejected risky review items do not appear in player HTTP responses, player SSE events, player UI, or player recap output.
 - Host completes the session and generates both player and Host recaps.
 
 ## Required Coverage
@@ -55,6 +57,7 @@ validate the rejection path without expanding product scope.
 - Recap status: player recap generated, Host recap generated, player recap no-leak result.
 - Blockers: crashes, invalid AI output, stuck review flow, transport issues, UI issues, provider failures.
 - Pass/fail decision with evidence.
+- Do not record raw provider requests, raw provider responses, private provider payloads, authorization headers, API keys, session tokens, or private uploaded content.
 
 ## Completion Rule
 

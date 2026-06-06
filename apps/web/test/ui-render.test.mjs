@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   createHostCommandClient,
@@ -44,6 +45,82 @@ test("player renderer shows play panels without rendering Host-only input", () =
   assert.ok(html.includes("Repair the Lantern"));
   assert.equal(html.includes(secretText), false);
   assert.equal(html.includes(hostPauseReason), false);
+});
+
+test("player renderer can render fixed UI labels in Chinese", () => {
+  const joinHtml = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "room_0001",
+    playerId: undefined,
+    snapshot: undefined,
+  });
+  const html = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "room_0001",
+    playerId: "player_0002",
+    snapshot: playerSnapshot(),
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+
+  assert.ok(joinHtml.includes("玩家房间"));
+  assert.ok(joinHtml.includes("加入房间"));
+  assert.ok(html.includes("当前场景"));
+  assert.ok(html.includes("公共动态"));
+  assert.ok(html.includes("骰子记录"));
+  assert.ok(html.includes("角色"));
+  assert.ok(html.includes("刷新"));
+  assert.equal(html.includes(secretText), false);
+});
+
+test("Host renderer can render fixed UI labels in Chinese", () => {
+  const html = renderHostRoom({
+    locale: "zh-CN",
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI confidence is low.",
+        riskLevel: "medium",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lantern flickers.",
+        },
+      },
+    ],
+  });
+
+  assert.ok(html.includes("主持控制台"));
+  assert.ok(html.includes("创建房间"));
+  assert.ok(html.includes("审核队列"));
+  assert.ok(html.includes("运行 AI"));
+  assert.ok(html.includes("揭示线索"));
+  assert.ok(html.includes(secretText));
+});
+
+test("static web entries expose a language switcher hook", () => {
+  const indexHtml = readFileSync(
+    new URL("../public/index.html", import.meta.url),
+    "utf8",
+  );
+  const playerHtml = readFileSync(
+    new URL("../public/player.html", import.meta.url),
+    "utf8",
+  );
+  const hostHtml = readFileSync(
+    new URL("../public/host.html", import.meta.url),
+    "utf8",
+  );
+
+  for (const html of [indexHtml, playerHtml, hostHtml]) {
+    assert.ok(html.includes("data-language-switcher"));
+  }
 });
 
 test("Host renderer includes DM-only scene, review, combat, and recap controls", () => {
