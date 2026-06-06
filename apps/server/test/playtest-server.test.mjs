@@ -38,12 +38,12 @@ test("playtest server serves static pages, browser modules, and API config", asy
 });
 
 test("playtest fixture routes expose approved content without provider secrets", async () => {
-  const secret = "sk-live-provider-secret";
+  const testProviderApiKey = "<TEST_PROVIDER_API_KEY_DO_NOT_USE>";
   const app = await createPlaytestServer({
     env: {
       TABLEMIND_AI_PROVIDER_ENABLED: "true",
       TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
-      TABLEMIND_AI_PROVIDER_API_KEY: secret,
+      TABLEMIND_AI_PROVIDER_API_KEY: testProviderApiKey,
       TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
       TABLEMIND_AI_PROVIDER_TIMEOUT_MS: "30000",
     },
@@ -84,7 +84,7 @@ test("playtest fixture routes expose approved content without provider secrets",
     assert.ok(adventure.body.truth.some((entry) => entry.visibility === "dm_only"));
     assert.equal(compendium.status, 200);
     assert.ok(compendium.body.entries.some((entry) => entry.id === "monster_hill_scavenger"));
-    assert.equal(combined.includes(secret), false);
+    assert.equal(combined.includes(testProviderApiKey), false);
     assert.equal(combined.includes("TABLEMIND_AI_PROVIDER_API_KEY"), false);
   } finally {
     await app.stop();
@@ -92,11 +92,11 @@ test("playtest fixture routes expose approved content without provider secrets",
 });
 
 test("provider preflight validates enabled config and never prints API keys", () => {
-  const secret = "sk-provider-secret";
+  const testProviderApiKey = "<TEST_PROVIDER_API_KEY_DO_NOT_USE>";
   const preflight = buildProviderPreflight({
     TABLEMIND_AI_PROVIDER_ENABLED: "true",
     TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
-    TABLEMIND_AI_PROVIDER_API_KEY: secret,
+    TABLEMIND_AI_PROVIDER_API_KEY: testProviderApiKey,
     TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
     TABLEMIND_AI_PROVIDER_TIMEOUT_MS: "15000",
   });
@@ -105,20 +105,20 @@ test("provider preflight validates enabled config and never prints API keys", ()
   assert.equal(preflight.config.endpoint, "https://provider.invalid/v1/respond");
   assert.equal(preflight.config.model, "structured-dm");
   assert.equal(preflight.config.timeoutMs, 15000);
-  assert.equal(JSON.stringify(preflight).includes(secret), false);
-  assert.equal(preflight.messages.join("\n").includes(secret), false);
+  assert.equal(JSON.stringify(preflight).includes(testProviderApiKey), false);
+  assert.equal(preflight.messages.join("\n").includes(testProviderApiKey), false);
   assert.match(preflight.messages.join("\n"), /Provider mode: enabled/);
   assert.match(preflight.messages.join("\n"), /API key: configured/);
 });
 
 test("playtest server launch logs never print provider API keys", async () => {
-  const secret = "sk-provider-secret";
+  const testProviderApiKey = "<TEST_PROVIDER_API_KEY_DO_NOT_USE>";
   const captured = captureLogger();
   const app = await createPlaytestServer({
     env: {
       TABLEMIND_AI_PROVIDER_ENABLED: "true",
       TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
-      TABLEMIND_AI_PROVIDER_API_KEY: secret,
+      TABLEMIND_AI_PROVIDER_API_KEY: testProviderApiKey,
       TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
     },
     logger: captured.logger,
@@ -133,7 +133,7 @@ test("playtest server launch logs never print provider API keys", async () => {
     assert.match(logs, /Provider mode: enabled/);
     assert.match(logs, /API key: configured/);
     assert.match(logs, new RegExp(launch.hostUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.equal(logs.includes(secret), false);
+    assert.equal(logs.includes(testProviderApiKey), false);
     assert.equal(logs.includes("TABLEMIND_AI_PROVIDER_API_KEY"), false);
   } finally {
     await app.stop();
@@ -156,7 +156,7 @@ test("provider preflight reports disabled mode and rejects invalid enabled confi
       buildProviderPreflight({
         TABLEMIND_AI_PROVIDER_ENABLED: "true",
         TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
-        TABLEMIND_AI_PROVIDER_API_KEY: "sk-provider-secret",
+        TABLEMIND_AI_PROVIDER_API_KEY: "<TEST_PROVIDER_API_KEY_DO_NOT_USE>",
         TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
         TABLEMIND_AI_PROVIDER_TIMEOUT_MS: "0",
       }),
@@ -164,12 +164,13 @@ test("provider preflight reports disabled mode and rejects invalid enabled confi
   );
 });
 
-test("package playtest script targets the local launch script", async () => {
+test("package playtest scripts target local launch scripts", async () => {
   const packageJson = JSON.parse(await readFile("package.json", "utf8"));
-  const script = packageJson.scripts.playtest;
 
-  assert.equal(script, "node scripts/start-playtest.mjs");
+  assert.equal(packageJson.scripts.playtest, "node scripts/start-playtest.mjs");
+  assert.equal(packageJson.scripts["smoke:playtest"], "node scripts/smoke-playtest-flow.mjs");
   await assert.doesNotReject(() => readFile("scripts/start-playtest.mjs", "utf8"));
+  await assert.doesNotReject(() => readFile("scripts/smoke-playtest-flow.mjs", "utf8"));
 });
 
 function quietLogger() {

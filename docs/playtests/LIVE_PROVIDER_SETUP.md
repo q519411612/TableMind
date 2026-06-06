@@ -23,7 +23,7 @@ Use placeholders only in documentation, tickets, and screenshots:
 ```bash
 export TABLEMIND_AI_PROVIDER_ENABLED="true"
 export TABLEMIND_AI_PROVIDER_ENDPOINT="https://provider.example.test/v1/responses"
-export TABLEMIND_AI_PROVIDER_API_KEY="<provider-api-key>"
+export TABLEMIND_AI_PROVIDER_API_KEY="<TEST_PROVIDER_API_KEY_DO_NOT_USE>"
 export TABLEMIND_AI_PROVIDER_MODEL="<provider-model>"
 export TABLEMIND_AI_PROVIDER_TIMEOUT_MS="30000"
 ```

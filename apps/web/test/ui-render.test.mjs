@@ -241,14 +241,14 @@ test("UI command clients use the transport contract and keep player snapshots pl
     api,
     roomId: "room_0001",
     hostPlayerId: "player_0001",
-    hostSessionToken: "host_session_token",
+    hostSessionToken: "tm_test_session_token_host",
     now: () => "2026-06-02T16:00:00.000Z",
   });
   const player = createPlayerCommandClient({
     api,
     roomId: "room_0001",
     playerId: "player_0002",
-    playerSessionToken: "player_session_token",
+    playerSessionToken: "tm_test_session_token_player",
     now: () => "2026-06-02T16:00:00.000Z",
   });
 
@@ -308,7 +308,7 @@ test("UI command clients use the transport contract and keep player snapshots pl
       "combat.attack",
     ],
   );
-  assert.ok(calls.at(-1).url.includes("sessionToken=player_session_token"));
+  assert.ok(calls.at(-1).url.includes("sessionToken=tm_test_session_token_player"));
   assert.equal(calls.some((call) => call.url.includes("viewerRole=host")), false);
   assert.equal(
     calls

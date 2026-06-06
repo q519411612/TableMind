@@ -19,7 +19,7 @@ Headers:
 
 ```txt
 content-type: application/json
-authorization: Bearer <provider-api-key>
+authorization: Bearer <TEST_BEARER_TOKEN>
 ```
 
 Body:
