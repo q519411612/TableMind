@@ -32,9 +32,7 @@ export function loadAiProviderConfig(env = {}) {
     endpoint: requireEnv(env, "TABLEMIND_AI_PROVIDER_ENDPOINT"),
     apiKey: requireEnv(env, "TABLEMIND_AI_PROVIDER_API_KEY"),
     model: requireEnv(env, "TABLEMIND_AI_PROVIDER_MODEL"),
-    timeoutMs: env.TABLEMIND_AI_PROVIDER_TIMEOUT_MS
-      ? Number.parseInt(env.TABLEMIND_AI_PROVIDER_TIMEOUT_MS, 10)
-      : undefined,
+    timeoutMs: parseProviderTimeout(env.TABLEMIND_AI_PROVIDER_TIMEOUT_MS),
   };
 }
 
@@ -108,7 +106,11 @@ export async function runAiTurnForRoom(input) {
       randomSource: input.randomSource,
     });
   } catch (error) {
-    if (error.code === "provider_timeout" || error.code === "provider_request_failed") {
+    if (
+      error.code === "provider_timeout" ||
+      error.code === "provider_request_failed" ||
+      error.code === "invalid_provider_payload"
+    ) {
       return {
         status: "rejected",
         error: {
@@ -349,4 +351,15 @@ function requireEnv(env, key) {
     throw new Error(`${key} is required when AI provider is enabled`);
   }
   return env[key];
+}
+
+function parseProviderTimeout(value) {
+  if (value === undefined || value === "") {
+    return 30000;
+  }
+  const timeoutMs = Number.parseInt(value, 10);
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1) {
+    throw new Error("TABLEMIND_AI_PROVIDER_TIMEOUT_MS must be a positive integer");
+  }
+  return timeoutMs;
 }

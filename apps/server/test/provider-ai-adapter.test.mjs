@@ -82,3 +82,77 @@ test("provider adapter enforces timeout and redacts provider details", async () 
     },
   );
 });
+
+test("provider adapter maps request failure to controlled error", async () => {
+  const adapter = createProviderAiAdapter({
+    enabled: true,
+    endpoint: "https://provider.invalid/v1/respond",
+    apiKey: "secret-api-key",
+    model: "structured-dm",
+    fetchImpl: async () => {
+      throw new Error("request failed for secret-api-key at provider.invalid");
+    },
+  });
+
+  await assert.rejects(
+    () => adapter.generateStructuredResponse({ currentScene: { title: "Tower" } }),
+    (error) => {
+      assert.equal(error.code, "provider_request_failed");
+      assert.equal(error.message.includes("secret-api-key"), false);
+      assert.equal(error.message.includes("provider.invalid"), false);
+      return true;
+    },
+  );
+});
+
+test("provider adapter rejects invalid structured payload with controlled error", async () => {
+  const adapter = createProviderAiAdapter({
+    enabled: true,
+    endpoint: "https://provider.invalid/v1/respond",
+    apiKey: "secret-api-key",
+    model: "structured-dm",
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return {
+          confidence: "high",
+        };
+      },
+    }),
+  });
+
+  await assert.rejects(
+    () => adapter.generateStructuredResponse({ currentScene: { title: "Tower" } }),
+    (error) => {
+      assert.equal(error.code, "invalid_provider_payload");
+      assert.equal(error.message.includes("publicMessage"), false);
+      assert.equal(error.message.includes("secret-api-key"), false);
+      return true;
+    },
+  );
+});
+
+test("provider adapter rejects invalid JSON payload with controlled error", async () => {
+  const adapter = createProviderAiAdapter({
+    enabled: true,
+    endpoint: "https://provider.invalid/v1/respond",
+    apiKey: "secret-api-key",
+    model: "structured-dm",
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        throw new Error("invalid JSON near secret-api-key");
+      },
+    }),
+  });
+
+  await assert.rejects(
+    () => adapter.generateStructuredResponse({ currentScene: { title: "Tower" } }),
+    (error) => {
+      assert.equal(error.code, "invalid_provider_payload");
+      assert.equal(error.message.includes("JSON"), false);
+      assert.equal(error.message.includes("secret-api-key"), false);
+      return true;
+    },
+  );
+});

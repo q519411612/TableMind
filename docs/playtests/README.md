@@ -13,10 +13,15 @@ MVP-1.0 is an internal monitored playtest milestone. It is not an unsupervised p
 - `LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06.md` for the failed provider
   startup preflight attempt.
 - `LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06_DEEPSEEK.md` for the completed
-  DeepSeek dry run through a temporary local structured-response bridge.
+  DeepSeek dry run through a temporary local structured-response bridge, not a
+  permanent first-party provider integration.
+- `../providers/DEEPSEEK_STRUCTURED_RESPONSE_BRIDGE.md` for the documented
+  temporary bridge contract.
 
 ## Acceptance Policy
 
 MVP-1.0 is not complete when blockers remain undocumented, when a player-facing surface leaks DM-only truth, when recap cannot be generated, or when the AI provider path requires default live network calls.
 
 The final report must include participants, blockers, spoiler incidents, Host interventions, rules outcomes, combat outcomes, recap status, and the Pass/fail decision.
+
+Production readiness, public launch readiness, and permanent provider integration remain deferred until later evidence explicitly closes those gaps.

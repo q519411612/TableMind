@@ -10,7 +10,11 @@ This guide prepares a supervised live-provider dry run without committing secret
 - `TABLEMIND_AI_PROVIDER_ENDPOINT`: provider endpoint URL.
 - `TABLEMIND_AI_PROVIDER_API_KEY`: provider API key or bearer credential.
 - `TABLEMIND_AI_PROVIDER_MODEL`: model identifier for the provider request.
-- `TABLEMIND_AI_PROVIDER_TIMEOUT_MS`: optional request timeout in milliseconds.
+- `TABLEMIND_AI_PROVIDER_TIMEOUT_MS`: request timeout in milliseconds. Defaults to `30000` when omitted.
+
+For a DeepSeek dry run through a local structured-response bridge, point
+`TABLEMIND_AI_PROVIDER_ENDPOINT` at the local bridge and follow
+`../providers/DEEPSEEK_STRUCTURED_RESPONSE_BRIDGE.md`.
 
 ## Local Shell Example
 
