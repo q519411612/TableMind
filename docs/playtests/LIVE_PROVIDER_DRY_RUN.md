@@ -33,6 +33,18 @@ This runbook is for the first supervised live-provider session. It documents how
 - Combat: start Hill Scavengers, resolve at least one player attack, and end combat.
 - Recap: generate player recap and Host recap.
 
+## Second Run Unsupported Action Checklist
+
+Use this addendum for the second supervised live-provider run. The goal is to
+validate the rejection path without expanding product scope.
+
+- Safely attempt or simulate an unsupported AI action path under Host supervision.
+- Prefer an action the MVP already treats as unsupported, such as AI-requested direct attack resolution, damage, HP changes, scene changes, clue reveals, or arbitrary state patches without the matching Host/player command.
+- Verify the unsupported action is rejected or moved to Host review.
+- Verify no unsupported action mutates authoritative room state directly.
+- Verify no player-facing HTTP response, SSE event, UI surface, or recap leaks DM-only information, private AI payloads, rejected output, or unsupported action details.
+- Record the attempted action, observed rejection or review result, state mutation check, player-facing leak check, and follow-up decision in `LIVE_PROVIDER_SECOND_RUN_REPORT_DRAFT.md`.
+
 ## Record During The Run
 
 - Provider enabled status, endpoint reachability, model label, timeout setting, and provider errors.
