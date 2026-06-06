@@ -10,6 +10,7 @@
     "lint": "node scripts/check-js.mjs",
     "typecheck": "node scripts/check-js.mjs",
     "playtest": "node scripts/start-playtest.mjs",
+    "smoke:playtest": "node scripts/smoke-playtest-flow.mjs",
     "check": "node scripts/check-js.mjs",
     "build": "node scripts/check-js.mjs && node scripts/run-tests.mjs packages apps tests && node scripts/run-tests.mjs tests/acceptance"
   },

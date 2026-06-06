@@ -12,6 +12,8 @@ import { createProviderAiAdapter } from "../src/provider-ai-adapter.mjs";
 import { createRoomActionDispatcher } from "../src/room-actions.mjs";
 import { createRoomService } from "../src/room-service.mjs";
 
+const testProviderApiKey = "<TEST_PROVIDER_API_KEY_DO_NOT_USE>";
+
 test("AI context is room-aware and excludes provider secrets", async () => {
   const { service, room } = await createLoadedAiRoom();
   service.sendPublicMessage({
@@ -26,7 +28,7 @@ test("AI context is room-aware and excludes provider secrets", async () => {
     roomId: room.roomId,
     providerConfig: {
       enabled: true,
-      apiKey: "secret_provider_key",
+      apiKey: testProviderApiKey,
     },
   });
 
@@ -38,7 +40,7 @@ test("AI context is room-aware and excludes provider secrets", async () => {
     context.unrevealedClues.some((clue) => clue.id === "clue_broken_lens"),
   );
   assert.ok(context.recentPublicEvents.some((event) => event.message === "I inspect the soot."));
-  assert.equal(JSON.stringify(context).includes("secret_provider_key"), false);
+  assert.equal(JSON.stringify(context).includes(testProviderApiKey), false);
 });
 
 test("AI context bounds large public history and keeps newest public events", async () => {
@@ -154,7 +156,7 @@ test("provider bridge safe structured response auto-commits through room runner"
     adapter: createProviderAiAdapter({
       enabled: true,
       endpoint: "https://provider.invalid/v1/respond",
-      apiKey: "secret-api-key",
+      apiKey: testProviderApiKey,
       model: "structured-dm",
       fetchImpl: async (url, init) => {
         calls.push({ url, init });
@@ -183,9 +185,9 @@ test("provider bridge safe structured response auto-commits through room runner"
   assert.equal(result.status, "broadcast_ready");
   assert.equal(result.events.at(-1).type, "ai.message");
   assert.equal(result.events.at(-1).message, "Cold soot curls around the cracked lantern frame.");
-  assert.equal(JSON.stringify(playerSnapshot).includes("secret-api-key"), false);
+  assert.equal(JSON.stringify(playerSnapshot).includes(testProviderApiKey), false);
   assert.equal(JSON.parse(calls[0].init.body).model, "structured-dm");
-  assert.equal(JSON.stringify(JSON.parse(calls[0].init.body)).includes("secret-api-key"), false);
+  assert.equal(JSON.stringify(JSON.parse(calls[0].init.body)).includes(testProviderApiKey), false);
 });
 
 test("provider bridge reveal proposal creates Host review without broadcast", async () => {
@@ -199,7 +201,7 @@ test("provider bridge reveal proposal creates Host review without broadcast", as
     adapter: createProviderAiAdapter({
       enabled: true,
       endpoint: "https://provider.invalid/v1/respond",
-      apiKey: "secret-api-key",
+      apiKey: testProviderApiKey,
       model: "structured-dm",
       fetchImpl: async () => ({
         ok: true,
@@ -242,13 +244,13 @@ test("provider bridge timeout maps to controlled runner error", async () => {
     adapter: createProviderAiAdapter({
       enabled: true,
       endpoint: "https://provider.invalid/v1/respond",
-      apiKey: "secret-api-key",
+      apiKey: testProviderApiKey,
       model: "structured-dm",
       timeoutMs: 1,
       fetchImpl: async (_url, init) =>
         new Promise((_resolve, reject) => {
           init.signal.addEventListener("abort", () => {
-            const error = new Error("timeout with secret-api-key");
+            const error = new Error(`timeout with ${testProviderApiKey}`);
             error.name = "AbortError";
             reject(error);
           });
@@ -260,7 +262,7 @@ test("provider bridge timeout maps to controlled runner error", async () => {
 
   assert.equal(result.status, "rejected");
   assert.equal(result.error.code, "provider_timeout");
-  assert.equal(result.error.message.includes("secret-api-key"), false);
+  assert.equal(result.error.message.includes(testProviderApiKey), false);
   assert.deepEqual(result.events, []);
   assert.deepEqual(result.broadcasts, []);
 });
@@ -276,10 +278,10 @@ test("provider bridge request failure maps to controlled runner error", async ()
     adapter: createProviderAiAdapter({
       enabled: true,
       endpoint: "https://provider.invalid/v1/respond",
-      apiKey: "secret-api-key",
+      apiKey: testProviderApiKey,
       model: "structured-dm",
       fetchImpl: async () => {
-        throw new Error("request failed with secret-api-key");
+        throw new Error(`request failed with ${testProviderApiKey}`);
       },
     }),
     randomSource: createSequenceRandomSource([]),
@@ -288,7 +290,7 @@ test("provider bridge request failure maps to controlled runner error", async ()
 
   assert.equal(result.status, "rejected");
   assert.equal(result.error.code, "provider_request_failed");
-  assert.equal(result.error.message.includes("secret-api-key"), false);
+  assert.equal(result.error.message.includes(testProviderApiKey), false);
   assert.deepEqual(result.events, []);
   assert.deepEqual(result.broadcasts, []);
 });
@@ -304,7 +306,7 @@ test("provider bridge invalid payload maps to controlled runner error", async ()
     adapter: createProviderAiAdapter({
       enabled: true,
       endpoint: "https://provider.invalid/v1/respond",
-      apiKey: "secret-api-key",
+      apiKey: testProviderApiKey,
       model: "structured-dm",
       fetchImpl: async () => ({
         ok: true,
@@ -321,7 +323,7 @@ test("provider bridge invalid payload maps to controlled runner error", async ()
 
   assert.equal(result.status, "rejected");
   assert.equal(result.error.code, "invalid_provider_payload");
-  assert.equal(result.error.message.includes("secret-api-key"), false);
+  assert.equal(result.error.message.includes(testProviderApiKey), false);
   assert.deepEqual(result.events, []);
   assert.deepEqual(result.broadcasts, []);
 });
@@ -487,14 +489,14 @@ test("provider config applies default timeout when enabled", () => {
   const config = loadAiProviderConfig({
     TABLEMIND_AI_PROVIDER_ENABLED: "true",
     TABLEMIND_AI_PROVIDER_ENDPOINT: "https://provider.invalid/v1/respond",
-    TABLEMIND_AI_PROVIDER_API_KEY: "secret-api-key",
+    TABLEMIND_AI_PROVIDER_API_KEY: testProviderApiKey,
     TABLEMIND_AI_PROVIDER_MODEL: "structured-dm",
   });
 
   assert.deepEqual(config, {
     enabled: true,
     endpoint: "https://provider.invalid/v1/respond",
-    apiKey: "secret-api-key",
+    apiKey: testProviderApiKey,
     model: "structured-dm",
     timeoutMs: 30000,
   });
