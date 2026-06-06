@@ -45,7 +45,7 @@ validate the rejection path without expanding product scope.
 - Verify the unsupported action is rejected or moved to Host review.
 - Verify no unsupported action mutates authoritative room state directly.
 - Verify no player-facing HTTP response, SSE event, UI surface, or recap leaks DM-only information, private AI payloads, rejected output, or unsupported action details.
-- Record the attempted action, observed rejection or review result, state mutation check, player-facing leak check, and follow-up decision in `LIVE_PROVIDER_SECOND_RUN_REPORT_DRAFT.md`.
+- Record the attempted action, observed rejection or review result, state mutation check, player-facing leak check, and follow-up decision in `LIVE_PROVIDER_SECOND_RUN_REPORT_DRAFT.md` or the dated second-run report for the active attempt.
 
 ## Record During The Run
 

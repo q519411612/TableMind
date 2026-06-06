@@ -16,6 +16,7 @@ const unrevealedClues = [
     id: "clue_broken_lens",
     title: "Broken Lantern Lens",
     text: "The cracked lens is blackened from the inside.",
+    aliases: ["hatch"],
     visibility: "dm_only",
   },
 ];
@@ -78,6 +79,30 @@ test("detects hidden aliases and unrevealed clue titles", () => {
   assert.equal(clueResult.allowed, false);
   assert.equal(clueResult.riskLevel, "medium");
   assert.equal(clueResult.findings[0].entityType, "clue");
+});
+
+test("detects unrevealed clue aliases and exact clue text", () => {
+  const aliasResult = checkSpoilers({
+    publicMessage: "Mira points toward the hatch below the tower.",
+    hiddenEntities: [],
+    unrevealedClues,
+    dmOnlySecrets: [],
+    viewerRole: "player",
+  });
+  const textResult = checkSpoilers({
+    publicMessage: "The cracked lens is blackened from the inside.",
+    hiddenEntities: [],
+    unrevealedClues,
+    dmOnlySecrets: [],
+    viewerRole: "player",
+  });
+
+  assert.equal(aliasResult.allowed, false);
+  assert.equal(aliasResult.riskLevel, "medium");
+  assert.equal(aliasResult.findings[0].matchedText, "hatch");
+  assert.equal(textResult.allowed, false);
+  assert.equal(textResult.riskLevel, "medium");
+  assert.equal(textResult.findings[0].matchedText, "The cracked lens is blackened from the inside.");
 });
 
 test("detects CJK secret leakage after Unicode normalization", () => {

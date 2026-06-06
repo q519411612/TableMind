@@ -42,12 +42,21 @@ test("parses public scenes, DM-only truth, clues, NPCs, encounter, and endings",
   const hiddenClue = adventure.clues.find(
     (clue) => clue.id === "clue_miras_charm",
   );
+  const brokenLens = adventure.clues.find(
+    (clue) => clue.id === "clue_broken_lens",
+  );
   const encounter = adventure.encounters[0];
 
   assert.equal(startingScene.readAloud.visibility, "public");
   assert.equal(startingScene.dmNotes.visibility, "dm_only");
   assert.equal(hiddenTruth.visibility, "dm_only");
   assert.equal(hiddenClue.visibility, "dm_only");
+  assert.deepEqual(brokenLens.aliases, [
+    "hatch",
+    "hidden hatch",
+    "tower hatch",
+    "hatch below the tower",
+  ]);
   assert.equal(encounter.combatants[0].compendiumEntryId, "monster_hill_scavenger");
   assert.equal(encounter.combatants[0].count, 2);
 });

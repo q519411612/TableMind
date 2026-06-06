@@ -237,6 +237,7 @@ function parseClue(entry) {
     id: requireEntryId(entry),
     title: entry.name,
     text: readSubsection(entry.body, "Text").trim(),
+    aliases: parseInlineList(metadata.aliases),
     visibility: metadata.visibility ?? "dm_only",
     sourceSceneId: metadata.sourceSceneId,
   };
@@ -426,6 +427,16 @@ function parseList(content) {
     .map((line) => line.trim())
     .filter((line) => line.startsWith("- "))
     .map((line) => line.slice(2).trim());
+}
+
+function parseInlineList(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function parseCombatants(content) {

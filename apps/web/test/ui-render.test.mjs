@@ -47,6 +47,32 @@ test("player renderer shows play panels without rendering Host-only input", () =
   assert.equal(html.includes(hostPauseReason), false);
 });
 
+test("player renderer treats incomplete persisted identity as not joined", () => {
+  const html = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: undefined,
+  });
+
+  assert.ok(html.includes("data-action=\"join-room\""));
+  assert.equal(html.includes("data-action=\"create-character\""), false);
+});
+
+test("player renderer requires a snapshot before showing player actions", () => {
+  const html = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: undefined,
+  });
+
+  assert.ok(html.includes("data-action=\"join-room\""));
+  assert.equal(html.includes("data-action=\"create-character\""), false);
+});
+
 test("renderers can render fixed UI labels in English", () => {
   const playerHtml = renderPlayerRoom({
     roomId: "room_0001",
@@ -158,6 +184,34 @@ test("Host renderer can render fixed UI labels in Chinese", () => {
   assert.ok(html.includes("运行 AI"));
   assert.ok(html.includes("揭示线索"));
   assert.ok(html.includes(secretText));
+});
+
+test("Host renderer hides completed review items from the pending queue", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a reveal.",
+        riskLevel: "none",
+        status: "rejected",
+        proposedPayload: {
+          publicMessage: "The lantern trembles.",
+        },
+      },
+    ],
+  });
+
+  assert.ok(html.includes("No pending review items."));
+  assert.equal(html.includes("data-command=\"host.review.update\""), false);
+  assert.equal(html.includes("AI proposed a reveal."), false);
 });
 
 test("static web entries expose a language switcher hook", () => {

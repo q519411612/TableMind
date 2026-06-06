@@ -1,6 +1,6 @@
 # TableMind Current Status
 
-Updated: 2026-06-06
+Updated: 2026-06-07
 
 ## MVP Status
 
@@ -9,6 +9,8 @@ The repository supports a local, mock-provider MVP flow for the original demo ad
 A supervised live-provider dry run has passed the required dry-run coverage. The evidence report is `docs/playtests/LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06_DEEPSEEK.md`; that report remains the source of truth for observed run details, and this status page must not copy, overwrite, or invent report fields.
 
 Production readiness remains deferred. The DeepSeek run was validated through a temporary local structured-response bridge, not a permanent first-party DeepSeek integration. The default automated suite must still avoid live provider calls, and live-provider use remains an explicitly supervised internal playtest activity.
+
+A second supervised live-provider run attempt is recorded in `docs/playtests/LIVE_PROVIDER_SECOND_RUN_REPORT_2026-06-07_DEEPSEEK.md`. That attempt passed pre-run automated verification, completed a narrow automated DeepSeek structured bridge smoke with two live provider calls, and later confirmed a manual browser UI combat path. It is not completion evidence for the second human run because structured Host/player feedback and recap evidence remain incomplete, and the manual browser pass exposed an unrevealed-clue spoiler incident.
 
 ## Implemented Items
 
@@ -23,7 +25,7 @@ Production readiness remains deferred. The DeepSeek run was validated through a 
 - Provider-disabled default behavior and mocked provider tests.
 - Documented temporary DeepSeek structured-response bridge contract in `docs/providers/DEEPSEEK_STRUCTURED_RESPONSE_BRIDGE.md`.
 - Mock-based provider bridge regression coverage for safe auto-commit, reveal review, timeout, request failure, preflight redaction, and invalid payload rejection.
-- Spoiler guard, review-required AI output paths, fabricated dice rejection, unsupported AI attack rejection, and deterministic skill-check routing.
+- Spoiler guard, review-required AI output paths, unrevealed clue title/text/alias matching, fabricated dice rejection, unsupported AI attack rejection, and deterministic skill-check routing.
 - Playtest checklist, report template, and simulated MVP report under `docs/playtests`.
 - Player SSE no longer exposes Host review, `state.patch`, or `host.override` event type strings.
 - `projectAdventureForPlayers` no longer exposes hidden raw IDs or encounter combatants.
@@ -36,18 +38,22 @@ Production readiness remains deferred. The DeepSeek run was validated through a 
 - Provider setup: `docs/playtests/LIVE_PROVIDER_SETUP.md` documents local environment variables with placeholder-only commands and secret-handling rules.
 - Temporary bridge contract: `docs/providers/DEEPSEEK_STRUCTURED_RESPONSE_BRIDGE.md` documents the request shape, structured response shape, timeout behavior, error behavior, no-secret logging rules, and Host review requirements for a local DeepSeek bridge.
 - Player HTTP adventure snapshot: direct no-leak regression covers known demo fixture DM-only truth, hidden clue IDs, hidden encounter IDs, hidden NPC IDs, and hidden combatant data before reveal.
-- Golden safety coverage: full runner/dispatcher tests cover hidden entity aliases and AI private payload exclusion from player SSE transport and public recap.
+- Golden safety coverage: full runner/dispatcher tests cover hidden entity aliases, unrevealed clue title/text/alias review, and AI private payload exclusion from player SSE transport and public recap.
 - Dry-run procedure: `docs/playtests/LIVE_PROVIDER_DRY_RUN.md` documents setup, Host plus two-player flow, required scene/check/combat/recap coverage, and evidence to record.
 - Dry-run evidence: `docs/playtests/LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06_DEEPSEEK.md` records a supervised DeepSeek dry run that passed required dry-run coverage through the temporary bridge path.
 
 ## Current Decision
 
-Status: supervised live-provider dry run passed for required dry-run coverage.
+Status: second supervised live-provider human run still incomplete; automated DeepSeek bridge smoke passed; manual browser combat completed with a spoiler incident found and fixed in the working tree.
 
-Do not claim production readiness, public launch readiness, or permanent DeepSeek integration. The dry run is evidence that the supervised path can be exercised; it is not evidence that unsupervised public rooms, production auth, durable persistence, PDF import, full character building, or full VTT scope are ready.
+The first supervised DeepSeek dry run passed for required dry-run coverage. The follow-up automated DeepSeek bridge smoke proved two live provider calls can pass through the structured bridge path, deterministic rule routing, Host review, rejection, combat, recap, and automated player no-leak checks. The later manual browser pass confirmed combat can be completed in the UI, but it also exposed unrevealed hatch-related clue content in public AI narration. The working tree now protects unrevealed clue aliases and exact clue text, but the local playtest server must be restarted before further manual retesting. Do not claim production readiness, public launch readiness, permanent DeepSeek integration, or second-run completion. Existing evidence supports only supervised internal playtest attempts, not unsupervised public rooms, production auth, durable persistence, PDF import, full character building, or full VTT scope.
 
 ## Next Live Run Planning
 
+- Schedule one Host and two players before attempting the second supervised run again.
+- Export the documented local provider variables before starting the playtest server.
+- Confirm the DeepSeek bridge or provider endpoint is reachable without recording secrets.
+- Restart the playtest server after spoiler-guard or fixture changes before manual UI retesting.
 - Collect Host and player feedback during the next live run.
 - Intentionally exercise an unsupported AI action or rejection path if it can be done safely under Host supervision.
 - Do not expand product scope before feedback from the next live run is collected and reviewed.

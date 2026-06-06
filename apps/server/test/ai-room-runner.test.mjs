@@ -346,6 +346,13 @@ test("AI output requiring supervision creates Host review without public broadca
       },
     },
     {
+      name: "hidden clue alias",
+      response: {
+        publicMessage: "Mira points toward the hatch below the tower.",
+        confidence: "high",
+      },
+    },
+    {
       name: "hidden entity alias",
       mutateAdventure(adventure) {
         adventure.encounters.find(
