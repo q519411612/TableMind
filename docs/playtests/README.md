@@ -10,7 +10,12 @@ MVP-1.0 is an internal monitored playtest milestone. It is not an unsupervised p
 - `MVP_1_0_PLAYTEST_REPORT_TEMPLATE.md` for the session report and Pass/fail decision.
 - `LIVE_PROVIDER_SETUP.md` for local provider environment variables and secret handling.
 - `LIVE_PROVIDER_DRY_RUN.md` for the supervised Host plus two-player dry-run procedure.
-- `LIVE_PROVIDER_SECOND_RUN_REPORT_DRAFT.md` for the pending second supervised run report.
+- `LIVE_PROVIDER_SECOND_RUN_REPORT_DRAFT.md` for capturing the pending second supervised run report before a dated attempt report exists.
+- `LIVE_PROVIDER_SECOND_RUN_REPORT_2026-06-07_DEEPSEEK.md` for the partial
+  DeepSeek evidence: automated bridge smoke plus later manual browser combat
+  observation. It is not second human-run completion evidence.
+- `MANUAL_UI_COMBAT_TEST_REPORT_2026-06-07.md` for the focused manual Host
+  browser combat observation and the spoiler incident found during that pass.
 - `SECOND_RUN_FEEDBACK_QUESTIONS.md` for short Host and player feedback capture.
 - `PHASE_1_5_FULL_VERIFICATION.md` for the latest direct Node verification evidence.
 - `LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06.md` for the failed provider

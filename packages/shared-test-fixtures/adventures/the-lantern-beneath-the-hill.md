@@ -135,6 +135,7 @@ A torn scrap marks the tower hatch and a safer path through the pines.
 ## Clue: Broken Lantern Lens
 id: clue_broken_lens
 visibility: dm_only
+aliases: hatch, hidden hatch, tower hatch, hatch below the tower
 sourceSceneId: scene_lantern_tower
 ### Text
 The cracked lens is blackened from the inside, and the soot curls toward a hidden hatch.

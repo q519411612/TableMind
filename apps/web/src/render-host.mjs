@@ -164,11 +164,12 @@ function renderAdventureControls(scene, labels) {
 }
 
 function renderReviewQueue(reviewQueue, labels) {
-  if (reviewQueue.length === 0) {
+  const pendingItems = reviewQueue.filter((item) => item.status === "pending");
+  if (pendingItems.length === 0) {
     return renderEmpty(labels.noPendingReviewItems);
   }
 
-  return `<ul class="tm-list">${reviewQueue
+  return `<ul class="tm-list">${pendingItems
     .map(
       (item) => `
         <li>

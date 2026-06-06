@@ -91,14 +91,24 @@ function hiddenEntityFindings(normalizedMessage, entities) {
 function clueFindings(normalizedMessage, clues) {
   const findings = [];
   for (const clue of clues) {
-    if (containsCandidate(normalizedMessage, clue.title)) {
-      findings.push({
-        entityId: clue.id,
-        entityType: "clue",
-        reason: "Unrevealed clue title appeared in public output.",
-        matchedText: clue.title,
-        riskLevel: "medium",
-      });
+    const candidates = [
+      { text: clue.title, reason: "Unrevealed clue title appeared in public output." },
+      { text: clue.text, reason: "Unrevealed clue text appeared in public output." },
+      ...(clue.aliases ?? []).map((alias) => ({
+        text: alias,
+        reason: "Unrevealed clue alias appeared in public output.",
+      })),
+    ];
+    for (const candidate of candidates) {
+      if (containsCandidate(normalizedMessage, candidate.text)) {
+        findings.push({
+          entityId: clue.id,
+          entityType: "clue",
+          reason: candidate.reason,
+          matchedText: candidate.text,
+          riskLevel: "medium",
+        });
+      }
     }
   }
   return findings;

@@ -13,6 +13,7 @@ export function renderPlayerRoom(input = {}) {
   const snapshot = input.snapshot;
   const scene = input.adventureSnapshot?.currentScene;
   const labels = uiText(input.locale);
+  const joined = hasJoinedPlayer(input);
 
   return `
     <main class="tm-shell tm-player" data-viewer-role="player">
@@ -27,7 +28,7 @@ export function renderPlayerRoom(input = {}) {
         </div>
       </header>
 
-      ${renderJoinPanel(input, labels)}
+      ${renderJoinPanel(input, labels, joined)}
 
       <section class="tm-grid">
         <article class="tm-panel tm-panel-wide" data-panel="scene">
@@ -37,7 +38,7 @@ export function renderPlayerRoom(input = {}) {
 
         <article class="tm-panel" data-panel="character">
           <h2>${escapeHtml(labels.character)}</h2>
-          ${renderCharacters(snapshot, input.playerId, labels)}
+          ${renderCharacters(snapshot, input.playerId, labels, joined)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="feed">
@@ -66,8 +67,8 @@ export function renderPlayerRoom(input = {}) {
   `;
 }
 
-function renderJoinPanel(input, labels) {
-  if (input.playerId) {
+function renderJoinPanel(input, labels, joined) {
+  if (joined) {
     return "";
   }
 
@@ -115,9 +116,12 @@ function renderPlayerScene(snapshot, scene, labels) {
   `;
 }
 
-function renderCharacters(snapshot, playerId, labels) {
+function renderCharacters(snapshot, playerId, labels, joined) {
   const characters = ownCharacters(snapshot, playerId);
   if (characters.length === 0) {
+    if (!joined) {
+      return renderEmpty(labels.joinRoomToSeeScene);
+    }
     return `
       ${renderEmpty(labels.noCharacterYet)}
       <button type="button" data-action="create-character">${escapeHtml(labels.createFighter)}</button>
@@ -138,6 +142,15 @@ function renderCharacters(snapshot, playerId, labels) {
       `,
     )
     .join("")}</ul>`;
+}
+
+function hasJoinedPlayer(input) {
+  return Boolean(
+    input.roomId &&
+      input.playerId &&
+      input.playerSessionToken &&
+      input.snapshot,
+  );
 }
 
 function renderMessageForm(snapshot, labels) {
