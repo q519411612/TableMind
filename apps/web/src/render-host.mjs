@@ -6,6 +6,7 @@ import {
   renderError,
   renderEventFeed,
   renderMarkdown,
+  renderNotice,
 } from "./render-utils.mjs";
 
 export function renderHostRoom(input = {}) {
@@ -29,6 +30,8 @@ export function renderHostRoom(input = {}) {
 
       <section class="tm-grid">
         ${renderError(input.errorMessage, labels)}
+        ${renderNotice(input.statusMessage, labels.system)}
+        ${renderNotice(hostNextStep({ room, snapshot, adventureSnapshot: input.adventureSnapshot, labels }), labels.nextStep)}
 
         <article class="tm-panel" data-panel="create-room">
           <h2>${escapeHtml(labels.room)}</h2>
@@ -95,7 +98,16 @@ function renderInvite(room, labels) {
   return `
     <dl class="tm-facts">
       <div><dt>${escapeHtml(labels.hostId)}</dt><dd>${escapeHtml(room.hostPlayerId)}</dd></div>
-      <div><dt>${escapeHtml(labels.invite)}</dt><dd>${escapeHtml(room.inviteLink)}</dd></div>
+      <div>
+        <dt>${escapeHtml(labels.invite)}</dt>
+        <dd>
+          <span>${escapeHtml(room.inviteLink)}</span>
+          <a class="tm-link-button" href="${escapeHtml(room.inviteLink)}">${escapeHtml(labels.openInvite)}</a>
+          <button type="button" data-action="copy-invite" data-invite-link="${escapeHtml(room.inviteLink)}">${escapeHtml(
+            labels.copyInvite,
+          )}</button>
+        </dd>
+      </div>
     </dl>
   `;
 }
@@ -106,17 +118,25 @@ function renderPlayers(snapshot, labels) {
     return renderEmpty(labels.noPlayersYet);
   }
 
-  return `<ul class="tm-list">${players
+  const readiness = playerReadiness(players);
+
+  return `
+    <p class="tm-readiness">${escapeHtml(labels.playersReady)}: ${escapeHtml(readiness.ready)}/${escapeHtml(
+      readiness.target,
+    )}</p>
+    <ul class="tm-list">${players
     .map(
       (player) => `
         <li>
           <strong>${escapeHtml(player.displayName)}</strong>
           <span>${escapeHtml(player.role)}</span>
           <span>${escapeHtml(player.characterId ?? labels.noCharacter)}</span>
+          <span>${escapeHtml(player.role === "host" ? labels.hostConsole : player.characterId ? labels.ready : labels.needsCharacter)}</span>
         </li>
       `,
     )
-    .join("")}</ul>`;
+    .join("")}</ul>
+  `;
 }
 
 function renderHostScene(snapshot, scene, truth, labels) {
@@ -263,4 +283,39 @@ function renderSessionComplete(labels) {
       <button type="submit" data-command="session.complete">${escapeHtml(labels.completeSession)}</button>
     </form>
   `;
+}
+
+function playerReadiness(players) {
+  const playerRows = players.filter((player) => player.role === "player");
+  const ready = playerRows.filter((player) => player.characterId).length;
+  return {
+    ready,
+    target: Math.max(2, playerRows.length),
+  };
+}
+
+function hostNextStep(input) {
+  if (!input.room) {
+    return input.labels.nextCreateRoom;
+  }
+  if (!input.adventureSnapshot) {
+    return input.labels.nextLoadDemoAdventure;
+  }
+  const readiness = playerReadiness(Object.values(input.snapshot?.players ?? {}));
+  if (readiness.ready < 2) {
+    return input.labels.nextWaitForPlayers;
+  }
+  if (input.snapshot?.phase === "lobby") {
+    return input.labels.nextReadyToStart;
+  }
+  if (input.snapshot?.phase === "playing") {
+    return input.labels.nextRunAi;
+  }
+  if (input.snapshot?.phase === "combat") {
+    return input.labels.nextResolveCombat;
+  }
+  if (input.snapshot?.phase === "ended") {
+    return input.labels.nextReadRecap;
+  }
+  return undefined;
 }

@@ -9,6 +9,7 @@
   --tm-action-ink: #ffffff;
   --tm-error: #9b1c1c;
   --tm-error-bg: #fff1f1;
+  --tm-success: #246b61;
   --tm-warn: #a35d14;
   --tm-note: #edf4f1;
 }
@@ -176,6 +177,20 @@ p {
   background: var(--tm-error-bg);
   color: var(--tm-error);
   padding: 0.75rem;
+}
+
+.tm-notice {
+  grid-column: 1 / -1;
+  border: 1px solid var(--tm-line);
+  border-left: 4px solid var(--tm-success);
+  border-radius: 8px;
+  background: var(--tm-note);
+  padding: 0.75rem;
+}
+
+.tm-readiness {
+  color: var(--tm-action);
+  font-weight: 700;
 }
 
 .tm-dm-note {

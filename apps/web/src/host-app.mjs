@@ -4,6 +4,7 @@ import {
 } from "./api-client.mjs";
 import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
+import { uiText } from "./i18n.mjs";
 import { renderHostRoom } from "./render-host.mjs";
 
 const appState = {
@@ -18,6 +19,7 @@ const appState = {
   reviewQueue: [],
   stream: undefined,
   errorMessage: undefined,
+  statusMessage: undefined,
 };
 
 await loadPlaytestBootstrap();
@@ -103,6 +105,18 @@ root.addEventListener("click", async (event) => {
   if (button.dataset.action === "set-language") {
     appState.locale = storeBrowserLocale(button.dataset.locale);
     render();
+    return;
+  }
+
+  if (button.dataset.action === "copy-invite") {
+    clearError();
+    try {
+      await copyInvite(button.dataset.inviteLink);
+      appState.statusMessage = uiText(appState.locale).copiedInvite;
+      render();
+    } catch (error) {
+      showError(error);
+    }
     return;
   }
 
@@ -280,6 +294,7 @@ async function loadPlaytestBootstrap() {
 
 function clearError() {
   appState.errorMessage = undefined;
+  appState.statusMessage = undefined;
 }
 
 function showError(error) {
@@ -296,6 +311,17 @@ function requireOkResult(result) {
 
 function resultError(result) {
   return new Error(result?.error?.message ?? result?.error?.code ?? "Command failed");
+}
+
+async function copyInvite(inviteLink) {
+  if (
+    typeof inviteLink !== "string" ||
+    inviteLink.length === 0 ||
+    typeof globalThis.navigator?.clipboard?.writeText !== "function"
+  ) {
+    throw new Error(uiText(appState.locale).clipboardUnavailable);
+  }
+  await globalThis.navigator.clipboard.writeText(inviteLink);
 }
 
 async function loadJson(url) {

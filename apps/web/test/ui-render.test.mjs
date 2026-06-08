@@ -278,6 +278,68 @@ test("Host renderer includes DM-only scene, review, combat, and recap controls",
   assert.ok(html.includes("Secret: Broken Seal"));
 });
 
+test("Host renderer surfaces invite copy, player readiness, and next setup hint", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "/player.html?roomId=room_0001",
+    },
+    snapshot: setupReadyHostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(html.includes("data-action=\"copy-invite\""));
+  assert.ok(html.includes("/player.html?roomId=room_0001"));
+  assert.ok(html.includes("Players ready: 2/2"));
+  assert.ok(html.includes("Ready"));
+  assert.ok(html.includes("Ready to start the session."));
+  assert.equal(html.includes("Needs character"), false);
+});
+
+test("Player renderer pre-fills invite room id and shows setup next steps", () => {
+  const joinHtml = renderPlayerRoom({
+    roomId: "room_0001",
+  });
+  const noCharacterHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: {
+      ...playerSnapshot(),
+      phase: "lobby",
+      characters: {},
+    },
+  });
+  const readyHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: {
+      ...playerSnapshot(),
+      phase: "lobby",
+    },
+  });
+  const liveHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: {
+      ...playerSnapshot(),
+      phase: "playing",
+    },
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+
+  assert.ok(joinHtml.includes("name=\"roomId\" value=\"room_0001\""));
+  assert.ok(joinHtml.includes("Join from the invite link to enter the room."));
+  assert.ok(noCharacterHtml.includes("Create a demo-ready character."));
+  assert.ok(readyHtml.includes("Waiting for the Host to start."));
+  assert.ok(liveHtml.includes("Describe an action or wait for the AI prompt."));
+  assert.equal(liveHtml.includes(secretText), false);
+});
+
 test("player renderer derives attack controls from projected combat state", () => {
   const html = renderPlayerRoom({
     roomId: "room_0001",
@@ -596,6 +658,45 @@ function hostSnapshot() {
       },
     ],
   };
+}
+
+function setupReadyHostSnapshot() {
+  const snapshot = hostSnapshot();
+  snapshot.phase = "lobby";
+  snapshot.players = {
+    player_0001: {
+      id: "player_0001",
+      displayName: "Host",
+      role: "host",
+    },
+    player_0002: {
+      id: "player_0002",
+      displayName: "Ada",
+      role: "player",
+      characterId: "char_ada",
+    },
+    player_0003: {
+      id: "player_0003",
+      displayName: "Bran",
+      role: "player",
+      characterId: "char_bran",
+    },
+  };
+  snapshot.characters = {
+    char_ada: {
+      ...snapshot.characters.char_ada,
+      id: "char_ada",
+      playerId: "player_0002",
+    },
+    char_bran: {
+      ...snapshot.characters.char_ada,
+      id: "char_bran",
+      playerId: "player_0003",
+      name: "Bran Vale",
+      className: "Rogue",
+    },
+  };
+  return snapshot;
 }
 
 function playerAdventureSnapshot() {

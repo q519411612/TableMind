@@ -8,6 +8,7 @@ import {
   renderError,
   renderEventFeed,
   renderMarkdown,
+  renderNotice,
 } from "./render-utils.mjs";
 
 export function renderPlayerRoom(input = {}) {
@@ -31,6 +32,7 @@ export function renderPlayerRoom(input = {}) {
 
       ${renderJoinPanel(input, labels, joined)}
       ${renderError(input.errorMessage, labels)}
+      ${renderNotice(playerNextStep({ snapshot, playerId: input.playerId, joined, labels }), labels.nextStep)}
 
       <section class="tm-grid">
         <article class="tm-panel tm-panel-wide" data-panel="scene">
@@ -215,4 +217,26 @@ function activePlayerCombatant(combat, playerId) {
       combatant.playerId === playerId &&
       !["defeated", "dead", "fled"].includes(combatant.status),
   );
+}
+
+function playerNextStep(input) {
+  if (!input.joined) {
+    return input.labels.nextJoinInvite;
+  }
+  if (ownCharacters(input.snapshot, input.playerId).length === 0) {
+    return input.labels.nextCreateDemoCharacter;
+  }
+  if (input.snapshot?.phase === "lobby") {
+    return input.labels.nextWaitingHostStart;
+  }
+  if (input.snapshot?.phase === "playing") {
+    return input.labels.nextDescribeAction;
+  }
+  if (input.snapshot?.phase === "combat") {
+    return input.labels.nextResolveCombat;
+  }
+  if (input.snapshot?.phase === "ended") {
+    return input.labels.nextReadRecap;
+  }
+  return undefined;
 }

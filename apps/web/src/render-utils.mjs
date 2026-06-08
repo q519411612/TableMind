@@ -21,6 +21,14 @@ export function renderError(message, labels = uiText()) {
   return `<div class="tm-error" role="alert"><strong>${escapeHtml(labels.error)}</strong><p>${escapeHtml(message)}</p></div>`;
 }
 
+export function renderNotice(message, heading) {
+  if (!message) {
+    return "";
+  }
+
+  return `<div class="tm-notice"><strong>${escapeHtml(heading)}</strong><p>${escapeHtml(message)}</p></div>`;
+}
+
 export function renderMarkdown(markdown, labels = uiText()) {
   if (!markdown) {
     return renderEmpty(labels.noRecapYet);
