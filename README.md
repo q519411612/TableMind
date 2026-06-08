@@ -9,7 +9,10 @@ players. With the mock/disabled provider mode, the flow can create a room, share
 a player invite link, join two players, create demo-ready characters, load the
 original demo adventure, start play, run a safe AI DM turn through the room
 boundary, resolve a deterministic check, reveal a clue, run combat, complete the
-session, and render player/Host recaps in English or Simplified Chinese.
+session, and render player/Host recaps in English or Simplified Chinese. The
+built-in Lantern demo includes explicit English and Simplified Chinese authored
+adventure text for the local playtest path; missing localized authored fields
+fall back to the canonical source text.
 
 This is not production readiness. It remains an internal/local MVP demo with
 in-memory room state and supervised Host control.
@@ -22,9 +25,10 @@ The local MVP engine now covers:
 
 - deterministic domain state, event log replay, and role-aware projection contracts;
 - a compact rules engine for dice, skill checks, attacks, damage, initiative, and combat turns;
-- tiny SRD-style compendium fixtures and an original demo adventure fixture;
+- tiny SRD-style compendium fixtures and an original demo adventure fixture with
+  explicit Simplified Chinese authored text;
 - an in-memory room service for Host-owned rooms, player joins, reconnection, characters, and committed messages;
-- adventure runtime projections with Host-only truth, player-safe scene text, clue reveals, and scene changes;
+- adventure runtime projections with Host-only truth, player-safe localized scene text, clue reveals, and scene changes;
 - mock AI DM orchestration with spoiler checks, structured response validation, Host review queues, and rules-engine routing;
 - Host combat controls for encounter start, HP/condition edits, attack resolution, turn advancement, and AI pause/resume;
 - zero-dependency browser Host/player UI for room setup, character creation, AI turns, review, combat, recap, and bilingual fixed UI labels;

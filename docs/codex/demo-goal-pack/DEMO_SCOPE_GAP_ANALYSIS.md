@@ -14,12 +14,16 @@ Implemented and verified:
 - Player join from invite `roomId`, nickname entry, demo-ready character
   creation, scene/feed/dice/character/combat/recap panels, projected combat
   attack form, and localized fixed UI labels.
+- Explicit English and Simplified Chinese authored adventure text for the
+  built-in Lantern demo, selected through locale-aware Host/player adventure
+  snapshots.
 - Deterministic skill check, dice log, initiative, attack, damage, HP, combat
   turn, Host HP/condition patch controls, and combat end.
 - Review-required AI paths for low confidence, spoiler risk, reveal proposals,
   and state patch proposals.
 - Player snapshot, HTTP response, SSE stream, UI, and recap no-leak coverage.
 - English and Simplified Chinese fixed UI and recap labels.
+- Player-safe localized adventure snapshots and recaps for the built-in demo.
 
 ## Closed Gaps
 
@@ -35,6 +39,10 @@ Implemented and verified:
   acceptance tests and player projection/recap tests.
 - Locale persistence: `?lang=` and localStorage behavior are covered by browser
   locale tests.
+- Authored gameplay localization: the built-in Lantern demo now carries explicit
+  `zh-CN` fields for scenes, truth, NPCs, clues, encounter setup, endings, and
+  player-safe recap text, while missing localized fields preserve canonical
+  source text.
 
 ## Deferred Work
 
@@ -47,6 +55,7 @@ Implemented and verified:
 - PDF full import and D&D Beyond sync.
 - Payment, marketplace, or public adventure sharing.
 - Permanent production provider integration.
+- Production localization workflow for arbitrary uploaded adventures.
 
 ## Evidence
 
@@ -58,3 +67,5 @@ Implemented and verified:
 - `apps/web/test/ui-render.test.mjs`
 - `apps/web/test/browser-locale.test.mjs`
 - `packages/session-recap/test/session-recap.test.mjs`
+- `packages/spoiler-guard/test/spoiler-guard.test.mjs`
+- `packages/adventure-loader/test/adventure-loader.test.mjs`
