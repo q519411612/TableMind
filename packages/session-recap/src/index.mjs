@@ -173,7 +173,7 @@ function isPlayerSafeEvent(event) {
   if (
     event.type === "ai.message" &&
     event.reviewStatus &&
-    !["approved", "auto_approved"].includes(event.reviewStatus)
+    !["approved", "edited", "auto_approved"].includes(event.reviewStatus)
   ) {
     return false;
   }

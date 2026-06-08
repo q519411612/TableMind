@@ -4,6 +4,7 @@ import {
 } from "./api-client.mjs";
 import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
+import { buildHostReviewUpdateFromForm } from "./host-review-form.mjs";
 import { uiText } from "./i18n.mjs";
 import { renderHostRoom } from "./render-host.mjs";
 
@@ -88,6 +89,23 @@ root.addEventListener("submit", async (event) => {
       await syncReviewQueue();
       render();
     }
+
+    if (form.dataset.command === "host.review.update") {
+      const update = buildHostReviewUpdateFromForm(new FormData(form));
+      const result = requireOkResult(
+        await hostClient().updateReview(
+          update.itemId,
+          update.action,
+          update.reason,
+          update.proposedPayload,
+        ),
+      );
+      if (result?.snapshot) {
+        appState.snapshot = result.snapshot;
+      }
+      await syncReviewQueue();
+      render();
+    }
   } catch (error) {
     showError(error);
   }
@@ -147,6 +165,7 @@ root.addEventListener("click", async (event) => {
     if (result?.snapshot) {
       appState.snapshot = result.snapshot;
     }
+    applyCommandStatus(result);
     await syncAdventureSnapshot();
     await syncReviewQueue();
     render();
@@ -213,6 +232,17 @@ async function dispatchHostCommand(button) {
     return client.endCombat("Host ended combat.");
   }
   return undefined;
+}
+
+function applyCommandStatus(result) {
+  const labels = uiText(appState.locale);
+  if (result?.commandType === "ai.turn.run" && result.data?.status === "provider_disabled") {
+    appState.statusMessage = labels.providerDisabled;
+    return;
+  }
+  if (result?.commandType === "ai.turn.run" && result.data?.status === "host_review_required") {
+    appState.statusMessage = labels.aiReviewRequired;
+  }
 }
 
 async function syncAdventureSnapshot() {

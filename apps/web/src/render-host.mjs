@@ -59,7 +59,7 @@ export function renderHostRoom(input = {}) {
 
         <article class="tm-panel" data-panel="ai">
           <h2>${escapeHtml(labels.ai)}</h2>
-          <p>${escapeHtml(labels.paused)}: ${escapeHtml(Boolean(snapshot?.flags?.aiPaused?.value))}</p>
+          ${renderAiStatus(snapshot, labels)}
           <button type="button" data-command="ai.turn.run">${escapeHtml(labels.runAi)}</button>
           <button type="button" data-command="ai.pause" data-paused="true">${escapeHtml(labels.pauseAi)}</button>
           <button type="button" data-command="ai.pause" data-paused="false">${escapeHtml(labels.resumeAi)}</button>
@@ -199,25 +199,111 @@ function renderReviewQueue(reviewQueue, labels) {
   }
 
   return `<ul class="tm-list">${pendingItems
-    .map(
-      (item) => `
-        <li>
-          <strong>${escapeHtml(item.type)} ${escapeHtml(item.riskLevel)}</strong>
-          <span>${escapeHtml(item.reason)}</span>
-          <pre>${escapeHtml(JSON.stringify(item.proposedPayload, null, 2))}</pre>
-          <button type="button" data-command="host.review.update" data-action-value="approve" data-review-id="${escapeHtml(
-            item.id,
-          )}">${escapeHtml(labels.approve)}</button>
-          <button type="button" data-command="host.review.update" data-action-value="edit" data-review-id="${escapeHtml(
-            item.id,
-          )}">${escapeHtml(labels.edit)}</button>
-          <button type="button" data-command="host.review.update" data-action-value="reject" data-review-id="${escapeHtml(
-            item.id,
-          )}">${escapeHtml(labels.reject)}</button>
-        </li>
-      `,
-    )
+    .map((item) => renderReviewItem(item, labels))
     .join("")}</ul>`;
+}
+
+function renderAiStatus(snapshot, labels) {
+  const aiPaused = Boolean(snapshot?.flags?.aiPaused?.value);
+  return `
+    <p>
+      <strong>${escapeHtml(labels.aiStatus)}</strong>
+      <span data-ai-status="${escapeHtml(aiPaused ? "paused" : "active")}">${escapeHtml(
+        aiPaused ? labels.aiPausedStatus : labels.aiActiveStatus,
+      )}</span>
+    </p>
+  `;
+}
+
+function renderReviewItem(item, labels) {
+  return `
+    <li class="tm-review-card" data-review-id="${escapeHtml(item.id)}">
+      <dl class="tm-facts tm-review-summary">
+        ${renderFact(labels.reviewType, item.type)}
+        ${renderFact(labels.reviewRisk, item.riskLevel)}
+        ${renderFact(labels.reviewReason, item.reason)}
+      </dl>
+      ${renderReviewPayloadSummary(item.proposedPayload, labels)}
+      <div class="tm-command-row">
+        <button type="button" data-command="host.review.update" data-action-value="approve" data-review-id="${escapeHtml(
+          item.id,
+        )}">${escapeHtml(labels.approve)}</button>
+        <button type="button" data-command="host.review.update" data-action-value="reject" data-review-id="${escapeHtml(
+          item.id,
+        )}">${escapeHtml(labels.reject)}</button>
+      </div>
+      ${renderReviewEditForm(item, labels)}
+    </li>
+  `;
+}
+
+function renderReviewPayloadSummary(payload, labels) {
+  const rows = [];
+  if (typeof payload?.publicMessage === "string" && payload.publicMessage.length > 0) {
+    rows.push(renderFact(labels.publicMessage, payload.publicMessage));
+  }
+  const revealSummary = reviewRevealSummary(payload);
+  if (revealSummary) {
+    rows.push(renderFact(labels.revealProposal, revealSummary));
+  }
+  const statePatchSummary = reviewStatePatchSummary(payload);
+  if (statePatchSummary) {
+    rows.push(renderFact(labels.statePatch, statePatchSummary));
+  }
+
+  if (rows.length === 0) {
+    return renderEmpty(labels.noReviewPayloadSummary);
+  }
+  return `<dl class="tm-facts tm-review-summary">${rows.join("")}</dl>`;
+}
+
+function renderReviewEditForm(item, labels) {
+  const payloadJson = JSON.stringify(item.proposedPayload ?? {}, null, 2);
+  const publicMessage = item.proposedPayload?.publicMessage ?? "";
+  return `
+    <form data-command="host.review.update" data-review-action="edit" class="tm-review-edit">
+      <input type="hidden" name="itemId" value="${escapeHtml(item.id)}" />
+      <input type="hidden" name="action" value="edit" />
+      <label>
+        ${escapeHtml(labels.publicMessage)}
+        <textarea name="publicMessage" rows="3">${escapeHtml(publicMessage)}</textarea>
+      </label>
+      <label>
+        ${escapeHtml(labels.proposedPayloadJson)}
+        <textarea name="proposedPayload" rows="7">${escapeHtml(payloadJson)}</textarea>
+      </label>
+      <label>
+        ${escapeHtml(labels.reviewEditReason)}
+        <input name="reason" value="${escapeHtml(labels.defaultReviewEditReason)}" required />
+      </label>
+      <button type="submit">${escapeHtml(labels.saveEdit)}</button>
+    </form>
+  `;
+}
+
+function reviewRevealSummary(payload) {
+  const proposals = payload?.revealProposals;
+  if (Array.isArray(proposals) && proposals.length > 0) {
+    return proposals
+      .map((proposal) => `${proposal.entityType}: ${proposal.entityId}`)
+      .join(", ");
+  }
+  if (typeof payload?.clueId === "string") {
+    return `clue: ${payload.clueId}`;
+  }
+  return undefined;
+}
+
+function reviewStatePatchSummary(payload) {
+  const patch = payload?.statePatch;
+  if (!patch || typeof patch !== "object") {
+    return undefined;
+  }
+  return [patch.op, patch.path].filter(Boolean).join(" ");
+}
+
+function renderFact(label, value) {
+  return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value ?? "")}</dd></div>`;
 }
 
 function renderCombatControls(combat, labels) {

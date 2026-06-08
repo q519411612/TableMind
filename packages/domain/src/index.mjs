@@ -8,7 +8,7 @@ export const visibilityValues = [
 const actorRoles = ["player", "host", "ai_dm", "system"];
 const playerRoles = ["player", "host"];
 const hostReviewActions = ["approve", "reject", "edit"];
-const aiMessageReviewStatuses = ["approved", "auto_approved"];
+const aiMessageReviewStatuses = ["approved", "edited", "auto_approved"];
 const playerHiddenEventTypes = new Set([
   "host.review.created",
   "host.review.updated",

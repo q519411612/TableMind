@@ -6,6 +6,7 @@ import {
   createPlayerCommandClient,
   createTableMindApi,
 } from "../src/api-client.mjs";
+import { buildHostReviewUpdateFromForm } from "../src/host-review-form.mjs";
 import { renderHostRoom } from "../src/render-host.mjs";
 import { renderPlayerRoom } from "../src/render-player.mjs";
 
@@ -212,6 +213,143 @@ test("Host renderer hides completed review items from the pending queue", () => 
   assert.ok(html.includes("No pending review items."));
   assert.equal(html.includes("data-command=\"host.review.update\""), false);
   assert.equal(html.includes("AI proposed a reveal."), false);
+});
+
+test("Host renderer summarizes pending review payloads and exposes edit controls", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a state patch.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lantern trembles in the rain.",
+          privateMessages: [
+            {
+              playerId: "player_0002",
+              message: "Only Ada should see this.",
+            },
+          ],
+          revealProposals: [
+            {
+              entityType: "clue",
+              entityId: "clue_broken_lens",
+              reason: "The player inspected the lens.",
+            },
+          ],
+          statePatch: {
+            op: "replace",
+            path: "/phase",
+            value: "ended",
+          },
+        },
+      },
+    ],
+  });
+
+  assert.ok(html.includes("Type"));
+  assert.ok(html.includes("ai_output"));
+  assert.ok(html.includes("Risk"));
+  assert.ok(html.includes("high"));
+  assert.ok(html.includes("Reason"));
+  assert.ok(html.includes("AI proposed a state patch."));
+  assert.ok(html.includes("Public Message"));
+  assert.ok(html.includes("The lantern trembles in the rain."));
+  assert.ok(html.includes("Reveal Proposal"));
+  assert.ok(html.includes("clue: clue_broken_lens"));
+  assert.ok(html.includes("State Patch"));
+  assert.ok(html.includes("replace /phase"));
+  assert.ok(html.includes("data-review-action=\"edit\""));
+  assert.ok(html.includes("name=\"publicMessage\""));
+  assert.ok(html.includes("name=\"proposedPayload\""));
+  assert.ok(html.includes("Save Edit"));
+  assert.equal(html.includes("<pre>"), false);
+});
+
+test("Host renderer shows clear AI pause and active states", () => {
+  const pausedHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+  const activeHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      flags: {
+        aiPaused: {
+          visibility: "dm_only",
+          value: false,
+        },
+      },
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(pausedHtml.includes("AI Status"));
+  assert.ok(pausedHtml.includes("Paused for Host review"));
+  assert.equal(pausedHtml.includes("Paused: true"), false);
+  assert.ok(activeHtml.includes("AI Status"));
+  assert.ok(activeHtml.includes("Active for AI turns"));
+  assert.equal(activeHtml.includes("Paused: false"), false);
+});
+
+test("Host review edit form parser submits edited payload and rejects invalid JSON", () => {
+  const formData = new FormData();
+  formData.set("itemId", "review_0001");
+  formData.set("action", "edit");
+  formData.set("reason", "Host edited output.");
+  formData.set("publicMessage", "Edited safe narration.");
+  formData.set(
+    "proposedPayload",
+    JSON.stringify({
+      publicMessage: "Draft narration.",
+      statePatch: {
+        op: "replace",
+        path: "/phase",
+        value: "ended",
+      },
+    }),
+  );
+
+  assert.deepEqual(buildHostReviewUpdateFromForm(formData), {
+    itemId: "review_0001",
+    action: "edit",
+    reason: "Host edited output.",
+    proposedPayload: {
+      publicMessage: "Edited safe narration.",
+      statePatch: {
+        op: "replace",
+        path: "/phase",
+        value: "ended",
+      },
+    },
+  });
+
+  formData.set("proposedPayload", "{ invalid json");
+  assert.throws(
+    () => buildHostReviewUpdateFromForm(formData),
+    /Invalid review payload JSON/,
+  );
 });
 
 test("static web entries expose a language switcher hook", () => {
@@ -548,7 +686,9 @@ test("UI command clients use the transport contract and keep player snapshots pl
   await host.changeScene("scene_lantern_tower", "The party reaches the hill.");
   await host.revealClue("clue_broken_lens");
   await host.setAiPaused(true, "Host review.");
-  await host.updateReview("review_0001", "approve", "Safe.");
+  await host.updateReview("review_0001", "edit", "Host edited output.", {
+    publicMessage: "Edited safe narration.",
+  });
   await host.listReviewQueue();
   await host.runAiTurn({ randomValues: [0.7] });
   await host.startCombat({
@@ -614,6 +754,17 @@ test("UI command clients use the transport contract and keep player snapshots pl
     conditionId: "condition_prone",
   });
   assert.equal(conditionCall.body.payload.action, "apply");
+  const reviewCall = calls.find(
+    (call) => call.body?.type === "host.review.update",
+  );
+  assert.deepEqual(reviewCall.body.payload, {
+    itemId: "review_0001",
+    action: "edit",
+    reason: "Host edited output.",
+    proposedPayload: {
+      publicMessage: "Edited safe narration.",
+    },
+  });
 });
 
 function jsonResponse(body) {
