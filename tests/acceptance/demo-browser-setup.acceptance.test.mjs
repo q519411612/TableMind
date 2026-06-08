@@ -13,6 +13,9 @@ const forbiddenPlayerText = [
   "broke the shrine seal",
   "hatch below the tower",
   "Secret: Broken Seal",
+  "破损封印",
+  "塔下活板门",
+  "艾瑞克镇长希望",
   "state.patch",
   "host.review",
 ];
@@ -145,6 +148,14 @@ test("P1 browser setup flow starts the demo with Host and two player-safe views"
     const adaAdventure = await api.getAdventureSnapshot(roomId, {
       sessionToken: ada.data.playerSessionToken,
     });
+    const zhHostAdventure = await api.getAdventureSnapshot(roomId, {
+      sessionToken: created.data.hostSessionToken,
+      locale: "zh-CN",
+    });
+    const zhAdaAdventure = await api.getAdventureSnapshot(roomId, {
+      sessionToken: ada.data.playerSessionToken,
+      locale: "zh-CN",
+    });
     const hostHtml = renderHostRoom({
       room: {
         roomId,
@@ -162,6 +173,25 @@ test("P1 browser setup flow starts the demo with Host and two player-safe views"
       snapshot: adaSnapshot.snapshot,
       adventureSnapshot: adaAdventure.snapshot,
     });
+    const zhHostHtml = renderHostRoom({
+      locale: "zh-CN",
+      room: {
+        roomId,
+        hostPlayerId: created.data.hostPlayerId,
+        inviteLink: created.data.inviteLink,
+      },
+      snapshot: hostSnapshot.snapshot,
+      adventureSnapshot: zhHostAdventure.snapshot,
+      reviewQueue: [],
+    });
+    const zhPlayerHtml = renderPlayerRoom({
+      locale: "zh-CN",
+      roomId,
+      playerId: ada.data.playerId,
+      playerSessionToken: ada.data.playerSessionToken,
+      snapshot: adaSnapshot.snapshot,
+      adventureSnapshot: zhAdaAdventure.snapshot,
+    });
 
     assert.equal(hostSnapshot.snapshot.phase, "playing");
     assert.equal(adaSnapshot.snapshot.phase, "playing");
@@ -171,7 +201,12 @@ test("P1 browser setup flow starts the demo with Host and two player-safe views"
     assert.ok(playerHtml.includes("Ada Thorne"));
     assert.ok(playerHtml.includes("Current Scene"));
     assert.ok(playerHtml.includes("Describe an action or wait for the AI prompt."));
+    assert.ok(zhHostHtml.includes("村庄广场"));
+    assert.ok(zhHostHtml.includes("艾瑞克镇长希望"));
+    assert.ok(zhPlayerHtml.includes("村庄广场"));
+    assert.ok(zhPlayerHtml.includes("潮湿的绳索"));
     assertNoForbiddenPlayerText(playerHtml);
+    assertNoForbiddenPlayerText(zhPlayerHtml);
   } finally {
     await app.stop();
   }

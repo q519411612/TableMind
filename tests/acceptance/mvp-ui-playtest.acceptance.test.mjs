@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { loadAdventureFixture } from "../../packages/adventure-loader/src/index.mjs";
+import {
+  loadAdventureFixture,
+  localizeAdventureModule,
+} from "../../packages/adventure-loader/src/index.mjs";
 import { loadCompendiumFixture } from "../../packages/compendium/src/index.mjs";
 import { generateSessionRecap } from "../../packages/session-recap/src/index.mjs";
 import {
@@ -211,10 +214,15 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     const playerAdventure = await api.getAdventureSnapshot(roomId, {
       sessionToken: ada.data.playerSessionToken,
     });
+    const zhPlayerAdventure = await api.getAdventureSnapshot(roomId, {
+      sessionToken: ada.data.playerSessionToken,
+      locale: "zh-CN",
+    });
     const hostAdventure = await api.getAdventureSnapshot(roomId, {
       sessionToken: created.data.hostSessionToken,
     });
     const events = service.getCommittedEvents(roomId);
+    const localizedAdventure = localizeAdventureModule(adventure, "zh-CN");
     const playerRecap = generateSessionRecap({
       sessionState: hostSnapshot.snapshot,
       events,
@@ -230,7 +238,7 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     const zhPlayerRecap = generateSessionRecap({
       sessionState: hostSnapshot.snapshot,
       events,
-      adventure,
+      adventure: localizedAdventure,
       viewerRole: "player",
       locale: "zh-CN",
     });
@@ -257,7 +265,7 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       roomId,
       playerId: ada.data.playerId,
       snapshot: playerSnapshot.snapshot,
-      adventureSnapshot: playerAdventure.snapshot,
+      adventureSnapshot: zhPlayerAdventure.snapshot,
       recap: zhPlayerRecap,
     });
 
@@ -276,11 +284,15 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     assert.ok(zhPlayerHtml.includes("战报"));
     assert.ok(zhPlayerHtml.includes("受众：玩家"));
     assert.ok(zhPlayerHtml.includes("## 摘要"));
+    assert.ok(zhPlayerHtml.includes("灯塔"));
+    assert.ok(zhPlayerHtml.includes("破裂的灯镜"));
     assert.ok(zhPlayerHtml.includes("Cold soot curls around the cracked lantern frame."));
     assert.ok(zhPlayerHtml.includes("Repair the Lantern"));
     assert.equal(zhPlayerHtml.includes("undefined"), false);
     assert.equal(zhPlayerHtml.includes("broke the shrine seal"), false);
     assert.equal(zhPlayerHtml.includes("hatch below the tower"), false);
+    assert.equal(zhPlayerHtml.includes("神龛封印"), false);
+    assert.equal(zhPlayerHtml.includes("塔下活板门"), false);
     assert.equal(zhPlayerHtml.includes("host.review"), false);
     assert.equal(zhPlayerHtml.includes("state.patch"), false);
     assert.ok(hostHtml.includes("broke the shrine seal"));
