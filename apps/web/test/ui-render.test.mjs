@@ -278,6 +278,76 @@ test("Host renderer includes DM-only scene, review, combat, and recap controls",
   assert.ok(html.includes("Secret: Broken Seal"));
 });
 
+test("player renderer derives attack controls from projected combat state", () => {
+  const html = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: combatReadyPlayerSnapshot(),
+  });
+
+  assert.ok(html.includes("data-action=\"combat-attack\""));
+  assert.ok(html.includes("name=\"attackerCombatantId\" value=\"combatant_char_ada\""));
+  assert.ok(html.includes("name=\"attackId\" value=\"attack_longsword\""));
+  assert.ok(html.includes("<select name=\"targetCombatantId\" required>"));
+  assert.ok(html.includes("value=\"combatant_monster_hill_scavenger_1\""));
+  assert.ok(html.includes("Hill Scavenger"));
+  assert.equal(html.includes("<input name=\"targetCombatantId\""), false);
+});
+
+test("player renderer hides attack controls when it is not the player's turn", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.combat.activeCombatantId = "combatant_monster_hill_scavenger_1";
+
+  const html = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+
+  assert.equal(html.includes("data-action=\"combat-attack\""), false);
+  assert.ok(html.includes("No available attack this turn."));
+});
+
+test("Host renderer derives combat patch targets from projected combat state", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: combatReadyPlayerSnapshot().combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(html.includes("<select name=\"combatantId\" required>"));
+  assert.ok(html.includes("value=\"combatant_monster_hill_scavenger_1\""));
+  assert.ok(html.includes("Hill Scavenger"));
+  assert.equal(html.includes("<input name=\"combatantId\""), false);
+});
+
+test("renderers show command errors without leaking undefined labels", () => {
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_missing",
+    errorMessage: "Room not found.",
+  });
+  const hostHtml = renderHostRoom({
+    errorMessage: "Adventure is not loaded.",
+  });
+
+  assert.ok(playerHtml.includes("role=\"alert\""));
+  assert.ok(playerHtml.includes("Room not found."));
+  assert.ok(hostHtml.includes("role=\"alert\""));
+  assert.ok(hostHtml.includes("Adventure is not loaded."));
+  assert.equal(playerHtml.includes("undefined"), false);
+  assert.equal(hostHtml.includes("undefined"), false);
+});
+
 test("UI command clients use the transport contract and keep player snapshots player-scoped", async () => {
   const calls = [];
   const api = createTableMindApi({
@@ -461,6 +531,52 @@ function playerSnapshot() {
       ],
     },
   };
+}
+
+function combatReadyPlayerSnapshot() {
+  const snapshot = playerSnapshot();
+  snapshot.combat = {
+    round: 2,
+    activeCombatantId: "combatant_char_ada",
+    combatants: [
+      {
+        id: "combatant_char_ada",
+        sourceId: "char_ada",
+        playerId: "player_0002",
+        kind: "character",
+        displayName: "Ada Thorne",
+        hitPoints: {
+          current: 12,
+          max: 12,
+        },
+        attacks: [
+          {
+            id: "attack_longsword",
+            name: "Longsword",
+          },
+        ],
+        status: "active",
+      },
+      {
+        id: "combatant_monster_hill_scavenger_1",
+        sourceId: "monster_hill_scavenger",
+        kind: "monster",
+        displayName: "Hill Scavenger",
+        hitPoints: {
+          current: 7,
+          max: 7,
+        },
+        attacks: [
+          {
+            id: "attack_claws",
+            name: "Claws",
+          },
+        ],
+        status: "active",
+      },
+    ],
+  };
+  return snapshot;
 }
 
 function hostSnapshot() {

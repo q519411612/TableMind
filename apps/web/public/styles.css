@@ -7,6 +7,8 @@
   --tm-line: #d8ddd4;
   --tm-action: #246b61;
   --tm-action-ink: #ffffff;
+  --tm-error: #9b1c1c;
+  --tm-error-bg: #fff1f1;
   --tm-warn: #a35d14;
   --tm-note: #edf4f1;
 }
@@ -165,6 +167,15 @@ p {
 .tm-feed p,
 .tm-facts dd {
   color: var(--tm-muted);
+}
+
+.tm-error {
+  grid-column: 1 / -1;
+  border: 1px solid var(--tm-error);
+  border-radius: 8px;
+  background: var(--tm-error-bg);
+  color: var(--tm-error);
+  padding: 0.75rem;
 }
 
 .tm-dm-note {

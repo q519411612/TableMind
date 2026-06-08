@@ -3,6 +3,7 @@ import {
   escapeHtml,
   renderCombat,
   renderEmpty,
+  renderError,
   renderEventFeed,
   renderMarkdown,
 } from "./render-utils.mjs";
@@ -27,6 +28,8 @@ export function renderHostRoom(input = {}) {
       </header>
 
       <section class="tm-grid">
+        ${renderError(input.errorMessage, labels)}
+
         <article class="tm-panel" data-panel="create-room">
           <h2>${escapeHtml(labels.room)}</h2>
           <form data-action="create-room">
@@ -71,7 +74,7 @@ export function renderHostRoom(input = {}) {
         <article class="tm-panel tm-panel-wide" data-panel="combat">
           <h2>${escapeHtml(labels.combat)}</h2>
           ${renderCombat(snapshot?.combat, labels)}
-          ${renderCombatControls(labels)}
+          ${renderCombatControls(snapshot?.combat, labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="recap">
@@ -191,17 +194,18 @@ function renderReviewQueue(reviewQueue, labels) {
     .join("")}</ul>`;
 }
 
-function renderCombatControls(labels) {
-  return `
-    <div class="tm-command-row">
-      <button type="button" data-command="combat.start">${escapeHtml(labels.startEncounter)}</button>
-      <button type="button" data-command="combat.advance_turn">${escapeHtml(labels.advanceTurn)}</button>
-      <button type="button" data-command="combat.end">${escapeHtml(labels.endCombat)}</button>
-    </div>
+function renderCombatControls(combat, labels) {
+  const combatantOptions = renderCombatantOptions(combat);
+  const patchForms =
+    combatantOptions.length === 0
+      ? ""
+      : `
     <form data-command="combat.patch_hp" class="tm-inline-form">
       <label>
         ${escapeHtml(labels.combatant)}
-        <input name="combatantId" required />
+        <select name="combatantId" required>
+          ${combatantOptions}
+        </select>
       </label>
       <label>
         ${escapeHtml(labels.currentHp)}
@@ -212,7 +216,9 @@ function renderCombatControls(labels) {
     <form data-command="combat.patch_condition" class="tm-inline-form">
       <label>
         ${escapeHtml(labels.combatant)}
-        <input name="combatantId" required />
+        <select name="combatantId" required>
+          ${combatantOptions}
+        </select>
       </label>
       <label>
         ${escapeHtml(labels.condition)}
@@ -226,8 +232,25 @@ function renderCombatControls(labels) {
         </select>
       </label>
       <button type="submit" data-command="combat.patch_condition">${escapeHtml(labels.patchCondition)}</button>
-    </form>
+    </form>`;
+
+  return `
+    <div class="tm-command-row">
+      <button type="button" data-command="combat.start">${escapeHtml(labels.startEncounter)}</button>
+      <button type="button" data-command="combat.advance_turn">${escapeHtml(labels.advanceTurn)}</button>
+      <button type="button" data-command="combat.end">${escapeHtml(labels.endCombat)}</button>
+    </div>
+    ${patchForms}
   `;
+}
+
+function renderCombatantOptions(combat) {
+  return (combat?.combatants ?? [])
+    .map(
+      (combatant) =>
+        `<option value="${escapeHtml(combatant.id)}">${escapeHtml(combatant.displayName ?? combatant.id)}</option>`,
+    )
+    .join("");
 }
 
 function renderSessionComplete(labels) {

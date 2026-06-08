@@ -17,6 +17,7 @@ const appState = {
   adventureSnapshot: undefined,
   reviewQueue: [],
   stream: undefined,
+  errorMessage: undefined,
 };
 
 await loadPlaytestBootstrap();
@@ -29,51 +30,64 @@ render();
 root.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  clearError();
 
-  if (form.dataset.action === "create-room") {
-    const body = new FormData(form);
-    const result = await api.createRoom({
-      hostDisplayName: body.get("hostDisplayName"),
-      rulesetId: "5e-srd-5.2.1",
-      adventureModuleId: "adventure_lantern_beneath_hill",
-      startingSceneId: "scene_village_square",
-      now: new Date().toISOString(),
-    });
-    appState.room = result.data;
-    appState.snapshot = result.snapshot;
-    connectStream();
-    render();
-  }
+  try {
+    if (form.dataset.action === "create-room") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await api.createRoom({
+          hostDisplayName: body.get("hostDisplayName"),
+          rulesetId: "5e-srd-5.2.1",
+          adventureModuleId: "adventure_lantern_beneath_hill",
+          startingSceneId: "scene_village_square",
+          now: new Date().toISOString(),
+        }),
+      );
+      appState.room = result.data;
+      appState.snapshot = result.snapshot;
+      connectStream();
+      render();
+    }
 
-  if (form.dataset.command === "session.complete") {
-    const body = new FormData(form);
-    const result = await hostClient().completeSession(body.get("ending"), []);
-    appState.snapshot = result.snapshot;
-    render();
-  }
+    if (form.dataset.command === "session.complete") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await hostClient().completeSession(body.get("ending"), []),
+      );
+      appState.snapshot = result.snapshot;
+      render();
+    }
 
-  if (form.dataset.command === "combat.patch_hp") {
-    const body = new FormData(form);
-    const result = await hostClient().patchHitPoints(
-      body.get("combatantId"),
-      Number.parseInt(body.get("currentHp"), 10),
-      "Host patched HP.",
-    );
-    appState.snapshot = result.snapshot;
-    render();
-  }
+    if (form.dataset.command === "combat.patch_hp") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await hostClient().patchHitPoints(
+          body.get("combatantId"),
+          Number.parseInt(body.get("currentHp"), 10),
+          "Host patched HP.",
+        ),
+      );
+      appState.snapshot = result.snapshot;
+      render();
+    }
 
-  if (form.dataset.command === "combat.patch_condition") {
-    const body = new FormData(form);
-    const result = await hostClient().patchCondition(
-      body.get("combatantId"),
-      body.get("condition"),
-      body.get("action"),
-      "Host patched condition.",
-    );
-    appState.snapshot = result.snapshot;
-    await syncReviewQueue();
-    render();
+    if (form.dataset.command === "combat.patch_condition") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await hostClient().patchCondition(
+          body.get("combatantId"),
+          body.get("condition"),
+          body.get("action"),
+          "Host patched condition.",
+        ),
+      );
+      appState.snapshot = result.snapshot;
+      await syncReviewQueue();
+      render();
+    }
+  } catch (error) {
+    showError(error);
   }
 });
 
@@ -96,11 +110,16 @@ root.addEventListener("click", async (event) => {
     if (!appState.room) {
       return;
     }
-    const result = await hostClient().refreshSnapshot();
-    appState.snapshot = result.snapshot;
-    await syncAdventureSnapshot();
-    await syncReviewQueue();
-    render();
+    clearError();
+    try {
+      const result = requireOkResult(await hostClient().refreshSnapshot());
+      appState.snapshot = result.snapshot;
+      await syncAdventureSnapshot();
+      await syncReviewQueue();
+      render();
+    } catch (error) {
+      showError(error);
+    }
     return;
   }
 
@@ -108,13 +127,18 @@ root.addEventListener("click", async (event) => {
     return;
   }
 
-  const result = await dispatchHostCommand(button);
-  if (result?.snapshot) {
-    appState.snapshot = result.snapshot;
+  clearError();
+  try {
+    const result = requireOkResult(await dispatchHostCommand(button));
+    if (result?.snapshot) {
+      appState.snapshot = result.snapshot;
+    }
+    await syncAdventureSnapshot();
+    await syncReviewQueue();
+    render();
+  } catch (error) {
+    showError(error);
   }
-  await syncAdventureSnapshot();
-  await syncReviewQueue();
-  render();
 });
 
 function hostClient() {
@@ -186,7 +210,9 @@ async function syncAdventureSnapshot() {
   });
   if (result.ok) {
     appState.adventureSnapshot = result.snapshot;
+    return;
   }
+  throw resultError(result);
 }
 
 async function syncReviewQueue() {
@@ -196,7 +222,9 @@ async function syncReviewQueue() {
   const result = await hostClient().listReviewQueue();
   if (result.ok) {
     appState.reviewQueue = result.data.reviewQueue;
+    return;
   }
+  throw resultError(result);
 }
 
 function connectStream() {
@@ -248,6 +276,26 @@ async function loadPlaytestBootstrap() {
   appState.baseUrl = appState.baseUrl || config.apiBaseUrl;
   appState.fixtureUrls = config.fixtures;
   appState.compendiumEntries = (await loadJson(appState.fixtureUrls.compendiumUrl)).entries;
+}
+
+function clearError() {
+  appState.errorMessage = undefined;
+}
+
+function showError(error) {
+  appState.errorMessage = error.message;
+  render();
+}
+
+function requireOkResult(result) {
+  if (result?.ok === false) {
+    throw resultError(result);
+  }
+  return result;
+}
+
+function resultError(result) {
+  return new Error(result?.error?.message ?? result?.error?.code ?? "Command failed");
 }
 
 async function loadJson(url) {

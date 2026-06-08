@@ -13,6 +13,14 @@ export function renderEmpty(text) {
   return `<p class="tm-empty">${escapeHtml(text)}</p>`;
 }
 
+export function renderError(message, labels = uiText()) {
+  if (!message) {
+    return "";
+  }
+
+  return `<div class="tm-error" role="alert"><strong>${escapeHtml(labels.error)}</strong><p>${escapeHtml(message)}</p></div>`;
+}
+
 export function renderMarkdown(markdown, labels = uiText()) {
   if (!markdown) {
     return renderEmpty(labels.noRecapYet);
