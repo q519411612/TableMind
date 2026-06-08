@@ -113,7 +113,7 @@ export function renderCombat(combat, labels = uiText()) {
               <span>${escapeHtml(labels.hp)} ${escapeHtml(combatant.hitPoints?.current ?? "?")}/${escapeHtml(
                 combatant.hitPoints?.max ?? "?",
               )}</span>
-              <span>${escapeHtml(combatant.status ?? "active")}</span>
+              <span>${escapeHtml(formatCombatStatus(combatant.status, labels))}</span>
               <span>${escapeHtml(labels.conditions)} ${escapeHtml(renderConditionSummary(combatant.conditions, labels))}</span>
             </li>
           `,
@@ -188,7 +188,7 @@ function renderAttackOutcome(event, labels, combat) {
   const armorClass = result.targetArmorClass ?? result.armorClass ?? "?";
   const outcome = result.hit ? labels.hit : labels.miss;
   return escapeHtml(
-    `${attackName(event, result, combat)} ${labels.attackResult} ${result.total ?? "?"} vs ${labels.armorClass} ${armorClass}: ${outcome}`,
+    `${attackName(event, result, combat)} ${labels.attackResult} ${result.total ?? "?"} ${labels.versus} ${labels.armorClass} ${armorClass}: ${outcome}`,
   );
 }
 
@@ -238,4 +238,20 @@ function renderConditionSummary(conditions = [], labels) {
     })
     .filter((conditionId) => typeof conditionId === "string" && conditionId.length > 0)
     .join(", ");
+}
+
+function formatCombatStatus(status = "active", labels) {
+  if (status === "active") {
+    return labels.combatStatusActive;
+  }
+  if (status === "defeated") {
+    return labels.combatStatusDefeated;
+  }
+  if (status === "dead") {
+    return labels.combatStatusDead;
+  }
+  if (status === "fled") {
+    return labels.combatStatusFled;
+  }
+  return status;
 }

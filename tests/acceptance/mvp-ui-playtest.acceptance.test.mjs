@@ -227,6 +227,13 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       adventure,
       viewerRole: "host",
     });
+    const zhPlayerRecap = generateSessionRecap({
+      sessionState: hostSnapshot.snapshot,
+      events,
+      adventure,
+      viewerRole: "player",
+      locale: "zh-CN",
+    });
     const playerHtml = renderPlayerRoom({
       roomId,
       playerId: ada.data.playerId,
@@ -245,6 +252,14 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       reviewQueue: [],
       recap: hostRecap,
     });
+    const zhPlayerHtml = renderPlayerRoom({
+      locale: "zh-CN",
+      roomId,
+      playerId: ada.data.playerId,
+      snapshot: playerSnapshot.snapshot,
+      adventureSnapshot: playerAdventure.snapshot,
+      recap: zhPlayerRecap,
+    });
 
     assert.equal(aiTurn.data.status, "broadcast_ready");
     assert.equal(playerSnapshot.snapshot.phase, "ended");
@@ -255,6 +270,19 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     assert.ok(playerHtml.includes("Repair the Lantern"));
     assert.equal(playerHtml.includes("broke the shrine seal"), false);
     assert.equal(playerHtml.includes("hatch below the tower"), false);
+    assert.ok(zhPlayerHtml.includes("玩家房间"));
+    assert.ok(zhPlayerHtml.includes("当前场景"));
+    assert.ok(zhPlayerHtml.includes("公共动态"));
+    assert.ok(zhPlayerHtml.includes("战报"));
+    assert.ok(zhPlayerHtml.includes("受众：玩家"));
+    assert.ok(zhPlayerHtml.includes("## 摘要"));
+    assert.ok(zhPlayerHtml.includes("Cold soot curls around the cracked lantern frame."));
+    assert.ok(zhPlayerHtml.includes("Repair the Lantern"));
+    assert.equal(zhPlayerHtml.includes("undefined"), false);
+    assert.equal(zhPlayerHtml.includes("broke the shrine seal"), false);
+    assert.equal(zhPlayerHtml.includes("hatch below the tower"), false);
+    assert.equal(zhPlayerHtml.includes("host.review"), false);
+    assert.equal(zhPlayerHtml.includes("state.patch"), false);
     assert.ok(hostHtml.includes("broke the shrine seal"));
     assert.ok(hostHtml.includes("hatch below the tower"));
     assert.ok(hostHtml.includes("Secret: Broken Seal"));

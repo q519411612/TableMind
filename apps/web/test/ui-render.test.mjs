@@ -7,6 +7,7 @@ import {
   createTableMindApi,
 } from "../src/api-client.mjs";
 import { buildHostReviewUpdateFromForm } from "../src/host-review-form.mjs";
+import { SUPPORTED_LOCALES, uiText } from "../src/i18n.mjs";
 import { renderHostRoom } from "../src/render-host.mjs";
 import { renderPlayerRoom } from "../src/render-player.mjs";
 
@@ -106,6 +107,21 @@ test("renderers can render fixed UI labels in English", () => {
   assert.ok(hostHtml.includes("Run AI"));
 });
 
+test("supported locales expose the same fixed UI label keys", () => {
+  const [baseLocale, ...otherLocales] = SUPPORTED_LOCALES;
+  const baseKeys = Object.keys(uiText(baseLocale)).sort();
+
+  for (const locale of otherLocales) {
+    const labels = uiText(locale);
+    assert.deepEqual(Object.keys(labels).sort(), baseKeys, locale);
+    for (const key of baseKeys) {
+      assert.equal(typeof labels[key], "string", `${locale}.${key}`);
+      assert.notEqual(labels[key].trim(), "", `${locale}.${key}`);
+      assert.equal(labels[key].includes("undefined"), false, `${locale}.${key}`);
+    }
+  }
+});
+
 test("player renderer can render fixed UI labels in Chinese", () => {
   const joinHtml = renderPlayerRoom({
     locale: "zh-CN",
@@ -129,6 +145,105 @@ test("player renderer can render fixed UI labels in Chinese", () => {
   assert.ok(html.includes("角色"));
   assert.ok(html.includes("刷新"));
   assert.equal(html.includes(secretText), false);
+});
+
+test("Chinese player UI localizes combat and review labels without leaking DM text", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.eventLog = [
+    ...snapshot.eventLog,
+    {
+      type: "attack.resolved",
+      attackerCombatantId: "combatant_char_ada",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      attackId: "attack_longsword",
+      attackResult: {
+        d20: {
+          formula: "1d20",
+          total: 14,
+        },
+        attackBonus: 5,
+        total: 19,
+        armorClass: 13,
+        hit: true,
+      },
+    },
+    {
+      type: "damage.applied",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      damageResult: {
+        roll: {
+          formula: "1d8+3",
+          total: 8,
+        },
+        amount: 8,
+        damageType: "slashing",
+        resultingHp: 0,
+      },
+    },
+  ];
+  snapshot.combat.combatants[1].status = "defeated";
+
+  const playerHtml = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+  const hostHtml = renderHostRoom({
+    locale: "zh-CN",
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: snapshot.combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a state patch.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lantern trembles in the rain.",
+          revealProposals: [
+            {
+              entityType: "clue",
+              entityId: "clue_broken_lens",
+              reason: "The player inspected the lens.",
+            },
+          ],
+          statePatch: {
+            op: "replace",
+            path: "/phase",
+            value: "ended",
+          },
+        },
+      },
+    ],
+  });
+
+  assert.ok(playerHtml.includes("轮次 2"));
+  assert.ok(playerHtml.includes("Longsword 攻击 19 对 AC 13: 命中"));
+  assert.ok(playerHtml.includes("伤害 8 slashing"));
+  assert.ok(playerHtml.includes("已倒下"));
+  assert.ok(hostHtml.includes("审核队列"));
+  assert.ok(hostHtml.includes("风险"));
+  assert.ok(hostHtml.includes("公开消息"));
+  assert.ok(hostHtml.includes("揭示提议"));
+  assert.ok(hostHtml.includes("状态补丁"));
+  assert.equal(playerHtml.includes("undefined"), false);
+  assert.equal(hostHtml.includes("undefined"), false);
+  assert.equal(playerHtml.includes(secretText), false);
+  assert.equal(playerHtml.includes(hostPauseReason), false);
+  assert.equal(playerHtml.includes("host.review"), false);
+  assert.equal(playerHtml.includes("state.patch"), false);
 });
 
 test("localized UI keeps authored gameplay text unchanged", () => {
@@ -368,6 +483,25 @@ test("static web entries expose a language switcher hook", () => {
 
   for (const html of [indexHtml, playerHtml, hostHtml]) {
     assert.ok(html.includes("data-language-switcher"));
+  }
+});
+
+test("static web entry i18n hooks reference supported label keys", () => {
+  const html = readFileSync(
+    new URL("../public/index.html", import.meta.url),
+    "utf8",
+  );
+  const keys = [...html.matchAll(/data-i18n="([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+
+  assert.notEqual(keys.length, 0);
+  for (const locale of SUPPORTED_LOCALES) {
+    const labels = uiText(locale);
+    for (const key of keys) {
+      assert.equal(typeof labels[key], "string", `${locale}.${key}`);
+      assert.notEqual(labels[key].trim(), "", `${locale}.${key}`);
+    }
   }
 });
 

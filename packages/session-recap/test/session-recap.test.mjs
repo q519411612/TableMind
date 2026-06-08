@@ -213,6 +213,56 @@ test("player recap excludes rejected review payloads but includes approved AI me
   assert.ok(recap.markdown.includes("The lantern flickers back to life."));
 });
 
+test("player recap can render Chinese labels without translating authored gameplay text", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure,
+    viewerRole: "player",
+    locale: "zh-CN",
+  });
+
+  assert.equal(recap.title, "The Lantern Beneath the Hill 战报");
+  assert.equal(recap.audience, "player");
+  assert.ok(recap.markdown.includes("受众：玩家"));
+  assert.ok(recap.markdown.includes("## 摘要"));
+  assert.ok(recap.markdown.includes("## 时间线"));
+  assert.ok(recap.markdown.includes("## 关键骰子"));
+  assert.ok(recap.markdown.includes("## 已发现线索"));
+  assert.ok(recap.markdown.includes("## 战斗结果"));
+  assert.ok(recap.markdown.includes("## 角色状态"));
+  assert.ok(recap.markdown.includes("## 奖励"));
+  assert.ok(
+    recap.markdown.includes(
+      "Inspect the lantern soot.: skill_check investigation DC 15，d20 17，总值 22，成功。",
+    ),
+  );
+  assert.ok(recap.markdown.includes("Broken Lantern Lens"));
+  assert.ok(recap.markdown.includes("Repair the Lantern"));
+  assert.ok(recap.markdown.includes("Village gratitude"));
+  assert.equal(recap.markdown.includes("## Summary"), false);
+  assert.equal(recap.markdown.includes("Audience:"), false);
+  assert.equal(recap.markdown.includes("Mira broke the shrine seal"), false);
+});
+
+test("Host recap can render Chinese Host-only labels while keeping secrets Host-only", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure,
+    viewerRole: "host",
+    locale: "zh-CN",
+  });
+
+  assert.deepEqual(recap.unresolvedThreads, [
+    "秘密：Broken Seal",
+    "未揭示线索：Mira's Dropped Charm",
+  ]);
+  assert.ok(recap.markdown.includes("## 主持备注"));
+  assert.ok(recap.markdown.includes("秘密：Broken Seal"));
+  assert.equal(recap.markdown.includes("Host Notes"), false);
+});
+
 test("Host recap includes review audit history", () => {
   const recap = generateSessionRecap({
     sessionState,
