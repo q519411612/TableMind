@@ -220,6 +220,11 @@ p {
   gap: 0.75rem;
 }
 
+.tm-active-combatant {
+  border-left: 4px solid var(--tm-action);
+  padding-left: 0.6rem;
+}
+
 pre {
   max-width: 100%;
   overflow: auto;

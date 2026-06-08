@@ -159,6 +159,43 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
       attackId: "attack_longsword",
       randomValues: [0.7, 0.5],
     });
+    const combatPlayerSnapshot = await api.getSnapshot(roomId, {
+      sessionToken: ada.data.playerSessionToken,
+    });
+    const combatHostSnapshot = await api.getSnapshot(roomId, {
+      sessionToken: created.data.hostSessionToken,
+    });
+    const combatPlayerHtml = renderPlayerRoom({
+      roomId,
+      playerId: ada.data.playerId,
+      playerSessionToken: ada.data.playerSessionToken,
+      snapshot: combatPlayerSnapshot.snapshot,
+    });
+    const combatHostHtml = renderHostRoom({
+      room: {
+        roomId,
+        hostPlayerId,
+        inviteLink: created.data.inviteLink,
+      },
+      snapshot: combatHostSnapshot.snapshot,
+      reviewQueue: [],
+    });
+
+    assert.equal(combatPlayerSnapshot.snapshot.phase, "combat");
+    assert.ok(combatPlayerHtml.includes("Round 1"));
+    assert.ok(combatPlayerHtml.includes("Active: Ada Thorne"));
+    assert.ok(combatPlayerHtml.includes("Turn Order"));
+    assert.ok(combatPlayerHtml.includes("Initiative"));
+    assert.ok(combatPlayerHtml.includes("AC 16"));
+    assert.ok(combatPlayerHtml.includes("Longsword Attack 20 vs AC 13: hit"));
+    assert.ok(combatPlayerHtml.includes("Damage 8 slashing, HP 0"));
+    assert.ok(combatPlayerHtml.includes("1d20+5"));
+    assert.ok(combatPlayerHtml.includes("1d8+3"));
+    assert.ok(combatPlayerHtml.includes("defeated"));
+    assert.equal(combatPlayerHtml.includes("broke the shrine seal"), false);
+    assert.equal(combatPlayerHtml.includes("hatch below the tower"), false);
+    assert.ok(combatHostHtml.includes("<select name=\"combatantId\" required>"));
+    assert.ok(combatHostHtml.includes("value=\"combatant_monster_hill_scavenger_1\""));
     await host.endCombat("The remaining scavenger flees into the rain.");
     await host.completeSession("Repair the Lantern", [
       "Village gratitude",

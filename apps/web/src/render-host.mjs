@@ -2,6 +2,7 @@ import { renderLanguageSwitcher, uiText } from "./i18n.mjs";
 import {
   escapeHtml,
   renderCombat,
+  renderDiceLog,
   renderEmpty,
   renderError,
   renderEventFeed,
@@ -71,7 +72,12 @@ export function renderHostRoom(input = {}) {
 
         <article class="tm-panel tm-panel-wide" data-panel="feed">
           <h2>${escapeHtml(labels.auditFeed)}</h2>
-          ${renderEventFeed(snapshot?.eventLog ?? [], labels)}
+          ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
+        </article>
+
+        <article class="tm-panel" data-panel="dice">
+          <h2>${escapeHtml(labels.diceLog)}</h2>
+          ${renderDiceLog(snapshot?.diceLog ?? [], labels, snapshot?.eventLog ?? [], snapshot?.combat)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="combat">

@@ -41,9 +41,9 @@ export function renderMarkdown(markdown, labels = uiText()) {
     .join("");
 }
 
-export function renderEventFeed(events = [], labels = uiText()) {
+export function renderEventFeed(events = [], labels = uiText(), combat) {
   const feedItems = events
-    .map((event) => renderEvent(event, labels))
+    .map((event) => renderEvent(event, labels, combat))
     .filter((item) => item.length > 0);
 
   if (feedItems.length === 0) {
@@ -53,14 +53,17 @@ export function renderEventFeed(events = [], labels = uiText()) {
   return `<ol class="tm-feed">${feedItems.join("")}</ol>`;
 }
 
-export function renderDiceLog(diceLog = [], labels = uiText()) {
-  if (diceLog.length === 0) {
+export function renderDiceLog(diceLog = [], labels = uiText(), events = [], combat) {
+  const entries = [
+    ...diceLog.map((roll) => renderDiceLogEntry(roll, labels)),
+    ...renderCombatDiceLogEntries(events, labels, combat),
+  ];
+
+  if (entries.length === 0) {
     return renderEmpty(labels.noDiceRolledYet);
   }
 
-  return `<ul class="tm-list">${diceLog
-    .map((roll) => `<li>${renderDiceLogEntry(roll, labels)}</li>`)
-    .join("")}</ul>`;
+  return `<ul class="tm-list">${entries.map((entry) => `<li>${entry}</li>`).join("")}</ul>`;
 }
 
 function renderDiceLogEntry(roll, labels) {
@@ -86,22 +89,32 @@ export function renderCombat(combat, labels = uiText()) {
     return renderEmpty(labels.noActiveCombat);
   }
 
+  const combatants = combat.combatants ?? [];
+  const activeCombatant = combatants.find(
+    (combatant) => combatant.id === combat.activeCombatantId,
+  );
+  const activeName = activeCombatant?.displayName ?? activeCombatant?.id ?? combat.activeCombatantId;
+
   return `
     <div class="tm-combat-summary">
-      <span>${escapeHtml(labels.active)}: ${escapeHtml(combat.activeCombatantId)}</span>
       <span>${escapeHtml(labels.round)} ${escapeHtml(combat.round ?? 1)}</span>
+      <span>${escapeHtml(labels.active)}: ${escapeHtml(activeName)}</span>
     </div>
+    <h3>${escapeHtml(labels.turnOrder)}</h3>
     <ul class="tm-list">
-      ${(combat.combatants ?? [])
+      ${combatants
         .map(
           (combatant) => `
-            <li>
+            <li class="${combatant.id === combat.activeCombatantId ? "tm-active-combatant" : ""}">
               <strong>${escapeHtml(combatant.displayName ?? combatant.id)}</strong>
               <span>${escapeHtml(combatant.id)}</span>
+              <span>${escapeHtml(labels.initiative)} ${escapeHtml(combatant.initiative ?? "?")}</span>
+              <span>${escapeHtml(labels.armorClass)} ${escapeHtml(combatant.armorClass ?? "?")}</span>
               <span>${escapeHtml(labels.hp)} ${escapeHtml(combatant.hitPoints?.current ?? "?")}/${escapeHtml(
                 combatant.hitPoints?.max ?? "?",
               )}</span>
               <span>${escapeHtml(combatant.status ?? "active")}</span>
+              <span>${escapeHtml(labels.conditions)} ${escapeHtml(renderConditionSummary(combatant.conditions, labels))}</span>
             </li>
           `,
         )
@@ -116,7 +129,7 @@ export function ownCharacters(snapshot, playerId) {
   );
 }
 
-function renderEvent(event, labels) {
+function renderEvent(event, labels, combat) {
   if (event.type === "player.message") {
     return `<li><strong>${escapeHtml(labels.player)}</strong><p>${escapeHtml(event.message)}</p></li>`;
   }
@@ -137,8 +150,92 @@ function renderEvent(event, labels) {
   if (event.type === "clue.revealed") {
     return `<li><strong>${escapeHtml(labels.revealClue)}</strong><p>${escapeHtml(event.clueId)}</p></li>`;
   }
-  if (event.type?.startsWith("combat.") || event.type === "attack.resolved") {
+  if (event.type === "attack.resolved") {
+    return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${renderAttackOutcome(event, labels, combat)}</p></li>`;
+  }
+  if (event.type === "damage.applied") {
+    return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${renderDamageOutcome(event, labels)}</p></li>`;
+  }
+  if (event.type?.startsWith("combat.")) {
     return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${escapeHtml(event.type)}</p></li>`;
   }
   return "";
+}
+
+function renderCombatDiceLogEntries(events, labels, combat) {
+  return events
+    .map((event) => {
+      if (event.type === "attack.resolved") {
+        const result = event.attackResult ?? {};
+        return `<strong>${escapeHtml(labels.attackRoll)}</strong><span>${escapeHtml(
+          attackRollFormula(result),
+        )} = ${escapeHtml(result.total)}</span><span>${escapeHtml(attackName(event, result, combat))}</span>`;
+      }
+      if (event.type === "damage.applied") {
+        const result = event.damageResult ?? {};
+        const roll = result.roll ?? {};
+        return `<strong>${escapeHtml(labels.damageRoll)}</strong><span>${escapeHtml(
+          roll.formula ?? labels.damage,
+        )} = ${escapeHtml(roll.total ?? result.amount)}</span><span>${escapeHtml(result.damageType ?? "")}</span>`;
+      }
+      return "";
+    })
+    .filter((entry) => entry.length > 0);
+}
+
+function renderAttackOutcome(event, labels, combat) {
+  const result = event.attackResult ?? {};
+  const armorClass = result.targetArmorClass ?? result.armorClass ?? "?";
+  const outcome = result.hit ? labels.hit : labels.miss;
+  return escapeHtml(
+    `${attackName(event, result, combat)} ${labels.attackResult} ${result.total ?? "?"} vs ${labels.armorClass} ${armorClass}: ${outcome}`,
+  );
+}
+
+function renderDamageOutcome(event, labels) {
+  const result = event.damageResult ?? {};
+  return escapeHtml(
+    `${labels.damage} ${result.amount ?? "?"} ${result.damageType ?? ""}, ${labels.hp} ${result.resultingHp ?? "?"}`,
+  );
+}
+
+function attackName(event, result, combat) {
+  if (result.attackName) {
+    return result.attackName;
+  }
+  const attacker = (combat?.combatants ?? []).find(
+    (combatant) => combatant.id === event.attackerCombatantId,
+  );
+  const attack = (attacker?.attacks ?? []).find(
+    (candidate) => candidate.id === event.attackId,
+  );
+  return attack?.name ?? event.attackId ?? event.attackerCombatantId ?? "";
+}
+
+function attackRollFormula(result) {
+  const base = result.d20?.formula ?? "1d20";
+  const bonus = result.attackBonus ?? 0;
+  if (bonus === 0) {
+    return base;
+  }
+  if (bonus > 0) {
+    return `${base}+${bonus}`;
+  }
+  return `${base}${bonus}`;
+}
+
+function renderConditionSummary(conditions = [], labels) {
+  if (!Array.isArray(conditions) || conditions.length === 0) {
+    return labels.noConditions;
+  }
+
+  return conditions
+    .map((condition) => {
+      if (typeof condition === "string") {
+        return condition;
+      }
+      return condition.conditionId;
+    })
+    .filter((conditionId) => typeof conditionId === "string" && conditionId.length > 0)
+    .join(", ");
 }

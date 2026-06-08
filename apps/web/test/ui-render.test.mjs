@@ -357,6 +357,111 @@ test("player renderer derives attack controls from projected combat state", () =
   assert.equal(html.includes("<input name=\"targetCombatantId\""), false);
 });
 
+test("combat renderers show round, turn order, AC, status, and conditions", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.combat.activeCombatantId = "combatant_monster_hill_scavenger_1";
+  snapshot.combat.combatants[0].initiative = 12;
+  snapshot.combat.combatants[0].armorClass = 16;
+  snapshot.combat.combatants[0].conditions = [
+    { conditionId: "condition_blessed", source: "Ada" },
+  ];
+  snapshot.combat.combatants[1].initiative = 7;
+  snapshot.combat.combatants[1].armorClass = 13;
+  snapshot.combat.combatants[1].conditions = [
+    { conditionId: "condition_grappled", source: "Host" },
+  ];
+
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: snapshot.combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  for (const html of [playerHtml, hostHtml]) {
+    assert.ok(html.includes("Round 2"));
+    assert.ok(html.includes("Active: Hill Scavenger"));
+    assert.ok(html.includes("Turn Order"));
+    assert.ok(html.includes("Ada Thorne"));
+    assert.ok(html.includes("Initiative 12"));
+    assert.ok(html.includes("AC 16"));
+    assert.ok(html.includes("condition_blessed"));
+    assert.ok(html.includes("Hill Scavenger"));
+    assert.ok(html.includes("Initiative 7"));
+    assert.ok(html.includes("AC 13"));
+    assert.ok(html.includes("active"));
+    assert.ok(html.includes("condition_grappled"));
+  }
+});
+
+test("player renderer shows attack and damage outcomes without Host-only combat events", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.eventLog = [
+    ...snapshot.eventLog,
+    {
+      type: "attack.resolved",
+      attackerCombatantId: "combatant_char_ada",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      attackId: "attack_longsword",
+      attackResult: {
+        d20: {
+          formula: "1d20",
+          total: 14,
+        },
+        attackBonus: 5,
+        total: 19,
+        armorClass: 13,
+        hit: true,
+      },
+    },
+    {
+      type: "damage.applied",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      damageResult: {
+        roll: {
+          formula: "1d8+3",
+          total: 8,
+        },
+        amount: 8,
+        damageType: "slashing",
+        resultingHp: 0,
+      },
+    },
+  ];
+  snapshot.combat.combatants[1].hitPoints.current = 0;
+  snapshot.combat.combatants[1].status = "defeated";
+
+  const html = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+
+  assert.ok(html.includes("Longsword Attack 19 vs AC 13: hit"));
+  assert.ok(html.includes("Damage 8 slashing, HP 0"));
+  assert.ok(html.includes("1d20+5"));
+  assert.ok(html.includes("1d8+3"));
+  assert.ok(html.includes("Longsword"));
+  assert.ok(html.includes("defeated"));
+  assert.equal(html.includes("state.patch"), false);
+  assert.equal(html.includes(hostPauseReason), false);
+  assert.equal(html.includes(secretText), false);
+});
+
 test("player renderer hides attack controls when it is not the player's turn", () => {
   const snapshot = combatReadyPlayerSnapshot();
   snapshot.combat.activeCombatantId = "combatant_monster_hill_scavenger_1";
