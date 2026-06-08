@@ -1,10 +1,12 @@
 # TableMind Current Status
 
-Updated: 2026-06-07
+Updated: 2026-06-08
 
 ## MVP Status
 
-The repository supports a local, mock-provider MVP flow for the original demo adventure, "The Lantern Beneath the Hill." The simulated path can create a room, join two players, create MVP characters, load the adventure, start the session, run a safe AI turn through a mock adapter, resolve a deterministic skill check, reveal a clue, run combat, complete the session, and generate player and Host recaps.
+The repository supports a local, mock-provider browser demo flow for the original demo adventure, "The Lantern Beneath the Hill." The browser-oriented path can create a Host room, copy an invite link, join two players, create demo-ready characters, load the adventure, start the session, run a safe AI turn through the room boundary, resolve a deterministic skill check, reveal a clue, run combat, complete the session, and render player and Host recaps.
+
+The current local demo UI is text-first and playtest-focused. It includes fixed UI labels in English and Simplified Chinese, preserves `?lang=` and localStorage locale behavior, and keeps authored adventure/gameplay text unchanged when no explicit localized field exists.
 
 A supervised live-provider dry run has passed the required dry-run coverage. The evidence report is `docs/playtests/LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06_DEEPSEEK.md`; that report remains the source of truth for observed run details, and this status page must not copy, overwrite, or invent report fields.
 
@@ -21,12 +23,23 @@ A second supervised live-provider run attempt is recorded in `docs/playtests/LIV
 - Local HTTP adapter in `apps/server/src/http-server.mjs` for room create, join, actions, snapshots, adventure snapshots, and SSE subscriptions.
 - SSE event stream hub in `apps/server/src/room-event-stream.mjs`.
 - Static zero-dependency Host/player UI under `apps/web`.
+- Browser Host/player setup flow for one Host and two players with invite links,
+  readiness hints, projected player views, friendly command errors, and bilingual
+  fixed UI labels.
+- Combat UI displays round, active combatant, turn order, HP, AC, conditions,
+  attack and damage outcomes, and Host HP/condition patch controls derived from
+  projected combat state.
+- Host review UI summarizes type, risk, reason, public message, reveal proposals,
+  and state patch proposals, with approve/reject/edit controls.
+- Session recap generation supports English and Simplified Chinese fixed labels
+  while preserving authored gameplay text.
 - Room-aware mock/live-provider boundary through `buildAiContextForRoom`, `runAiTurnForRoom`, `loadAiProviderConfig`, and `createProviderAiAdapter`.
 - Provider-disabled default behavior and mocked provider tests.
 - Documented temporary DeepSeek structured-response bridge contract in `docs/providers/DEEPSEEK_STRUCTURED_RESPONSE_BRIDGE.md`.
 - Mock-based provider bridge regression coverage for safe auto-commit, reveal review, timeout, request failure, preflight redaction, and invalid payload rejection.
 - Spoiler guard, review-required AI output paths, unrevealed clue title/text/alias matching, fabricated dice rejection, unsupported AI attack rejection, and deterministic skill-check routing.
-- Playtest checklist, report template, and simulated MVP report under `docs/playtests`.
+- Playtest checklist, report template, simulated MVP report, and demo acceptance
+  evidence under `docs/playtests`.
 - Player SSE no longer exposes Host review, `state.patch`, or `host.override` event type strings.
 - `projectAdventureForPlayers` no longer exposes hidden raw IDs or encounter combatants.
 - Resolved model-requested checks commit structured check data.
@@ -44,9 +57,12 @@ A second supervised live-provider run attempt is recorded in `docs/playtests/LIV
 
 ## Current Decision
 
-Status: second supervised live-provider human run still incomplete; automated DeepSeek bridge smoke passed; manual browser combat completed with a spoiler incident found and fixed in the working tree.
+Status: local mock-provider browser demo is ready for internal demo use with the
+documented limitations below. The second supervised live-provider human run is
+still incomplete; automated DeepSeek bridge smoke passed; manual browser combat
+completed with a spoiler incident found and addressed by the current code path.
 
-The first supervised DeepSeek dry run passed for required dry-run coverage. The follow-up automated DeepSeek bridge smoke proved two live provider calls can pass through the structured bridge path, deterministic rule routing, Host review, rejection, combat, recap, and automated player no-leak checks. The later manual browser pass confirmed combat can be completed in the UI, but it also exposed unrevealed hatch-related clue content in public AI narration. The working tree now protects unrevealed clue aliases and exact clue text, but the local playtest server must be restarted before further manual retesting. Do not claim production readiness, public launch readiness, permanent DeepSeek integration, or second-run completion. Existing evidence supports only supervised internal playtest attempts, not unsupervised public rooms, production auth, durable persistence, PDF import, full character building, or full VTT scope.
+The first supervised DeepSeek dry run passed for required dry-run coverage. The follow-up automated DeepSeek bridge smoke proved two live provider calls can pass through the structured bridge path, deterministic rule routing, Host review, rejection, combat, recap, and automated player no-leak checks. The later manual browser pass confirmed combat can be completed in the UI, but it also exposed unrevealed hatch-related clue content in public AI narration. The current automated suite protects unrevealed clue aliases and exact clue text, player projections, player SSE, player UI, and player recap paths. Do not claim production readiness, public launch readiness, permanent DeepSeek integration, or second-run completion. Existing evidence supports only supervised internal playtest attempts, not unsupervised public rooms, production auth, durable persistence, PDF import, full character building, or full VTT scope.
 
 ## Next Live Run Planning
 
@@ -61,3 +77,6 @@ The first supervised DeepSeek dry run passed for required dry-run coverage. The 
 ## Verification Note
 
 The project requires Node 20 or newer. In this workspace, `/usr/local/bin/node` is Node 16.20.2 and cannot run the suite correctly because it lacks required runtime APIs. Use the bundled Node executable from the local workspace dependencies or another Node 20+ runtime for verification.
+
+The local shell currently has no `npm` executable in `PATH`. Verification in
+this workspace uses direct Node commands equivalent to the package scripts.

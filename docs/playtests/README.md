@@ -18,6 +18,11 @@ MVP-1.0 is an internal monitored playtest milestone. It is not an unsupervised p
   browser combat observation and the spoiler incident found during that pass.
 - `SECOND_RUN_FEEDBACK_QUESTIONS.md` for short Host and player feedback capture.
 - `PHASE_1_5_FULL_VERIFICATION.md` for the latest direct Node verification evidence.
+- `DEMO_ACCEPTANCE_CHECKLIST_2026-06-08.md` for the current local browser demo
+  acceptance self-check.
+- `DEMO_ACCEPTANCE_REPORT_2026-06-08.md` for the final local demo verification
+  report covering Host plus two-player browser flow, bilingual UI/recap, and
+  provider-disabled smoke.
 - `LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06.md` for the failed provider
   startup preflight attempt.
 - `LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06_DEEPSEEK.md` for the completed
