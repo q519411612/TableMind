@@ -824,7 +824,7 @@ test("UI command clients use the transport contract and keep player snapshots pl
     publicMessage: "Edited safe narration.",
   });
   await host.listReviewQueue();
-  await host.runAiTurn({ randomValues: [0.7] });
+  await host.runAiTurn({ locale: "zh-CN", randomValues: [0.7] });
   await host.startCombat({
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada"],
@@ -848,6 +848,10 @@ test("UI command clients use the transport contract and keep player snapshots pl
     attackId: "attack_longsword",
   });
   await player.refreshSnapshot();
+  await api.getAdventureSnapshot("room_0001", {
+    sessionToken: "tm_test_session_token_player",
+    locale: "zh-CN",
+  });
 
   assert.deepEqual(
     calls
@@ -874,6 +878,7 @@ test("UI command clients use the transport contract and keep player snapshots pl
     ],
   );
   assert.ok(calls.at(-1).url.includes("sessionToken=tm_test_session_token_player"));
+  assert.ok(calls.at(-1).url.includes("locale=zh-CN"));
   assert.equal(calls.some((call) => call.url.includes("viewerRole=host")), false);
   assert.equal(
     calls
@@ -899,6 +904,8 @@ test("UI command clients use the transport contract and keep player snapshots pl
       publicMessage: "Edited safe narration.",
     },
   });
+  const aiTurnCall = calls.find((call) => call.body?.type === "ai.turn.run");
+  assert.equal(aiTurnCall.body.payload.locale, "zh-CN");
 });
 
 function jsonResponse(body) {

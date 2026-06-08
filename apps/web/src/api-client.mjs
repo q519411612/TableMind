@@ -50,6 +50,9 @@ export function createTableMindApi(input = {}) {
       if (input.viewerPlayerId) {
         search.set("viewerPlayerId", input.viewerPlayerId);
       }
+      if (input.locale) {
+        search.set("locale", input.locale);
+      }
       return requestJson(
         `${baseUrl}/rooms/${encodeURIComponent(roomId)}/adventure-snapshot?${search.toString()}`,
       );

@@ -123,6 +123,53 @@ test("HTTP player adventure snapshot excludes unrevealed Host-only adventure tru
   }
 });
 
+test("HTTP adventure snapshot localizes authored text without leaking player-hidden content", async () => {
+  const service = createRoomService();
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: service,
+    }),
+  });
+  const adventure = await loadAdventureFixture(
+    "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
+  );
+  const { baseUrl } = await app.start();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "adventure.load",
+      sessionToken: created.data.hostSessionToken,
+      payload: { adventure },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+
+    const playerResponse = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/adventure-snapshot?lang=zh-CN&sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+    const playerText = await playerResponse.text();
+    const playerBody = JSON.parse(playerText);
+    const hostBody = await getJson(
+      `${baseUrl}/rooms/${created.data.roomId}/adventure-snapshot?lang=zh-CN&sessionToken=${encodeURIComponent(created.data.hostSessionToken)}`,
+    );
+
+    assert.equal(playerResponse.status, 200);
+    assert.equal(playerBody.snapshot.title, "山丘下的灯火");
+    assert.equal(playerBody.snapshot.currentScene.title, "村庄广场");
+    assert.ok(playerBody.snapshot.currentScene.readAloud.text.includes("潮湿的绳索"));
+    assert.equal(playerText.includes("艾瑞克镇长希望"), false);
+    assert.equal(playerText.includes("破损封印"), false);
+    assert.equal(playerText.includes("clue_old_record"), false);
+    assert.equal(hostBody.snapshot.currentScene.dmNotes.text.includes("艾瑞克镇长"), true);
+    assert.equal(hostBody.snapshot.truth[0].title, "破损封印");
+  } finally {
+    await app.stop();
+  }
+});
+
 test("HTTP snapshot derives viewer identity from session tokens and rejects Host impersonation", async () => {
   const app = createHttpServer({
     dispatcher: createRoomActionDispatcher({

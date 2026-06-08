@@ -122,6 +122,9 @@ root.addEventListener("click", async (event) => {
 
   if (button.dataset.action === "set-language") {
     appState.locale = storeBrowserLocale(button.dataset.locale);
+    if (appState.room) {
+      await syncAdventureSnapshot();
+    }
     render();
     return;
   }
@@ -210,7 +213,7 @@ async function dispatchHostCommand(button) {
     );
   }
   if (button.dataset.command === "ai.turn.run") {
-    return client.runAiTurn();
+    return client.runAiTurn({ locale: appState.locale });
   }
   if (button.dataset.command === "combat.start") {
     return client.startCombat({
@@ -251,6 +254,7 @@ async function syncAdventureSnapshot() {
   }
   const result = await api.getAdventureSnapshot(appState.room.roomId, {
     sessionToken: appState.room.hostSessionToken,
+    locale: appState.locale,
   });
   if (result.ok) {
     appState.adventureSnapshot = result.snapshot;

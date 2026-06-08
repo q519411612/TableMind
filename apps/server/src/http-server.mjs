@@ -191,6 +191,7 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
       roomId,
       viewerRole: identityResult.identity.viewerRole,
       viewerPlayerId: identityResult.identity.viewerPlayerId,
+      locale: requestLocale(url),
     });
   }
 
@@ -320,6 +321,10 @@ function requestedViewerMatches(url, identity) {
     return false;
   }
   return true;
+}
+
+function requestLocale(url) {
+  return url.searchParams.get("locale") ?? url.searchParams.get("lang") ?? undefined;
 }
 
 function forbiddenResult(commandType) {

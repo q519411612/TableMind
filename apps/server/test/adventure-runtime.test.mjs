@@ -72,6 +72,41 @@ test("player adventure snapshot hides truth, DM notes, and unrevealed clues", as
   assert.equal(JSON.stringify(playerView).includes("encounter_hill_scavengers"), false);
 });
 
+test("localized adventure snapshots keep Host and player visibility separate", async () => {
+  const { adventure, service, room, player } = await createLoadedRoom();
+  service.loadAdventureModule({
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    adventure,
+    now: "2026-06-02T03:02:00.000Z",
+  });
+
+  const hostView = service.getAdventureSnapshot({
+    roomId: room.roomId,
+    viewerRole: "host",
+    locale: "zh-CN",
+  });
+  const playerView = service.getAdventureSnapshot({
+    roomId: room.roomId,
+    viewerRole: "player",
+    viewerPlayerId: player.playerId,
+    locale: "zh-CN",
+  });
+  const serializedPlayer = JSON.stringify(playerView);
+
+  assert.equal(hostView.title, "山丘下的灯火");
+  assert.equal(hostView.currentScene.title, "村庄广场");
+  assert.ok(hostView.currentScene.dmNotes.text.includes("艾瑞克镇长"));
+  assert.ok(hostView.truth[0].text.includes("打破了神龛封印"));
+  assert.equal(playerView.title, "山丘下的灯火");
+  assert.equal(playerView.currentScene.title, "村庄广场");
+  assert.ok(playerView.currentScene.readAloud.text.includes("潮湿的绳索"));
+  assert.equal(playerView.currentScene.dmNotes, undefined);
+  assert.equal(serializedPlayer.includes("艾瑞克镇长希望"), false);
+  assert.equal(serializedPlayer.includes("破损封印"), false);
+  assert.equal(serializedPlayer.includes("clue_old_record"), false);
+});
+
 test("revealed clues become visible to player projections through committed events", async () => {
   const { adventure, service, room, player } = await createLoadedRoom();
   service.loadAdventureModule({

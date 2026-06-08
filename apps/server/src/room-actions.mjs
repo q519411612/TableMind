@@ -104,6 +104,7 @@ export function createRoomActionDispatcher(input) {
             roomId: requireRoomId(command),
             viewerRole: command.viewerRole,
             viewerPlayerId: command.viewerPlayerId,
+            locale: command.locale,
           }),
         };
       case "session.start":
@@ -226,6 +227,7 @@ export function createRoomActionDispatcher(input) {
           hostPlayerId: requireHostActor(command, roomService),
           adapter: payload.adapter ?? input.aiAdapter,
           providerConfig: payload.providerConfig ?? input.providerConfig,
+          locale: payload.locale,
           randomSource: randomSourceFromPayload(payload),
           now: requireNow(command),
         });
@@ -373,6 +375,9 @@ function validateCommandPayload(type, payload) {
     ) {
       throw commandError("bad_request", "payload.adapter must be an AI adapter");
     }
+  }
+  if (type === "ai.turn.run" && payload.locale !== undefined) {
+    requirePayloadString(payload, "locale");
   }
 }
 

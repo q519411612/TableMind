@@ -90,6 +90,7 @@ root.addEventListener("click", async (event) => {
 
   if (target.dataset.action === "set-language") {
     appState.locale = storeBrowserLocale(target.dataset.locale);
+    await syncAdventureSnapshot();
     render();
     return;
   }
@@ -159,6 +160,7 @@ async function syncAdventureSnapshot() {
   }
   const result = await api.getAdventureSnapshot(appState.roomId, {
     sessionToken: appState.playerSessionToken,
+    locale: appState.locale,
   });
   if (result.ok) {
     appState.adventureSnapshot = result.snapshot;
