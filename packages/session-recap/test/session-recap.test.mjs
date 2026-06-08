@@ -28,6 +28,32 @@ const adventure = {
   ],
 };
 
+const localizedAdventure = {
+  title: "山丘下的灯火",
+  truth: [
+    {
+      id: "secret_broken_seal",
+      title: "破损封印",
+      text: "米拉打破了神龛封印。",
+      visibility: "dm_only",
+    },
+  ],
+  clues: [
+    {
+      id: "clue_broken_lens",
+      title: "破裂的灯镜",
+      text: "灯镜从内部被熏黑。",
+      visibility: "dm_only",
+    },
+    {
+      id: "clue_miras_charm",
+      title: "米拉遗落的护符",
+      text: "一枚刻有米拉姓名首字母的陶土护符。",
+      visibility: "dm_only",
+    },
+  ],
+};
+
 const sessionState = {
   phase: "ended",
   currentSceneId: "scene_buried_shrine",
@@ -211,6 +237,82 @@ test("player recap excludes rejected review payloads but includes approved AI me
 
   assert.equal(recap.markdown.includes("Mira broke the shrine seal"), false);
   assert.ok(recap.markdown.includes("The lantern flickers back to life."));
+});
+
+test("player recap can render Chinese labels without translating authored gameplay text", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure,
+    viewerRole: "player",
+    locale: "zh-CN",
+  });
+
+  assert.equal(recap.title, "The Lantern Beneath the Hill 战报");
+  assert.equal(recap.audience, "player");
+  assert.ok(recap.markdown.includes("受众：玩家"));
+  assert.ok(recap.markdown.includes("## 摘要"));
+  assert.ok(recap.markdown.includes("## 时间线"));
+  assert.ok(recap.markdown.includes("## 关键骰子"));
+  assert.ok(recap.markdown.includes("## 已发现线索"));
+  assert.ok(recap.markdown.includes("## 战斗结果"));
+  assert.ok(recap.markdown.includes("## 角色状态"));
+  assert.ok(recap.markdown.includes("## 奖励"));
+  assert.ok(
+    recap.markdown.includes(
+      "Inspect the lantern soot.: skill_check investigation DC 15，d20 17，总值 22，成功。",
+    ),
+  );
+  assert.ok(recap.markdown.includes("Broken Lantern Lens"));
+  assert.ok(recap.markdown.includes("Repair the Lantern"));
+  assert.ok(recap.markdown.includes("Village gratitude"));
+  assert.equal(recap.markdown.includes("## Summary"), false);
+  assert.equal(recap.markdown.includes("Audience:"), false);
+  assert.equal(recap.markdown.includes("Mira broke the shrine seal"), false);
+});
+
+test("Host recap can render Chinese Host-only labels while keeping secrets Host-only", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure,
+    viewerRole: "host",
+    locale: "zh-CN",
+  });
+
+  assert.deepEqual(recap.unresolvedThreads, [
+    "秘密：Broken Seal",
+    "未揭示线索：Mira's Dropped Charm",
+  ]);
+  assert.ok(recap.markdown.includes("## 主持备注"));
+  assert.ok(recap.markdown.includes("秘密：Broken Seal"));
+  assert.equal(recap.markdown.includes("Host Notes"), false);
+});
+
+test("recap uses explicit localized authored adventure text when provided", () => {
+  const playerRecap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure: localizedAdventure,
+    viewerRole: "player",
+    locale: "zh-CN",
+  });
+  const hostRecap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure: localizedAdventure,
+    viewerRole: "host",
+    locale: "zh-CN",
+  });
+
+  assert.equal(playerRecap.title, "山丘下的灯火 战报");
+  assert.deepEqual(playerRecap.discoveredClues, ["破裂的灯镜"]);
+  assert.equal(playerRecap.markdown.includes("破损封印"), false);
+  assert.deepEqual(hostRecap.unresolvedThreads, [
+    "秘密：破损封印",
+    "未揭示线索：米拉遗落的护符",
+  ]);
+  assert.ok(hostRecap.markdown.includes("秘密：破损封印"));
 });
 
 test("Host recap includes review audit history", () => {

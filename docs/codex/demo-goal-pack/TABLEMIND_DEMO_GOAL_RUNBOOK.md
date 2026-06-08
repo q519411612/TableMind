@@ -1,12 +1,16 @@
-# TableMind Demo `/goal` Runbook
+# TableMind Demo Goal Runbook
 
-## 目标
+## Goal
 
-把当前 TableMind 仓库从“本地 MVP / 工程可验证”推进到“demo 级可演示”：一名 Host 和 2 名玩家可以通过浏览器 UI 完成原创 5e-compatible 短冒险，包含创建房间、加入、创建角色、AI DM 主持、检定、战斗、Host 审核/接管、中英双语和 recap。
+Advance the current TableMind repository from local MVP to a demo-ready browser
+flow: one Host and two players can complete an original 5e-compatible short
+adventure with room creation, joining, character creation, AI DM narration,
+checks, combat, Host review/control, bilingual UI, localized built-in adventure
+text, and recap.
 
-## 不要把它当成重写项目
+## Do Not Treat This As A Rewrite
 
-Codex 必须基于当前架构增量改造。优先复用：
+Workers must build on the current architecture. Prefer existing boundaries:
 
 - `apps/server/src/room-service.mjs`
 - `apps/server/src/room-actions.mjs`
@@ -17,141 +21,147 @@ Codex 必须基于当前架构增量改造。优先复用：
 - `packages/adventure-loader`
 - `packages/session-recap`
 - `packages/shared-test-fixtures`
-- 现有 `specs/**` 和 `docs/**`
+- existing `specs/**` and `docs/**`
 
-## 全局硬性约束
+## Runtime
 
-1. LLM 不是事实源；AI 输出不能直接改状态。
-2. 掷骰、检定、攻击、伤害、先攻、HP 变化必须由 deterministic rules/system code 产生。
-3. 玩家 snapshot、HTTP response、SSE、UI、recap 不能包含 DM-only / Host-only / rejected AI output。
-4. risky AI 输出、低置信度、揭示建议、state patch 必须进入 Host review。
-5. 默认测试不得调用 live provider。
-6. 不提交 provider key、token、authorization header、真实 payload。
-7. 业务逻辑留在 domain/room/command/rules 模块；UI 和 HTTP handler 只做薄适配。
-8. demo 只做短团，不做完整 VTT。
+Use Node 20 or newer. In this local workspace, the bundled Node runtime is:
 
-## 建议执行顺序
+```bash
+/Users/chenminghui/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node
+```
 
-### Phase 0 — Gap report 和阻塞修复
+The local shell used for the final acceptance pass has no `npm` executable in
+`PATH`, so direct Node commands are the recorded verification method.
 
-Codex 先读文档和代码，输出当前功能矩阵。然后修明显阻塞 bug，例如缺失 i18n label、按钮无效、流程状态不同步、错误提示缺失。
+## Hard Constraints
 
-验收：
+1. The LLM is not the source of truth; AI output cannot directly modify state.
+2. Dice, checks, attacks, damage, initiative, HP changes, and combat turns must
+   come from deterministic rules/system code.
+3. Player snapshot, HTTP response, SSE, UI, and recap must not include DM-only,
+   Host-only, rejected AI output, private review payloads, or raw state patches.
+4. Risky AI output, low-confidence output, reveal proposals, and state patches
+   must enter Host review.
+5. Default tests must not call live providers.
+6. Do not commit provider keys, tokens, authorization headers, or real provider
+   payloads.
+7. Keep business logic in domain, room, command, and rules modules. UI and HTTP
+   handlers remain thin adapters.
+8. Demo scope is a short local one-shot, not a full VTT or production platform.
 
-- UI 渲染测试覆盖新增/修复 label。
-- 不扩大架构。
-- `npm run check` 和相关测试通过。
+## Start The Local Demo
 
-### Phase 1 — Host/Player 完整浏览器流程
+When npm is available:
 
-目标是“不会代码的人也能跑起来”：
+```bash
+npm run playtest
+```
 
-- Host 创建房间、加载 demo、复制邀请、看到玩家/角色、开始团局。
-- Player 从邀请链接加入，创建/选择预设角色，看到场景、feed、角色、骰子、战斗、recap。
-- 每个阶段显示下一步提示和错误提示。
+Without npm:
 
-验收：
+```bash
+node scripts/start-playtest.mjs
+```
 
-- 增加/更新 render tests。
-- 增加完整 UI acceptance 或 browser-like smoke。
-- 玩家 UI 不依赖 Host snapshot。
+Open:
 
-### Phase 2 — 战斗 demo polish
+- Host UI: `http://127.0.0.1:<port>/host.html`
+- Player UI: `http://127.0.0.1:<port>/player.html`
 
-目标是让 demo 中一次战斗可顺畅完成：
+The Host-created invite link includes `roomId`:
 
-- 显示先攻顺序、当前回合、HP、AC、状态。
-- 玩家目标和攻击用下拉选择，不手填 ID。
-- Host 可下拉 patch HP / condition，可结束战斗。
-- 回合限制和错误提示清楚。
+```txt
+http://127.0.0.1:<port>/player.html?roomId=room_0001
+```
 
-验收：
+## Host Flow
 
-- 攻击事件仍为 deterministic rules result。
-- combat.attack / damage.applied 流程有回归测试。
-- no-DM-leak 测试覆盖 combat snapshot。
+- Create room.
+- Load the demo adventure.
+- Copy/open the invite link.
+- Wait for two players and demo-ready characters.
+- Start session.
+- Run AI for safe mock narration.
+- Inspect DM-only scene truth in Host UI.
+- Use Host review controls if review is triggered.
+- Reveal a clue and/or change scene.
+- Start combat.
+- Patch HP/condition only through Host controls when needed.
+- End combat.
+- Complete session and read Host recap.
 
-### Phase 3 — Host review 和 AI safety polish
+## Player Flow
 
-目标是让 Host 真正能管 AI：
+- Open invite link.
+- Enter nickname and join.
+- Create demo-ready character.
+- Read current scene and public feed.
+- Watch dice log and check outcome.
+- Use projected combat attack control on the player's active turn.
+- Read player recap.
+- Switch `?lang=en` or `?lang=zh-CN` to confirm fixed UI labels.
 
-- review queue 展示风险类型、原因、public payload。
-- approve/edit/reject 可用；edit 必须能提交编辑后的 publicMessage 或 proposedPayload。
-- rejected/edited private payload 不进入玩家端。
-- AI pause/resume 状态明确。
+## Safety Checks
 
-验收：
+- Player surfaces must not include `dm_only`, Host-only review events, rejected
+  AI output, private review payloads, or raw state patches.
+- AI output must not mutate state directly.
+- Dice, checks, attacks, damage, initiative, HP, and combat turns must come from
+  deterministic system code.
+- Default automated verification must not make live provider calls.
 
-- Review edit path 有 unit/acceptance test。
-- Player feed/SSE/recap 不含 rejected payload。
+## Verification
 
-### Phase 4 — 中英双语 demo 体验
-
-目标不只是按钮中英切换，而是演示全流程有语言策略：
-
-- `en` / `zh-CN` dictionary 覆盖所有固定 UI 文案。
-- 浏览器语言可通过 `?lang=` 和 localStorage 持久化。
-- 房间或 viewer locale 能进入 AI context / mock AI / recap。
-- Demo 冒险支持本地化字段，至少 current scene/read-aloud/clue title/text/recap headings 有中英策略。
-- 没有 translation 的 authored text 保持原文，不要擅自硬翻成“似是而非”的内容。
-
-验收：
-
-- English 和中文 render tests。
-- 至少一条 end-to-end smoke 用中文 UI 跑关键路径。
-- no-DM-leak 在两种 locale 下都成立。
-
-### Phase 5 — Playtest docs 和状态同步
-
-目标是可交给别人演示：
-
-- README 写清 Node 20、启动命令、Host/Player URL、mock/live provider 边界。
-- docs/playtests 增加 demo checklist/report。
-- CURRENT_STATUS 更新为真实状态：demo 可跑 ≠ production ready。
-
-验收：
-
-- 文档不包含秘密。
-- 文档不声称 production readiness。
-
-## 每个 Codex 回合必须跑的命令
-
-优先跑：
+When npm is available:
 
 ```bash
 npm run check
 npm test
 npm run acceptance
 npm run build
+TABLEMIND_AI_PROVIDER_ENABLED=false npm run smoke:playtest
 ```
 
-如果环境 Node 版本不满足 Node 20，应明确记录：
+Without npm, use the direct Node equivalents recorded in
+`docs/playtests/DEMO_ACCEPTANCE_REPORT_2026-06-08.md`:
 
-- 当前 `node --version`
-- 哪些命令无法跑
-- 需要如何切换 Node 20+
+```bash
+node scripts/check-js.mjs
+node scripts/run-tests.mjs packages apps tests
+node scripts/run-tests.mjs tests/acceptance
+TABLEMIND_AI_PROVIDER_ENABLED=false node scripts/smoke-playtest-flow.mjs
+```
 
-## Review 清单
+If the environment Node version does not satisfy Node 20+, record:
 
-Review Codex 输出时，先看这些：
+- current `node --version`;
+- which commands could not run;
+- how to switch to Node 20+.
 
-- 是否读了 `docs/PRD.md`、`docs/CURRENT_STATUS.md`、`docs/DEVELOPMENT.md`、`specs/GOAL_ACCEPTANCE_GATES.md`、相关 specs？
-- 是否把 UI/HTTP 保持为薄层，没有塞业务逻辑？
-- 是否没有重写项目、没有引入大框架？
-- 是否新增/更新了测试？
-- 是否默认 provider disabled？
-- 是否所有玩家可见输出都经过 projection/no-leak 测试？
-- 是否中英文案完整，不存在 `undefined` label？
-- 是否 final report 包含 Scope / Files changed / Tests / Commands / Risks / Deferred work？
+## Review Checklist
 
-## 停止并拆分的信号
+Review output by checking:
 
-看到这些就让 Codex 停下来拆任务：
+- Required docs and specs were read before implementation.
+- UI and HTTP remain thin adapters.
+- No unnecessary framework or project rewrite was introduced.
+- Tests were added or updated for changed behavior.
+- Provider-disabled remains the default automated path.
+- Player-visible output is covered by projection/no-leak tests.
+- English and Simplified Chinese labels are complete and do not render
+  `undefined`.
+- Final reports include scope, changed files, tests, commands, risks, and
+  deferred work.
 
-- 一次性引入 React/Vite/Tailwind 或大型状态管理，但没有必要。
-- 修改规则引擎来迎合 UI，而不是通过 command/API 正确使用规则。
-- 在默认测试里打 live provider。
-- 为 demo 引入生产 auth/db/deployment。
-- 用 Host snapshot 渲染玩家 UI。
-- 为了中文支持硬翻整个冒险文本而没有结构化 locale 字段。
-- 删除或弱化 no-DM-leak、防剧透、Host review 测试。
+## Stop And Split Signals
+
+Pause and split work if a change tries to:
+
+- introduce a large UI framework without need;
+- change rules-engine behavior just to satisfy UI wiring;
+- call a live provider in default tests;
+- add production auth, durable storage, payments, or deployment;
+- render player UI from Host snapshots;
+- hard-translate authored text without explicit locale fields;
+- remove or weaken no-DM-leak, spoiler guard, or Host review coverage.

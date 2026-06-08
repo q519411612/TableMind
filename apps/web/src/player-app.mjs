@@ -16,6 +16,7 @@ const appState = {
   snapshot: undefined,
   adventureSnapshot: undefined,
   stream: undefined,
+  errorMessage: undefined,
 };
 
 await loadPlaytestConfig();
@@ -28,51 +29,56 @@ render();
 root.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  clearError();
 
-  if (form.dataset.action === "join-room") {
-    const body = new FormData(form);
-    appState.roomId = body.get("roomId");
-    const result = await api.joinRoom(appState.roomId, {
-      displayName: body.get("displayName"),
-      now: new Date().toISOString(),
-    });
-    appState.playerId = result.data.playerId;
-    appState.playerSessionToken = result.data.playerSessionToken;
-    appState.snapshot = result.snapshot;
-    globalThis.localStorage?.setItem("tablemind.playerId", appState.playerId);
-    globalThis.localStorage?.setItem(
-      "tablemind.playerSessionToken",
-      appState.playerSessionToken,
-    );
-    await syncAdventureSnapshot();
-    connectStream();
-    render();
-  }
+  try {
+    if (form.dataset.action === "join-room") {
+      const body = new FormData(form);
+      appState.roomId = body.get("roomId");
+      const result = requireOkResult(
+        await api.joinRoom(appState.roomId, {
+          displayName: body.get("displayName"),
+          now: new Date().toISOString(),
+        }),
+      );
+      appState.playerId = result.data.playerId;
+      appState.playerSessionToken = result.data.playerSessionToken;
+      appState.snapshot = result.snapshot;
+      globalThis.localStorage?.setItem("tablemind.playerId", appState.playerId);
+      globalThis.localStorage?.setItem(
+        "tablemind.playerSessionToken",
+        appState.playerSessionToken,
+      );
+      await syncAdventureSnapshot();
+      connectStream();
+      render();
+    }
 
-  if (form.dataset.action === "send-message") {
-    const body = new FormData(form);
-    const client = playerClient();
-    const result = await client.sendMessage(body.get("message"));
-    appState.snapshot = result.snapshot;
-    await syncAdventureSnapshot();
-    render();
-  }
+    if (form.dataset.action === "send-message") {
+      const body = new FormData(form);
+      const client = playerClient();
+      const result = requireOkResult(await client.sendMessage(body.get("message")));
+      appState.snapshot = result.snapshot;
+      await syncAdventureSnapshot();
+      render();
+    }
 
-  if (form.dataset.action === "combat-attack") {
-    const body = new FormData(form);
-    const character = Object.values(appState.snapshot?.characters ?? {}).find(
-      (candidate) => candidate.playerId === appState.playerId,
-    );
-    const attack = character?.attacks?.[0];
-    const client = playerClient();
-    const result = await client.attack({
-      attackerCombatantId: `combatant_${character.id}`,
-      targetCombatantId: body.get("targetCombatantId"),
-      attackId: attack?.id,
-    });
-    appState.snapshot = result.snapshot;
-    await syncAdventureSnapshot();
-    render();
+    if (form.dataset.action === "combat-attack") {
+      const body = new FormData(form);
+      const client = playerClient();
+      const result = requireOkResult(
+        await client.attack({
+          attackerCombatantId: body.get("attackerCombatantId"),
+          targetCombatantId: body.get("targetCombatantId"),
+          attackId: body.get("attackId"),
+        }),
+      );
+      appState.snapshot = result.snapshot;
+      await syncAdventureSnapshot();
+      render();
+    }
+  } catch (error) {
+    showError(error);
   }
 });
 
@@ -84,22 +90,35 @@ root.addEventListener("click", async (event) => {
 
   if (target.dataset.action === "set-language") {
     appState.locale = storeBrowserLocale(target.dataset.locale);
+    await syncAdventureSnapshot();
     render();
     return;
   }
 
   if (target.dataset.action === "refresh-snapshot") {
-    const result = await playerClient().refreshSnapshot();
-    appState.snapshot = result.snapshot;
-    await syncAdventureSnapshot();
-    render();
+    clearError();
+    try {
+      const result = requireOkResult(await playerClient().refreshSnapshot());
+      appState.snapshot = result.snapshot;
+      await syncAdventureSnapshot();
+      render();
+    } catch (error) {
+      showError(error);
+    }
   }
 
   if (target.dataset.action === "create-character") {
-    const result = await playerClient().createCharacter(defaultCharacter());
-    appState.snapshot = result.snapshot;
-    await syncAdventureSnapshot();
-    render();
+    clearError();
+    try {
+      const result = requireOkResult(
+        await playerClient().createCharacter(defaultCharacter()),
+      );
+      appState.snapshot = result.snapshot;
+      await syncAdventureSnapshot();
+      render();
+    } catch (error) {
+      showError(error);
+    }
   }
 });
 
@@ -141,6 +160,7 @@ async function syncAdventureSnapshot() {
   }
   const result = await api.getAdventureSnapshot(appState.roomId, {
     sessionToken: appState.playerSessionToken,
+    locale: appState.locale,
   });
   if (result.ok) {
     appState.adventureSnapshot = result.snapshot;
@@ -148,7 +168,9 @@ async function syncAdventureSnapshot() {
   }
   if (result.error?.code === "adventure_not_loaded") {
     appState.adventureSnapshot = undefined;
+    return;
   }
+  throw resultError(result);
 }
 
 function render() {
@@ -163,6 +185,26 @@ async function loadPlaytestConfig() {
   }
   const config = await response.json();
   appState.baseUrl = appState.baseUrl || config.apiBaseUrl;
+}
+
+function clearError() {
+  appState.errorMessage = undefined;
+}
+
+function showError(error) {
+  appState.errorMessage = error.message;
+  render();
+}
+
+function requireOkResult(result) {
+  if (result?.ok === false) {
+    throw resultError(result);
+  }
+  return result;
+}
+
+function resultError(result) {
+  return new Error(result?.error?.message ?? result?.error?.code ?? "Command failed");
 }
 
 function defaultCharacter() {

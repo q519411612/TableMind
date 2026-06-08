@@ -5,8 +5,10 @@ import {
   renderCombat,
   renderDiceLog,
   renderEmpty,
+  renderError,
   renderEventFeed,
   renderMarkdown,
+  renderNotice,
 } from "./render-utils.mjs";
 
 export function renderPlayerRoom(input = {}) {
@@ -29,6 +31,8 @@ export function renderPlayerRoom(input = {}) {
       </header>
 
       ${renderJoinPanel(input, labels, joined)}
+      ${renderError(input.errorMessage, labels)}
+      ${renderNotice(playerNextStep({ snapshot, playerId: input.playerId, joined, labels }), labels.nextStep)}
 
       <section class="tm-grid">
         <article class="tm-panel tm-panel-wide" data-panel="scene">
@@ -43,19 +47,19 @@ export function renderPlayerRoom(input = {}) {
 
         <article class="tm-panel tm-panel-wide" data-panel="feed">
           <h2>${escapeHtml(labels.publicFeed)}</h2>
-          ${renderEventFeed(snapshot?.eventLog ?? [], labels)}
+          ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
           ${renderMessageForm(snapshot, labels)}
         </article>
 
         <article class="tm-panel" data-panel="dice">
           <h2>${escapeHtml(labels.diceLog)}</h2>
-          ${renderDiceLog(snapshot?.diceLog ?? [], labels)}
+          ${renderDiceLog(snapshot?.diceLog ?? [], labels, snapshot?.eventLog ?? [], snapshot?.combat)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="combat">
           <h2>${escapeHtml(labels.combat)}</h2>
           ${renderCombat(snapshot?.combat, labels)}
-          ${renderAttackForm(snapshot, labels)}
+          ${renderAttackForm(snapshot, input.playerId, labels)}
         </article>
 
         <article class="tm-panel tm-panel-wide" data-panel="recap">
@@ -169,18 +173,70 @@ function renderMessageForm(snapshot, labels) {
   `;
 }
 
-function renderAttackForm(snapshot, labels) {
+function renderAttackForm(snapshot, playerId, labels) {
   if (!snapshot?.combat) {
     return "";
   }
 
+  const attacker = activePlayerCombatant(snapshot.combat, playerId);
+  const attack = attacker?.attacks?.[0];
+  const targets = (snapshot.combat.combatants ?? []).filter(
+    (combatant) =>
+      combatant.id !== attacker?.id &&
+      !["defeated", "dead", "fled"].includes(combatant.status),
+  );
+
+  if (!attacker || !attack || targets.length === 0) {
+    return renderEmpty(labels.noAvailableAttack);
+  }
+
   return `
     <form data-action="combat-attack" class="tm-inline-form">
+      <input type="hidden" name="attackerCombatantId" value="${escapeHtml(attacker.id)}" />
+      <input type="hidden" name="attackId" value="${escapeHtml(attack.id)}" />
       <label>
         ${escapeHtml(labels.target)}
-        <input name="targetCombatantId" required />
+        <select name="targetCombatantId" required>
+          ${targets
+            .map(
+              (target) =>
+                `<option value="${escapeHtml(target.id)}">${escapeHtml(target.displayName ?? target.id)}</option>`,
+            )
+            .join("")}
+        </select>
       </label>
-      <button type="submit">${escapeHtml(labels.attack)}</button>
+      <button type="submit">${escapeHtml(labels.attack)} ${escapeHtml(attack.name ?? attack.id)}</button>
     </form>
   `;
+}
+
+function activePlayerCombatant(combat, playerId) {
+  return (combat.combatants ?? []).find(
+    (combatant) =>
+      combatant.id === combat.activeCombatantId &&
+      combatant.playerId === playerId &&
+      !["defeated", "dead", "fled"].includes(combatant.status),
+  );
+}
+
+function playerNextStep(input) {
+  if (!input.joined) {
+    return input.labels.nextJoinInvite;
+  }
+  if (ownCharacters(input.snapshot, input.playerId).length === 0) {
+    return input.labels.nextCreateDemoCharacter;
+  }
+  if (input.snapshot?.phase === "lobby") {
+    return input.labels.nextWaitingHostStart;
+  }
+  if (input.snapshot?.phase === "playing") {
+    return input.labels.nextDescribeAction;
+  }
+  if (input.snapshot?.phase === "combat") {
+    return input.labels.nextResolveCombat;
+  }
+  if (input.snapshot?.phase === "ended") {
+    return input.labels.nextReadRecap;
+  }
+  return undefined;
 }

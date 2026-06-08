@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { validateAdventureModule } from "../../../packages/adventure-loader/src/index.mjs";
+import {
+  localizeAdventureModule,
+  validateAdventureModule,
+} from "../../../packages/adventure-loader/src/index.mjs";
 import {
   appendSessionEvent,
   createCharacter,
@@ -389,7 +392,7 @@ export function createRoomService(options = {}) {
     }
 
     if (input.viewerRole === "host" || input.viewerRole === "system") {
-      return buildHostAdventureSnapshot(room);
+      return buildHostAdventureSnapshot(room, input.locale);
     }
 
     if (input.viewerRole !== "player") {
@@ -400,7 +403,7 @@ export function createRoomService(options = {}) {
       throw new Error("Player adventure snapshot requires viewerPlayerId");
     }
 
-    return buildPlayerAdventureSnapshot(room);
+    return buildPlayerAdventureSnapshot(room, input.locale);
   }
 
   function revealClue(input) {
@@ -913,9 +916,9 @@ function validateAdventureForRoom(room, adventure) {
   }
 }
 
-function buildHostAdventureSnapshot(room) {
-  const adventure = room.adventure;
-  const currentScene = requireCurrentScene(room);
+function buildHostAdventureSnapshot(room, locale) {
+  const adventure = localizeAdventureModule(room.adventure, locale);
+  const currentScene = requireCurrentScene(room, adventure);
 
   return {
     id: adventure.id,
@@ -933,9 +936,9 @@ function buildHostAdventureSnapshot(room) {
   };
 }
 
-function buildPlayerAdventureSnapshot(room) {
-  const adventure = room.adventure;
-  const currentScene = requireCurrentScene(room);
+function buildPlayerAdventureSnapshot(room, locale) {
+  const adventure = localizeAdventureModule(room.adventure, locale);
+  const currentScene = requireCurrentScene(room, adventure);
   const revealed = new Set(room.state.discoveredClueIds);
   const visibleClues = sceneClues(adventure, currentScene).filter(
     (clue) => clue.visibility === "public" || revealed.has(clue.id),
@@ -961,8 +964,8 @@ function buildPlayerAdventureSnapshot(room) {
   };
 }
 
-function requireCurrentScene(room) {
-  const currentScene = room.adventure.scenes.find(
+function requireCurrentScene(room, adventure = room.adventure) {
+  const currentScene = adventure.scenes.find(
     (scene) => scene.id === room.state.currentSceneId,
   );
   if (!currentScene) {

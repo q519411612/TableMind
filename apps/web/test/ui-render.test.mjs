@@ -6,6 +6,8 @@ import {
   createPlayerCommandClient,
   createTableMindApi,
 } from "../src/api-client.mjs";
+import { buildHostReviewUpdateFromForm } from "../src/host-review-form.mjs";
+import { SUPPORTED_LOCALES, uiText } from "../src/i18n.mjs";
 import { renderHostRoom } from "../src/render-host.mjs";
 import { renderPlayerRoom } from "../src/render-player.mjs";
 
@@ -105,6 +107,21 @@ test("renderers can render fixed UI labels in English", () => {
   assert.ok(hostHtml.includes("Run AI"));
 });
 
+test("supported locales expose the same fixed UI label keys", () => {
+  const [baseLocale, ...otherLocales] = SUPPORTED_LOCALES;
+  const baseKeys = Object.keys(uiText(baseLocale)).sort();
+
+  for (const locale of otherLocales) {
+    const labels = uiText(locale);
+    assert.deepEqual(Object.keys(labels).sort(), baseKeys, locale);
+    for (const key of baseKeys) {
+      assert.equal(typeof labels[key], "string", `${locale}.${key}`);
+      assert.notEqual(labels[key].trim(), "", `${locale}.${key}`);
+      assert.equal(labels[key].includes("undefined"), false, `${locale}.${key}`);
+    }
+  }
+});
+
 test("player renderer can render fixed UI labels in Chinese", () => {
   const joinHtml = renderPlayerRoom({
     locale: "zh-CN",
@@ -128,6 +145,105 @@ test("player renderer can render fixed UI labels in Chinese", () => {
   assert.ok(html.includes("角色"));
   assert.ok(html.includes("刷新"));
   assert.equal(html.includes(secretText), false);
+});
+
+test("Chinese player UI localizes combat and review labels without leaking DM text", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.eventLog = [
+    ...snapshot.eventLog,
+    {
+      type: "attack.resolved",
+      attackerCombatantId: "combatant_char_ada",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      attackId: "attack_longsword",
+      attackResult: {
+        d20: {
+          formula: "1d20",
+          total: 14,
+        },
+        attackBonus: 5,
+        total: 19,
+        armorClass: 13,
+        hit: true,
+      },
+    },
+    {
+      type: "damage.applied",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      damageResult: {
+        roll: {
+          formula: "1d8+3",
+          total: 8,
+        },
+        amount: 8,
+        damageType: "slashing",
+        resultingHp: 0,
+      },
+    },
+  ];
+  snapshot.combat.combatants[1].status = "defeated";
+
+  const playerHtml = renderPlayerRoom({
+    locale: "zh-CN",
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+  const hostHtml = renderHostRoom({
+    locale: "zh-CN",
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: snapshot.combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a state patch.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lantern trembles in the rain.",
+          revealProposals: [
+            {
+              entityType: "clue",
+              entityId: "clue_broken_lens",
+              reason: "The player inspected the lens.",
+            },
+          ],
+          statePatch: {
+            op: "replace",
+            path: "/phase",
+            value: "ended",
+          },
+        },
+      },
+    ],
+  });
+
+  assert.ok(playerHtml.includes("轮次 2"));
+  assert.ok(playerHtml.includes("Longsword 攻击 19 对 AC 13: 命中"));
+  assert.ok(playerHtml.includes("伤害 8 slashing"));
+  assert.ok(playerHtml.includes("已倒下"));
+  assert.ok(hostHtml.includes("审核队列"));
+  assert.ok(hostHtml.includes("风险"));
+  assert.ok(hostHtml.includes("公开消息"));
+  assert.ok(hostHtml.includes("揭示提议"));
+  assert.ok(hostHtml.includes("状态补丁"));
+  assert.equal(playerHtml.includes("undefined"), false);
+  assert.equal(hostHtml.includes("undefined"), false);
+  assert.equal(playerHtml.includes(secretText), false);
+  assert.equal(playerHtml.includes(hostPauseReason), false);
+  assert.equal(playerHtml.includes("host.review"), false);
+  assert.equal(playerHtml.includes("state.patch"), false);
 });
 
 test("localized UI keeps authored gameplay text unchanged", () => {
@@ -214,6 +330,143 @@ test("Host renderer hides completed review items from the pending queue", () => 
   assert.equal(html.includes("AI proposed a reveal."), false);
 });
 
+test("Host renderer summarizes pending review payloads and exposes edit controls", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a state patch.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lantern trembles in the rain.",
+          privateMessages: [
+            {
+              playerId: "player_0002",
+              message: "Only Ada should see this.",
+            },
+          ],
+          revealProposals: [
+            {
+              entityType: "clue",
+              entityId: "clue_broken_lens",
+              reason: "The player inspected the lens.",
+            },
+          ],
+          statePatch: {
+            op: "replace",
+            path: "/phase",
+            value: "ended",
+          },
+        },
+      },
+    ],
+  });
+
+  assert.ok(html.includes("Type"));
+  assert.ok(html.includes("ai_output"));
+  assert.ok(html.includes("Risk"));
+  assert.ok(html.includes("high"));
+  assert.ok(html.includes("Reason"));
+  assert.ok(html.includes("AI proposed a state patch."));
+  assert.ok(html.includes("Public Message"));
+  assert.ok(html.includes("The lantern trembles in the rain."));
+  assert.ok(html.includes("Reveal Proposal"));
+  assert.ok(html.includes("clue: clue_broken_lens"));
+  assert.ok(html.includes("State Patch"));
+  assert.ok(html.includes("replace /phase"));
+  assert.ok(html.includes("data-review-action=\"edit\""));
+  assert.ok(html.includes("name=\"publicMessage\""));
+  assert.ok(html.includes("name=\"proposedPayload\""));
+  assert.ok(html.includes("Save Edit"));
+  assert.equal(html.includes("<pre>"), false);
+});
+
+test("Host renderer shows clear AI pause and active states", () => {
+  const pausedHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+  const activeHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      flags: {
+        aiPaused: {
+          visibility: "dm_only",
+          value: false,
+        },
+      },
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(pausedHtml.includes("AI Status"));
+  assert.ok(pausedHtml.includes("Paused for Host review"));
+  assert.equal(pausedHtml.includes("Paused: true"), false);
+  assert.ok(activeHtml.includes("AI Status"));
+  assert.ok(activeHtml.includes("Active for AI turns"));
+  assert.equal(activeHtml.includes("Paused: false"), false);
+});
+
+test("Host review edit form parser submits edited payload and rejects invalid JSON", () => {
+  const formData = new FormData();
+  formData.set("itemId", "review_0001");
+  formData.set("action", "edit");
+  formData.set("reason", "Host edited output.");
+  formData.set("publicMessage", "Edited safe narration.");
+  formData.set(
+    "proposedPayload",
+    JSON.stringify({
+      publicMessage: "Draft narration.",
+      statePatch: {
+        op: "replace",
+        path: "/phase",
+        value: "ended",
+      },
+    }),
+  );
+
+  assert.deepEqual(buildHostReviewUpdateFromForm(formData), {
+    itemId: "review_0001",
+    action: "edit",
+    reason: "Host edited output.",
+    proposedPayload: {
+      publicMessage: "Edited safe narration.",
+      statePatch: {
+        op: "replace",
+        path: "/phase",
+        value: "ended",
+      },
+    },
+  });
+
+  formData.set("proposedPayload", "{ invalid json");
+  assert.throws(
+    () => buildHostReviewUpdateFromForm(formData),
+    /Invalid review payload JSON/,
+  );
+});
+
 test("static web entries expose a language switcher hook", () => {
   const indexHtml = readFileSync(
     new URL("../public/index.html", import.meta.url),
@@ -230,6 +483,25 @@ test("static web entries expose a language switcher hook", () => {
 
   for (const html of [indexHtml, playerHtml, hostHtml]) {
     assert.ok(html.includes("data-language-switcher"));
+  }
+});
+
+test("static web entry i18n hooks reference supported label keys", () => {
+  const html = readFileSync(
+    new URL("../public/index.html", import.meta.url),
+    "utf8",
+  );
+  const keys = [...html.matchAll(/data-i18n="([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+
+  assert.notEqual(keys.length, 0);
+  for (const locale of SUPPORTED_LOCALES) {
+    const labels = uiText(locale);
+    for (const key of keys) {
+      assert.equal(typeof labels[key], "string", `${locale}.${key}`);
+      assert.notEqual(labels[key].trim(), "", `${locale}.${key}`);
+    }
   }
 });
 
@@ -278,6 +550,243 @@ test("Host renderer includes DM-only scene, review, combat, and recap controls",
   assert.ok(html.includes("Secret: Broken Seal"));
 });
 
+test("Host renderer surfaces invite copy, player readiness, and next setup hint", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "/player.html?roomId=room_0001",
+    },
+    snapshot: setupReadyHostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(html.includes("data-action=\"copy-invite\""));
+  assert.ok(html.includes("/player.html?roomId=room_0001"));
+  assert.ok(html.includes("Players ready: 2/2"));
+  assert.ok(html.includes("Ready"));
+  assert.ok(html.includes("Ready to start the session."));
+  assert.equal(html.includes("Needs character"), false);
+});
+
+test("Player renderer pre-fills invite room id and shows setup next steps", () => {
+  const joinHtml = renderPlayerRoom({
+    roomId: "room_0001",
+  });
+  const noCharacterHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: {
+      ...playerSnapshot(),
+      phase: "lobby",
+      characters: {},
+    },
+  });
+  const readyHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: {
+      ...playerSnapshot(),
+      phase: "lobby",
+    },
+  });
+  const liveHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: {
+      ...playerSnapshot(),
+      phase: "playing",
+    },
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+
+  assert.ok(joinHtml.includes("name=\"roomId\" value=\"room_0001\""));
+  assert.ok(joinHtml.includes("Join from the invite link to enter the room."));
+  assert.ok(noCharacterHtml.includes("Create a demo-ready character."));
+  assert.ok(readyHtml.includes("Waiting for the Host to start."));
+  assert.ok(liveHtml.includes("Describe an action or wait for the AI prompt."));
+  assert.equal(liveHtml.includes(secretText), false);
+});
+
+test("player renderer derives attack controls from projected combat state", () => {
+  const html = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot: combatReadyPlayerSnapshot(),
+  });
+
+  assert.ok(html.includes("data-action=\"combat-attack\""));
+  assert.ok(html.includes("name=\"attackerCombatantId\" value=\"combatant_char_ada\""));
+  assert.ok(html.includes("name=\"attackId\" value=\"attack_longsword\""));
+  assert.ok(html.includes("<select name=\"targetCombatantId\" required>"));
+  assert.ok(html.includes("value=\"combatant_monster_hill_scavenger_1\""));
+  assert.ok(html.includes("Hill Scavenger"));
+  assert.equal(html.includes("<input name=\"targetCombatantId\""), false);
+});
+
+test("combat renderers show round, turn order, AC, status, and conditions", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.combat.activeCombatantId = "combatant_monster_hill_scavenger_1";
+  snapshot.combat.combatants[0].initiative = 12;
+  snapshot.combat.combatants[0].armorClass = 16;
+  snapshot.combat.combatants[0].conditions = [
+    { conditionId: "condition_blessed", source: "Ada" },
+  ];
+  snapshot.combat.combatants[1].initiative = 7;
+  snapshot.combat.combatants[1].armorClass = 13;
+  snapshot.combat.combatants[1].conditions = [
+    { conditionId: "condition_grappled", source: "Host" },
+  ];
+
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: snapshot.combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  for (const html of [playerHtml, hostHtml]) {
+    assert.ok(html.includes("Round 2"));
+    assert.ok(html.includes("Active: Hill Scavenger"));
+    assert.ok(html.includes("Turn Order"));
+    assert.ok(html.includes("Ada Thorne"));
+    assert.ok(html.includes("Initiative 12"));
+    assert.ok(html.includes("AC 16"));
+    assert.ok(html.includes("condition_blessed"));
+    assert.ok(html.includes("Hill Scavenger"));
+    assert.ok(html.includes("Initiative 7"));
+    assert.ok(html.includes("AC 13"));
+    assert.ok(html.includes("active"));
+    assert.ok(html.includes("condition_grappled"));
+  }
+});
+
+test("player renderer shows attack and damage outcomes without Host-only combat events", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.eventLog = [
+    ...snapshot.eventLog,
+    {
+      type: "attack.resolved",
+      attackerCombatantId: "combatant_char_ada",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      attackId: "attack_longsword",
+      attackResult: {
+        d20: {
+          formula: "1d20",
+          total: 14,
+        },
+        attackBonus: 5,
+        total: 19,
+        armorClass: 13,
+        hit: true,
+      },
+    },
+    {
+      type: "damage.applied",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      damageResult: {
+        roll: {
+          formula: "1d8+3",
+          total: 8,
+        },
+        amount: 8,
+        damageType: "slashing",
+        resultingHp: 0,
+      },
+    },
+  ];
+  snapshot.combat.combatants[1].hitPoints.current = 0;
+  snapshot.combat.combatants[1].status = "defeated";
+
+  const html = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+
+  assert.ok(html.includes("Longsword Attack 19 vs AC 13: hit"));
+  assert.ok(html.includes("Damage 8 slashing, HP 0"));
+  assert.ok(html.includes("1d20+5"));
+  assert.ok(html.includes("1d8+3"));
+  assert.ok(html.includes("Longsword"));
+  assert.ok(html.includes("defeated"));
+  assert.equal(html.includes("state.patch"), false);
+  assert.equal(html.includes(hostPauseReason), false);
+  assert.equal(html.includes(secretText), false);
+});
+
+test("player renderer hides attack controls when it is not the player's turn", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.combat.activeCombatantId = "combatant_monster_hill_scavenger_1";
+
+  const html = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+
+  assert.equal(html.includes("data-action=\"combat-attack\""), false);
+  assert.ok(html.includes("No available attack this turn."));
+});
+
+test("Host renderer derives combat patch targets from projected combat state", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: combatReadyPlayerSnapshot().combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(html.includes("<select name=\"combatantId\" required>"));
+  assert.ok(html.includes("value=\"combatant_monster_hill_scavenger_1\""));
+  assert.ok(html.includes("Hill Scavenger"));
+  assert.equal(html.includes("<input name=\"combatantId\""), false);
+});
+
+test("renderers show command errors without leaking undefined labels", () => {
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_missing",
+    errorMessage: "Room not found.",
+  });
+  const hostHtml = renderHostRoom({
+    errorMessage: "Adventure is not loaded.",
+  });
+
+  assert.ok(playerHtml.includes("role=\"alert\""));
+  assert.ok(playerHtml.includes("Room not found."));
+  assert.ok(hostHtml.includes("role=\"alert\""));
+  assert.ok(hostHtml.includes("Adventure is not loaded."));
+  assert.equal(playerHtml.includes("undefined"), false);
+  assert.equal(hostHtml.includes("undefined"), false);
+});
+
 test("UI command clients use the transport contract and keep player snapshots player-scoped", async () => {
   const calls = [];
   const api = createTableMindApi({
@@ -311,9 +820,11 @@ test("UI command clients use the transport contract and keep player snapshots pl
   await host.changeScene("scene_lantern_tower", "The party reaches the hill.");
   await host.revealClue("clue_broken_lens");
   await host.setAiPaused(true, "Host review.");
-  await host.updateReview("review_0001", "approve", "Safe.");
+  await host.updateReview("review_0001", "edit", "Host edited output.", {
+    publicMessage: "Edited safe narration.",
+  });
   await host.listReviewQueue();
-  await host.runAiTurn({ randomValues: [0.7] });
+  await host.runAiTurn({ locale: "zh-CN", randomValues: [0.7] });
   await host.startCombat({
     encounterId: "encounter_hill_scavengers",
     characterIds: ["char_ada"],
@@ -337,6 +848,10 @@ test("UI command clients use the transport contract and keep player snapshots pl
     attackId: "attack_longsword",
   });
   await player.refreshSnapshot();
+  await api.getAdventureSnapshot("room_0001", {
+    sessionToken: "tm_test_session_token_player",
+    locale: "zh-CN",
+  });
 
   assert.deepEqual(
     calls
@@ -363,6 +878,7 @@ test("UI command clients use the transport contract and keep player snapshots pl
     ],
   );
   assert.ok(calls.at(-1).url.includes("sessionToken=tm_test_session_token_player"));
+  assert.ok(calls.at(-1).url.includes("locale=zh-CN"));
   assert.equal(calls.some((call) => call.url.includes("viewerRole=host")), false);
   assert.equal(
     calls
@@ -377,6 +893,19 @@ test("UI command clients use the transport contract and keep player snapshots pl
     conditionId: "condition_prone",
   });
   assert.equal(conditionCall.body.payload.action, "apply");
+  const reviewCall = calls.find(
+    (call) => call.body?.type === "host.review.update",
+  );
+  assert.deepEqual(reviewCall.body.payload, {
+    itemId: "review_0001",
+    action: "edit",
+    reason: "Host edited output.",
+    proposedPayload: {
+      publicMessage: "Edited safe narration.",
+    },
+  });
+  const aiTurnCall = calls.find((call) => call.body?.type === "ai.turn.run");
+  assert.equal(aiTurnCall.body.payload.locale, "zh-CN");
 });
 
 function jsonResponse(body) {
@@ -463,6 +992,52 @@ function playerSnapshot() {
   };
 }
 
+function combatReadyPlayerSnapshot() {
+  const snapshot = playerSnapshot();
+  snapshot.combat = {
+    round: 2,
+    activeCombatantId: "combatant_char_ada",
+    combatants: [
+      {
+        id: "combatant_char_ada",
+        sourceId: "char_ada",
+        playerId: "player_0002",
+        kind: "character",
+        displayName: "Ada Thorne",
+        hitPoints: {
+          current: 12,
+          max: 12,
+        },
+        attacks: [
+          {
+            id: "attack_longsword",
+            name: "Longsword",
+          },
+        ],
+        status: "active",
+      },
+      {
+        id: "combatant_monster_hill_scavenger_1",
+        sourceId: "monster_hill_scavenger",
+        kind: "monster",
+        displayName: "Hill Scavenger",
+        hitPoints: {
+          current: 7,
+          max: 7,
+        },
+        attacks: [
+          {
+            id: "attack_claws",
+            name: "Claws",
+          },
+        ],
+        status: "active",
+      },
+    ],
+  };
+  return snapshot;
+}
+
 function hostSnapshot() {
   return {
     ...playerSnapshot(),
@@ -480,6 +1055,45 @@ function hostSnapshot() {
       },
     ],
   };
+}
+
+function setupReadyHostSnapshot() {
+  const snapshot = hostSnapshot();
+  snapshot.phase = "lobby";
+  snapshot.players = {
+    player_0001: {
+      id: "player_0001",
+      displayName: "Host",
+      role: "host",
+    },
+    player_0002: {
+      id: "player_0002",
+      displayName: "Ada",
+      role: "player",
+      characterId: "char_ada",
+    },
+    player_0003: {
+      id: "player_0003",
+      displayName: "Bran",
+      role: "player",
+      characterId: "char_bran",
+    },
+  };
+  snapshot.characters = {
+    char_ada: {
+      ...snapshot.characters.char_ada,
+      id: "char_ada",
+      playerId: "player_0002",
+    },
+    char_bran: {
+      ...snapshot.characters.char_ada,
+      id: "char_bran",
+      playerId: "player_0003",
+      name: "Bran Vale",
+      className: "Rogue",
+    },
+  };
+  return snapshot;
 }
 
 function playerAdventureSnapshot() {

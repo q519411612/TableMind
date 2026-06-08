@@ -4,6 +4,8 @@ import {
 } from "./api-client.mjs";
 import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
+import { buildHostReviewUpdateFromForm } from "./host-review-form.mjs";
+import { uiText } from "./i18n.mjs";
 import { renderHostRoom } from "./render-host.mjs";
 
 const appState = {
@@ -17,6 +19,8 @@ const appState = {
   adventureSnapshot: undefined,
   reviewQueue: [],
   stream: undefined,
+  errorMessage: undefined,
+  statusMessage: undefined,
 };
 
 await loadPlaytestBootstrap();
@@ -29,51 +33,81 @@ render();
 root.addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
+  clearError();
 
-  if (form.dataset.action === "create-room") {
-    const body = new FormData(form);
-    const result = await api.createRoom({
-      hostDisplayName: body.get("hostDisplayName"),
-      rulesetId: "5e-srd-5.2.1",
-      adventureModuleId: "adventure_lantern_beneath_hill",
-      startingSceneId: "scene_village_square",
-      now: new Date().toISOString(),
-    });
-    appState.room = result.data;
-    appState.snapshot = result.snapshot;
-    connectStream();
-    render();
-  }
+  try {
+    if (form.dataset.action === "create-room") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await api.createRoom({
+          hostDisplayName: body.get("hostDisplayName"),
+          rulesetId: "5e-srd-5.2.1",
+          adventureModuleId: "adventure_lantern_beneath_hill",
+          startingSceneId: "scene_village_square",
+          now: new Date().toISOString(),
+        }),
+      );
+      appState.room = result.data;
+      appState.snapshot = result.snapshot;
+      connectStream();
+      render();
+    }
 
-  if (form.dataset.command === "session.complete") {
-    const body = new FormData(form);
-    const result = await hostClient().completeSession(body.get("ending"), []);
-    appState.snapshot = result.snapshot;
-    render();
-  }
+    if (form.dataset.command === "session.complete") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await hostClient().completeSession(body.get("ending"), []),
+      );
+      appState.snapshot = result.snapshot;
+      render();
+    }
 
-  if (form.dataset.command === "combat.patch_hp") {
-    const body = new FormData(form);
-    const result = await hostClient().patchHitPoints(
-      body.get("combatantId"),
-      Number.parseInt(body.get("currentHp"), 10),
-      "Host patched HP.",
-    );
-    appState.snapshot = result.snapshot;
-    render();
-  }
+    if (form.dataset.command === "combat.patch_hp") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await hostClient().patchHitPoints(
+          body.get("combatantId"),
+          Number.parseInt(body.get("currentHp"), 10),
+          "Host patched HP.",
+        ),
+      );
+      appState.snapshot = result.snapshot;
+      render();
+    }
 
-  if (form.dataset.command === "combat.patch_condition") {
-    const body = new FormData(form);
-    const result = await hostClient().patchCondition(
-      body.get("combatantId"),
-      body.get("condition"),
-      body.get("action"),
-      "Host patched condition.",
-    );
-    appState.snapshot = result.snapshot;
-    await syncReviewQueue();
-    render();
+    if (form.dataset.command === "combat.patch_condition") {
+      const body = new FormData(form);
+      const result = requireOkResult(
+        await hostClient().patchCondition(
+          body.get("combatantId"),
+          body.get("condition"),
+          body.get("action"),
+          "Host patched condition.",
+        ),
+      );
+      appState.snapshot = result.snapshot;
+      await syncReviewQueue();
+      render();
+    }
+
+    if (form.dataset.command === "host.review.update") {
+      const update = buildHostReviewUpdateFromForm(new FormData(form));
+      const result = requireOkResult(
+        await hostClient().updateReview(
+          update.itemId,
+          update.action,
+          update.reason,
+          update.proposedPayload,
+        ),
+      );
+      if (result?.snapshot) {
+        appState.snapshot = result.snapshot;
+      }
+      await syncReviewQueue();
+      render();
+    }
+  } catch (error) {
+    showError(error);
   }
 });
 
@@ -88,7 +122,22 @@ root.addEventListener("click", async (event) => {
 
   if (button.dataset.action === "set-language") {
     appState.locale = storeBrowserLocale(button.dataset.locale);
+    if (appState.room) {
+      await syncAdventureSnapshot();
+    }
     render();
+    return;
+  }
+
+  if (button.dataset.action === "copy-invite") {
+    clearError();
+    try {
+      await copyInvite(button.dataset.inviteLink);
+      appState.statusMessage = uiText(appState.locale).copiedInvite;
+      render();
+    } catch (error) {
+      showError(error);
+    }
     return;
   }
 
@@ -96,11 +145,16 @@ root.addEventListener("click", async (event) => {
     if (!appState.room) {
       return;
     }
-    const result = await hostClient().refreshSnapshot();
-    appState.snapshot = result.snapshot;
-    await syncAdventureSnapshot();
-    await syncReviewQueue();
-    render();
+    clearError();
+    try {
+      const result = requireOkResult(await hostClient().refreshSnapshot());
+      appState.snapshot = result.snapshot;
+      await syncAdventureSnapshot();
+      await syncReviewQueue();
+      render();
+    } catch (error) {
+      showError(error);
+    }
     return;
   }
 
@@ -108,13 +162,19 @@ root.addEventListener("click", async (event) => {
     return;
   }
 
-  const result = await dispatchHostCommand(button);
-  if (result?.snapshot) {
-    appState.snapshot = result.snapshot;
+  clearError();
+  try {
+    const result = requireOkResult(await dispatchHostCommand(button));
+    if (result?.snapshot) {
+      appState.snapshot = result.snapshot;
+    }
+    applyCommandStatus(result);
+    await syncAdventureSnapshot();
+    await syncReviewQueue();
+    render();
+  } catch (error) {
+    showError(error);
   }
-  await syncAdventureSnapshot();
-  await syncReviewQueue();
-  render();
 });
 
 function hostClient() {
@@ -153,7 +213,7 @@ async function dispatchHostCommand(button) {
     );
   }
   if (button.dataset.command === "ai.turn.run") {
-    return client.runAiTurn();
+    return client.runAiTurn({ locale: appState.locale });
   }
   if (button.dataset.command === "combat.start") {
     return client.startCombat({
@@ -177,16 +237,30 @@ async function dispatchHostCommand(button) {
   return undefined;
 }
 
+function applyCommandStatus(result) {
+  const labels = uiText(appState.locale);
+  if (result?.commandType === "ai.turn.run" && result.data?.status === "provider_disabled") {
+    appState.statusMessage = labels.providerDisabled;
+    return;
+  }
+  if (result?.commandType === "ai.turn.run" && result.data?.status === "host_review_required") {
+    appState.statusMessage = labels.aiReviewRequired;
+  }
+}
+
 async function syncAdventureSnapshot() {
   if (!appState.room) {
     return;
   }
   const result = await api.getAdventureSnapshot(appState.room.roomId, {
     sessionToken: appState.room.hostSessionToken,
+    locale: appState.locale,
   });
   if (result.ok) {
     appState.adventureSnapshot = result.snapshot;
+    return;
   }
+  throw resultError(result);
 }
 
 async function syncReviewQueue() {
@@ -196,7 +270,9 @@ async function syncReviewQueue() {
   const result = await hostClient().listReviewQueue();
   if (result.ok) {
     appState.reviewQueue = result.data.reviewQueue;
+    return;
   }
+  throw resultError(result);
 }
 
 function connectStream() {
@@ -248,6 +324,38 @@ async function loadPlaytestBootstrap() {
   appState.baseUrl = appState.baseUrl || config.apiBaseUrl;
   appState.fixtureUrls = config.fixtures;
   appState.compendiumEntries = (await loadJson(appState.fixtureUrls.compendiumUrl)).entries;
+}
+
+function clearError() {
+  appState.errorMessage = undefined;
+  appState.statusMessage = undefined;
+}
+
+function showError(error) {
+  appState.errorMessage = error.message;
+  render();
+}
+
+function requireOkResult(result) {
+  if (result?.ok === false) {
+    throw resultError(result);
+  }
+  return result;
+}
+
+function resultError(result) {
+  return new Error(result?.error?.message ?? result?.error?.code ?? "Command failed");
+}
+
+async function copyInvite(inviteLink) {
+  if (
+    typeof inviteLink !== "string" ||
+    inviteLink.length === 0 ||
+    typeof globalThis.navigator?.clipboard?.writeText !== "function"
+  ) {
+    throw new Error(uiText(appState.locale).clipboardUnavailable);
+  }
+  await globalThis.navigator.clipboard.writeText(inviteLink);
 }
 
 async function loadJson(url) {

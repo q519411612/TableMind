@@ -43,6 +43,23 @@ test("AI context is room-aware and excludes provider secrets", async () => {
   assert.equal(JSON.stringify(context).includes(testProviderApiKey), false);
 });
 
+test("AI context can use localized authored adventure text", async () => {
+  const { service, room } = await createLoadedAiRoom();
+
+  const context = buildAiContextForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    locale: "zh-CN",
+  });
+
+  assert.equal(context.currentScene.title, "灯塔");
+  assert.ok(context.currentScene.dmNotes.text.includes("活板门"));
+  assert.ok(
+    context.unrevealedClues.some((clue) => clue.title === "破裂的灯镜"),
+  );
+  assert.ok(context.dmOnlySecrets[0].text.includes("神龛封印"));
+});
+
 test("AI context bounds large public history and keeps newest public events", async () => {
   const { service, room } = await createLoadedAiRoom();
   for (let index = 0; index < 60; index += 1) {

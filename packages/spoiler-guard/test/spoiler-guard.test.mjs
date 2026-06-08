@@ -126,3 +126,43 @@ test("detects CJK secret leakage after Unicode normalization", () => {
   assert.equal(result.riskLevel, "high");
   assert.equal(result.findings[0].entityId, "secret_zh_broken_seal");
 });
+
+test("detects localized unrevealed clue aliases and exact clue text", () => {
+  const aliasResult = checkSpoilers({
+    publicMessage: "你们看见塔下活板门。",
+    hiddenEntities: [],
+    unrevealedClues: [
+      {
+        id: "clue_broken_lens",
+        title: "破裂的灯镜",
+        text: "破裂灯镜的内侧被熏黑，煤灰纹路蜷向一扇隐藏的活板门。",
+        aliases: ["塔下活板门"],
+        visibility: "dm_only",
+      },
+    ],
+    dmOnlySecrets: [],
+    viewerRole: "player",
+  });
+  const textResult = checkSpoilers({
+    publicMessage: "破裂灯镜的内侧被熏黑，煤灰纹路蜷向一扇隐藏的活板门。",
+    hiddenEntities: [],
+    unrevealedClues: [
+      {
+        id: "clue_broken_lens",
+        title: "破裂的灯镜",
+        text: "破裂灯镜的内侧被熏黑，煤灰纹路蜷向一扇隐藏的活板门。",
+        aliases: ["塔下活板门"],
+        visibility: "dm_only",
+      },
+    ],
+    dmOnlySecrets: [],
+    viewerRole: "player",
+  });
+
+  assert.equal(aliasResult.allowed, false);
+  assert.equal(aliasResult.riskLevel, "medium");
+  assert.equal(aliasResult.findings[0].matchedText, "塔下活板门");
+  assert.equal(textResult.allowed, false);
+  assert.equal(textResult.riskLevel, "medium");
+  assert.equal(textResult.findings[0].matchedText, "破裂灯镜的内侧被熏黑，煤灰纹路蜷向一扇隐藏的活板门。");
+});

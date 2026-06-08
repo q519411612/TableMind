@@ -44,6 +44,7 @@ export function buildAiContextForRoom(input) {
   const adventure = input.roomService.getAdventureSnapshot({
     roomId: input.roomId,
     viewerRole: "host",
+    locale: input.locale,
   });
   const discoveredClues = new Set(sessionSnapshot.discoveredClueIds ?? []);
   const currentScene = adventure.currentScene;
