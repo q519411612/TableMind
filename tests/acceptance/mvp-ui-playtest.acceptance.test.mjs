@@ -286,6 +286,13 @@ test("MVP-0.9 simulated UI playtest completes with player-safe rendering", async
     assert.ok(zhPlayerHtml.includes("## 摘要"));
     assert.ok(zhPlayerHtml.includes("灯塔"));
     assert.ok(zhPlayerHtml.includes("破裂的灯镜"));
+    assert.ok(zhPlayerHtml.includes("山丘拾荒者"));
+    assert.equal(zhPlayerRecap.markdown.includes("scene_lantern_tower"), false);
+    assert.equal(zhPlayerRecap.markdown.includes("clue_broken_lens"), false);
+    assert.equal(
+      zhPlayerRecap.markdown.includes("encounter_hill_scavengers"),
+      false,
+    );
     assert.ok(zhPlayerHtml.includes("Cold soot curls around the cracked lantern frame."));
     assert.ok(zhPlayerHtml.includes("Repair the Lantern"));
     assert.equal(zhPlayerHtml.includes("undefined"), false);

@@ -143,6 +143,134 @@ test("disabled playtest provider mode runs local mock AI without network calls",
   }
 });
 
+test("disabled playtest provider mode localizes mock AI output for Chinese player feed, dice, and recap", async () => {
+  const app = await createPlaytestServer({
+    env: {
+      TABLEMIND_AI_PROVIDER_ENABLED: "false",
+    },
+    logger: quietLogger(),
+    fetchImpl: async () => {
+      throw new Error("disabled playtest mock must not call fetch");
+    },
+  });
+  const launch = await app.start({ port: 0 });
+  try {
+    const created = await postJson(`${launch.baseUrl}/rooms`, {
+      hostDisplayName: "Host",
+      rulesetId: "5e-srd-5.2.1",
+      adventureModuleId: "adventure_lantern_beneath_hill",
+      startingSceneId: "scene_village_square",
+      now: "2026-06-02T15:00:00.000Z",
+    });
+    const joined = await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T15:01:00.000Z",
+    });
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "character.create",
+      sessionToken: joined.body.data.playerSessionToken,
+      payload: {
+        character: character({
+          id: "char_ada",
+          name: "Ada Thorne",
+          className: "Fighter",
+          abilities: {
+            strength: 14,
+            dexterity: 12,
+            constitution: 14,
+            intelligence: 16,
+            wisdom: 11,
+            charisma: 8,
+          },
+          armorClass: 16,
+          maxHp: 12,
+          skillProficiencies: ["investigation"],
+          attacks: [
+            {
+              id: "attack_longsword",
+              name: "Longsword",
+              attackBonus: 5,
+              damage: "1d8+3",
+              damageType: "slashing",
+            },
+          ],
+        }),
+      },
+      now: "2026-06-02T15:02:00.000Z",
+    });
+    const adventure = await fetchJson(
+      `${launch.baseUrl}/playtest/fixtures/demo-adventure.json?roomId=${created.body.data.roomId}&sessionToken=${created.body.data.hostSessionToken}`,
+    );
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "adventure.load",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: { adventure: adventure.body },
+      now: "2026-06-02T15:03:00.000Z",
+    });
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "session.start",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: {},
+      now: "2026-06-02T15:04:00.000Z",
+    });
+
+    const aiTurn = await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "ai.turn.run",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: {
+        locale: "zh-CN",
+        randomValues: [0.7],
+      },
+      now: "2026-06-02T15:05:00.000Z",
+    });
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "session.complete",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: {
+        ending: "修复灯火",
+        rewards: ["村民的感谢"],
+      },
+      now: "2026-06-02T15:06:00.000Z",
+    });
+    const playerSnapshot = await fetchJson(
+      `${launch.baseUrl}/rooms/${created.body.data.roomId}/snapshot?sessionToken=${joined.body.data.playerSessionToken}`,
+    );
+    const playerRecap = await fetchJson(
+      `${launch.baseUrl}/rooms/${created.body.data.roomId}/recap?sessionToken=${joined.body.data.playerSessionToken}&locale=zh-CN`,
+    );
+    const playerText = JSON.stringify({
+      snapshot: playerSnapshot.body.snapshot,
+      recap: playerRecap.body.data.recap,
+    });
+
+    assert.equal(aiTurn.status, 200);
+    assert.equal(aiTurn.body.data.status, "broadcast_ready");
+    assert.equal(aiTurn.body.events[0].check.reason, "检查灯上的煤灰。");
+    assert.ok(aiTurn.body.events[1].message.includes("冰冷煤灰"));
+    assert.ok(
+      playerSnapshot.body.snapshot.eventLog.some(
+        (event) =>
+          event.type === "ai.message" &&
+          event.message.includes("冰冷煤灰"),
+      ),
+    );
+    assert.ok(
+      playerSnapshot.body.snapshot.diceLog.some(
+        (roll) => roll.check?.reason === "检查灯上的煤灰。",
+      ),
+    );
+    assert.ok(playerRecap.body.data.recap.markdown.includes("冰冷煤灰"));
+    assert.ok(playerRecap.body.data.recap.markdown.includes("检查灯上的煤灰。"));
+    assert.equal(playerText.includes("破损封印"), false);
+    assert.equal(playerText.includes("塔下活板门"), false);
+    assert.equal(playerText.includes("dm_only"), false);
+    assert.equal(playerText.includes("host.review"), false);
+    assert.equal(playerText.includes("state.patch"), false);
+  } finally {
+    await app.stop();
+  }
+});
+
 test("playtest fixture routes expose approved content without provider secrets", async () => {
   const testProviderApiKey = "<TEST_PROVIDER_API_KEY_DO_NOT_USE>";
   const app = await createPlaytestServer({

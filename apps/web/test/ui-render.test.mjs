@@ -108,6 +108,27 @@ test("renderers can render fixed UI labels in English", () => {
   assert.ok(hostHtml.includes("Run AI"));
 });
 
+test("Host combat controls render non-empty Start, Advance, and End Combat labels", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: combatReadyPlayerSnapshot().combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+  const buttonTextByCommand = extractButtonTextByCommand(html);
+
+  assert.equal(buttonTextByCommand.get("combat.start"), "Start Encounter");
+  assert.equal(buttonTextByCommand.get("combat.advance_turn"), "Advance Turn");
+  assert.equal(buttonTextByCommand.get("combat.end"), "End Combat");
+});
+
 test("supported locales expose the same fixed UI label keys", () => {
   const [baseLocale, ...otherLocales] = SUPPORTED_LOCALES;
   const baseKeys = Object.keys(uiText(baseLocale)).sort();
@@ -121,6 +142,24 @@ test("supported locales expose the same fixed UI label keys", () => {
       assert.equal(labels[key].includes("undefined"), false, `${locale}.${key}`);
     }
   }
+});
+
+test("demo character presets give the first two browser players distinct ready characters", async () => {
+  const { demoCharacterForPlayer } = await import("../src/demo-character-presets.mjs");
+  const ada = demoCharacterForPlayer("player_0002");
+  const bran = demoCharacterForPlayer("player_0003");
+
+  assert.equal(ada.id, "char_player_0002");
+  assert.equal(ada.name, "Ada Thorne");
+  assert.equal(ada.className, "Fighter");
+  assert.equal(ada.attacks[0].name, "Longsword");
+  assert.equal(bran.id, "char_player_0003");
+  assert.equal(bran.name, "Bran Vale");
+  assert.equal(bran.className, "Rogue");
+  assert.equal(bran.attacks[0].name, "Dagger");
+  assert.notEqual(ada.name, bran.name);
+  assert.notEqual(ada.className, bran.className);
+  assert.notEqual(ada.attacks[0].name, bran.attacks[0].name);
 });
 
 test("player renderer can render fixed UI labels in Chinese", () => {
@@ -384,6 +423,11 @@ test("Host renderer summarizes pending review payloads and exposes edit controls
   assert.ok(html.includes("clue: clue_broken_lens"));
   assert.ok(html.includes("State Patch"));
   assert.ok(html.includes("replace /phase"));
+  assert.ok(
+    html.includes(
+      "Approve/Edit commits only the public message. Apply reveal proposals through Host reveal controls; state patches stay manual Host overrides.",
+    ),
+  );
   assert.ok(html.includes("data-review-action=\"edit\""));
   assert.ok(html.includes("name=\"publicMessage\""));
   assert.ok(html.includes("name=\"proposedPayload\""));
@@ -992,6 +1036,20 @@ function jsonResponse(body) {
       return structuredClone(body);
     },
   };
+}
+
+function extractButtonTextByCommand(html) {
+  const buttons = new Map();
+  for (const match of html.matchAll(
+    /<button\b[^>]*data-command="([^"]+)"[^>]*>([\s\S]*?)<\/button>/g,
+  )) {
+    buttons.set(match[1], stripTags(match[2]).trim());
+  }
+  return buttons;
+}
+
+function stripTags(value) {
+  return value.replaceAll(/<[^>]*>/g, "");
 }
 
 function playerSnapshot() {

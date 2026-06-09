@@ -7,10 +7,11 @@ export function generateSessionRecap(input) {
   const title = labels.title(input.adventure.title);
   const audience = input.viewerRole;
   const events = projectEventsForRecap(input.events ?? [], input.viewerRole);
-  const timeline = buildTimeline(events, labels);
+  const entityTitles = buildEntityTitleIndex(input.adventure);
+  const timeline = buildTimeline(events, labels, entityTitles);
   const keyRolls = buildKeyRolls(events);
   const discoveredClues = buildDiscoveredClues(input);
-  const combatOutcomes = buildCombatOutcomes(events, labels);
+  const combatOutcomes = buildCombatOutcomes(events, labels, entityTitles);
   const rewards = publicListFlag(input.sessionState.flags?.rewards);
   const characterStates = buildCharacterStates(input.sessionState);
   const unresolvedThreads =
@@ -42,21 +43,25 @@ export function generateSessionRecap(input) {
   };
 }
 
-function buildTimeline(events, labels) {
+function buildTimeline(events, labels, entityTitles) {
   return events.map((event) => ({
     eventId: event.id,
     type: event.type,
     createdAt: event.createdAt,
-    text: timelineText(event, labels),
+    text: timelineText(event, labels, entityTitles),
   }));
 }
 
-function timelineText(event, labels) {
+function timelineText(event, labels, entityTitles = emptyEntityTitleIndex()) {
   if (event.type === "scene.changed") {
-    return labels.sceneChanged(event.sceneId);
+    return labels.sceneChanged(
+      entityTitles.scenes.get(event.sceneId) ?? event.sceneId,
+    );
   }
   if (event.type === "clue.revealed") {
-    return labels.clueRevealed(event.clueId);
+    return labels.clueRevealed(
+      entityTitles.clues.get(event.clueId) ?? event.clueId,
+    );
   }
   if (event.type === "dice.rolled") {
     if (event.check) {
@@ -65,7 +70,9 @@ function timelineText(event, labels) {
     return `${event.reason} (${event.roll.formula} = ${event.roll.total}).`;
   }
   if (event.type === "combat.started") {
-    return labels.combatStarted(event.encounterId);
+    return labels.combatStarted(
+      entityTitles.encounters.get(event.encounterId) ?? event.encounterId,
+    );
   }
   if (event.type === "damage.applied") {
     return labels.damageApplied(
@@ -113,17 +120,19 @@ function buildKeyRolls(events) {
 }
 
 function buildDiscoveredClues(input) {
-  const clueById = new Map(input.adventure.clues.map((clue) => [clue.id, clue]));
+  const clueById = new Map(
+    (input.adventure.clues ?? []).map((clue) => [clue.id, clue]),
+  );
   return input.sessionState.discoveredClueIds
     .map((clueId) => clueById.get(clueId))
     .filter(Boolean)
     .map((clue) => clue.title);
 }
 
-function buildCombatOutcomes(events, labels) {
+function buildCombatOutcomes(events, labels, entityTitles) {
   return events
     .filter((event) => ["combat.started", "damage.applied", "combat.ended"].includes(event.type))
-    .map((event) => timelineText(event, labels));
+    .map((event) => timelineText(event, labels, entityTitles));
 }
 
 function buildCharacterStates(sessionState) {
@@ -143,6 +152,30 @@ function buildUnresolvedThreads(input, labels) {
     .map((clue) => labels.unrevealedClueThread(clue.title));
 
   return [...secretThreads, ...clueThreads];
+}
+
+function buildEntityTitleIndex(adventure = {}) {
+  return {
+    scenes: titleMap(adventure.scenes),
+    clues: titleMap(adventure.clues),
+    encounters: titleMap(adventure.encounters),
+  };
+}
+
+function emptyEntityTitleIndex() {
+  return {
+    scenes: new Map(),
+    clues: new Map(),
+    encounters: new Map(),
+  };
+}
+
+function titleMap(entries = []) {
+  return new Map(
+    entries
+      .filter((entry) => typeof entry?.id === "string" && typeof entry?.title === "string")
+      .map((entry) => [entry.id, entry.title]),
+  );
 }
 
 function buildSummary(input) {

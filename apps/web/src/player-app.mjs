@@ -3,6 +3,7 @@ import {
   createTableMindApi,
 } from "./api-client.mjs";
 import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
+import { demoCharacterForPlayer } from "./demo-character-presets.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
 import { renderPlayerRoom } from "./render-player.mjs";
 
@@ -117,7 +118,7 @@ root.addEventListener("click", async (event) => {
     clearError();
     try {
       const result = requireOkResult(
-        await playerClient().createCharacter(defaultCharacter()),
+        await playerClient().createCharacter(demoCharacterForPlayer(appState.playerId)),
       );
       appState.snapshot = result.snapshot;
       await syncAdventureSnapshot();
@@ -230,42 +231,4 @@ function requireOkResult(result) {
 
 function resultError(result) {
   return new Error(result?.error?.message ?? result?.error?.code ?? "Command failed");
-}
-
-function defaultCharacter() {
-  return {
-    id: `char_${appState.playerId}`,
-    name: "Ada Thorne",
-    className: "Fighter",
-    level: 1,
-    abilities: {
-      strength: 14,
-      dexterity: 12,
-      constitution: 14,
-      intelligence: 10,
-      wisdom: 11,
-      charisma: 8,
-    },
-    armorClass: 16,
-    hitPoints: {
-      current: 12,
-      max: 12,
-      temporary: 0,
-    },
-    speed: 30,
-    savingThrowProficiencies: ["strength", "constitution"],
-    skillProficiencies: ["athletics", "perception"],
-    attacks: [
-      {
-        id: "attack_longsword",
-        name: "Longsword",
-        attackBonus: 5,
-        damage: "1d8+3",
-        damageType: "slashing",
-      },
-    ],
-    spells: [],
-    inventory: [],
-    conditions: [],
-  };
 }

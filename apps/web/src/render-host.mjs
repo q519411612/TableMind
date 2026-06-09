@@ -139,16 +139,20 @@ function renderPlayers(snapshot, labels) {
       readiness.target,
     )}</p>
     <ul class="tm-list">${players
-    .map(
-      (player) => `
+    .map((player) => {
+      const characterLabel =
+        player.characterId && snapshot?.characters?.[player.characterId]?.name
+          ? snapshot.characters[player.characterId].name
+          : player.characterId ?? labels.noCharacter;
+      return `
         <li>
           <strong>${escapeHtml(player.displayName)}</strong>
           <span>${escapeHtml(player.role)}</span>
-          <span>${escapeHtml(player.characterId ?? labels.noCharacter)}</span>
+          <span>${escapeHtml(characterLabel)}</span>
           <span>${escapeHtml(player.role === "host" ? labels.hostConsole : player.characterId ? labels.ready : labels.needsCharacter)}</span>
         </li>
-      `,
-    )
+      `;
+    })
     .join("")}</ul>
   `;
 }
@@ -232,6 +236,7 @@ function renderReviewItem(item, labels) {
         ${renderFact(labels.reviewReason, item.reason)}
       </dl>
       ${renderReviewPayloadSummary(item.proposedPayload, labels)}
+      <p class="tm-review-scope">${escapeHtml(labels.reviewCommitScope)}</p>
       <div class="tm-command-row">
         <button type="button" data-command="host.review.update" data-action-value="approve" data-review-id="${escapeHtml(
           item.id,

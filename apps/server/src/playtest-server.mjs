@@ -151,7 +151,7 @@ function createLocalPlaytestAiAdapter() {
   return {
     async generateStructuredResponse(context) {
       return {
-        publicMessage: localPlaytestMessage(),
+        publicMessage: localPlaytestMessage(context.locale),
         ruleRequests: localPlaytestRuleRequests(context),
         confidence: "high",
       };
@@ -173,16 +173,22 @@ function localPlaytestRuleRequests(context) {
       skill: "investigation",
       dc: 15,
       advantage: "normal",
-      reason: localPlaytestCheckReason(),
+      reason: localPlaytestCheckReason(context.locale),
     },
   ];
 }
 
-function localPlaytestMessage() {
+function localPlaytestMessage(locale) {
+  if (locale === "zh-CN") {
+    return "冰冷煤灰在破裂灯框上蜷起。";
+  }
   return "Cold soot curls around the cracked lantern frame.";
 }
 
-function localPlaytestCheckReason() {
+function localPlaytestCheckReason(locale) {
+  if (locale === "zh-CN") {
+    return "检查灯上的煤灰。";
+  }
   return "Inspect the lantern soot.";
 }
 

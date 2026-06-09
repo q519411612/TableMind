@@ -48,6 +48,7 @@ const en = {
   diceLog: "Dice Log",
   displayName: "Display name",
   edit: "Edit",
+  endCombat: "End Combat",
   ending: "Ending",
   error: "Error",
   failure: "failure",
@@ -115,6 +116,8 @@ const en = {
   revealClue: "Reveal Clue",
   revealProposal: "Reveal Proposal",
   reviewEditReason: "Edit Reason",
+  reviewCommitScope:
+    "Approve/Edit commits only the public message. Apply reveal proposals through Host reveal controls; state patches stay manual Host overrides.",
   reviewReason: "Reason",
   reviewQueue: "Review Queue",
   reviewRisk: "Risk",
@@ -188,6 +191,7 @@ const zhCN = {
   diceLog: "骰子记录",
   displayName: "显示名称",
   edit: "编辑",
+  endCombat: "结束战斗",
   ending: "结局",
   error: "错误",
   failure: "失败",
@@ -255,6 +259,8 @@ const zhCN = {
   revealClue: "揭示线索",
   revealProposal: "揭示提议",
   reviewEditReason: "编辑原因",
+  reviewCommitScope:
+    "批准/编辑只会提交公开消息。揭示提议请通过主持揭示控件执行；状态补丁仍由主持手动覆盖。",
   reviewReason: "原因",
   reviewQueue: "审核队列",
   reviewRisk: "风险",
