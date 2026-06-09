@@ -195,6 +195,32 @@ async function routeRequest(dispatcher, eventStreamHub, request) {
     });
   }
 
+  if (
+    request.method === "GET" &&
+    path.length === 3 &&
+    path[0] === "rooms" &&
+    path[2] === "recap"
+  ) {
+    const roomId = decodeURIComponent(path[1]);
+    const identityResult = resolveHttpViewer({
+      dispatcher,
+      request,
+      url,
+      roomId,
+      commandType: "session.recap",
+    });
+    if (!identityResult.ok) {
+      return identityResult;
+    }
+    return await dispatcher.dispatchRoomCommand({
+      type: "session.recap",
+      roomId,
+      viewerRole: identityResult.identity.viewerRole,
+      viewerPlayerId: identityResult.identity.viewerPlayerId,
+      locale: requestLocale(url),
+    });
+  }
+
   return {
     ok: false,
     commandType: "http.request",

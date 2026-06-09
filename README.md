@@ -30,7 +30,8 @@ The local MVP engine now covers:
 - an in-memory room service for Host-owned rooms, player joins, reconnection, characters, and committed messages;
 - adventure runtime projections with Host-only truth, player-safe localized scene text, clue reveals, and scene changes;
 - mock AI DM orchestration with spoiler checks, structured response validation, Host review queues, and rules-engine routing;
-- Host combat controls for encounter start, HP/condition edits, attack resolution, turn advancement, and AI pause/resume;
+- Host combat controls for encounter start, HP/condition edits, turn advancement, combat end, and AI pause/resume;
+- player combat controls for attack resolution through the rules engine;
 - zero-dependency browser Host/player UI for room setup, character creation, AI turns, review, combat, recap, and bilingual fixed UI labels;
 - session recap generation plus a full local simulated playtest across room setup, exploration, rules, combat, and recap.
 

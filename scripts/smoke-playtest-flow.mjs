@@ -19,6 +19,7 @@ const fixedTimes = [
   "2026-06-06T10:11:00.000Z",
   "2026-06-06T10:12:00.000Z",
   "2026-06-06T10:13:00.000Z",
+  "2026-06-06T10:14:00.000Z",
 ];
 
 const playerForbiddenNeedles = [
@@ -197,6 +198,17 @@ export async function runSmokePlaytestFlow(options = {}) {
       }),
       "player message",
     );
+    const aiTurn = expectOk(
+      await postJson(`${launch.baseUrl}/rooms/${roomId}/actions`, {
+        type: "ai.turn.run",
+        sessionToken: hostSessionToken,
+        payload: {
+          randomValues: [0.7],
+        },
+        now: nextTime(),
+      }),
+      "run AI turn",
+    );
     expectOk(
       await postJson(`${launch.baseUrl}/rooms/${roomId}/actions`, {
         type: "scene.change",
@@ -324,11 +336,13 @@ export async function runSmokePlaytestFlow(options = {}) {
       ),
       hostRecap: hostRecap.markdown.includes("Secret: Broken Seal"),
     };
+    const aiTurnEventTypes = aiTurn.body.events.map((event) => event.type);
     const attackEventTypes = attack.body.events.map((event) => event.type);
 
     assert.equal(playerSnapshot.phase, "ended");
     assert.equal(playerSnapshot.currentSceneId, "scene_lantern_tower");
     assert.deepEqual(playerSnapshot.discoveredClueIds, ["clue_broken_lens"]);
+    assert.deepEqual(aiTurnEventTypes, ["dice.rolled", "ai.message"]);
     assert.deepEqual(attackEventTypes, ["attack.resolved", "damage.applied"]);
     assertNoPlayerLeaks(playerLeakChecks);
     assert.equal(hostTruthChecks.hostAdventureSnapshot, true);
@@ -340,6 +354,7 @@ export async function runSmokePlaytestFlow(options = {}) {
       phase: playerSnapshot.phase,
       currentSceneId: playerSnapshot.currentSceneId,
       playerDiscoveredClueIds: playerSnapshot.discoveredClueIds,
+      aiTurnEventTypes,
       attackEventTypes,
       playerLeakChecks,
       hostTruthChecks,

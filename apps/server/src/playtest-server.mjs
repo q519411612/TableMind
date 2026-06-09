@@ -44,15 +44,16 @@ export async function createPlaytestServer(options = {}) {
   const roomService = createRoomService({
     baseInviteUrl: "/player.html?roomId={roomId}",
   });
+  const aiAdapter = providerConfig.enabled
+    ? createProviderAiAdapter({
+        ...providerConfig,
+        fetchImpl: options.fetchImpl ?? globalThis.fetch,
+      })
+    : createLocalPlaytestAiAdapter();
   const dispatcher = createRoomActionDispatcher({
     roomService,
-    aiAdapter: providerConfig.enabled
-      ? createProviderAiAdapter({
-          ...providerConfig,
-          fetchImpl: options.fetchImpl ?? globalThis.fetch,
-        })
-      : undefined,
-    providerConfig,
+    aiAdapter,
+    providerConfig: providerConfig.enabled ? providerConfig : undefined,
   });
   const apiHandler = createHttpRequestHandler({ dispatcher });
   const fixtures = {
@@ -144,6 +145,45 @@ export async function createPlaytestServer(options = {}) {
       });
     },
   };
+}
+
+function createLocalPlaytestAiAdapter() {
+  return {
+    async generateStructuredResponse(context) {
+      return {
+        publicMessage: localPlaytestMessage(),
+        ruleRequests: localPlaytestRuleRequests(context),
+        confidence: "high",
+      };
+    },
+  };
+}
+
+function localPlaytestRuleRequests(context) {
+  const characters = context.session?.characters ?? {};
+  const characterId = Object.keys(characters).sort()[0];
+  if (!characterId) {
+    return [];
+  }
+
+  return [
+    {
+      type: "skill_check",
+      characterId,
+      skill: "investigation",
+      dc: 15,
+      advantage: "normal",
+      reason: localPlaytestCheckReason(),
+    },
+  ];
+}
+
+function localPlaytestMessage() {
+  return "Cold soot curls around the cracked lantern frame.";
+}
+
+function localPlaytestCheckReason() {
+  return "Inspect the lantern soot.";
 }
 
 export function buildProviderPreflight(env = {}) {

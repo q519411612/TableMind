@@ -15,6 +15,7 @@ const appState = {
     globalThis.localStorage?.getItem("tablemind.playerSessionToken") ?? "",
   snapshot: undefined,
   adventureSnapshot: undefined,
+  recap: undefined,
   stream: undefined,
   errorMessage: undefined,
 };
@@ -50,6 +51,7 @@ root.addEventListener("submit", async (event) => {
         appState.playerSessionToken,
       );
       await syncAdventureSnapshot();
+      await syncRecap();
       connectStream();
       render();
     }
@@ -60,6 +62,7 @@ root.addEventListener("submit", async (event) => {
       const result = requireOkResult(await client.sendMessage(body.get("message")));
       appState.snapshot = result.snapshot;
       await syncAdventureSnapshot();
+      await syncRecap();
       render();
     }
 
@@ -75,6 +78,7 @@ root.addEventListener("submit", async (event) => {
       );
       appState.snapshot = result.snapshot;
       await syncAdventureSnapshot();
+      await syncRecap();
       render();
     }
   } catch (error) {
@@ -91,6 +95,7 @@ root.addEventListener("click", async (event) => {
   if (target.dataset.action === "set-language") {
     appState.locale = storeBrowserLocale(target.dataset.locale);
     await syncAdventureSnapshot();
+    await syncRecap();
     render();
     return;
   }
@@ -101,6 +106,7 @@ root.addEventListener("click", async (event) => {
       const result = requireOkResult(await playerClient().refreshSnapshot());
       appState.snapshot = result.snapshot;
       await syncAdventureSnapshot();
+      await syncRecap();
       render();
     } catch (error) {
       showError(error);
@@ -115,6 +121,7 @@ root.addEventListener("click", async (event) => {
       );
       appState.snapshot = result.snapshot;
       await syncAdventureSnapshot();
+      await syncRecap();
       render();
     } catch (error) {
       showError(error);
@@ -144,11 +151,13 @@ function connectStream() {
     async onSnapshot(payload) {
       appState.snapshot = payload.snapshot;
       await syncAdventureSnapshot();
+      await syncRecap();
       render();
     },
     async onBroadcast(payload) {
       appState.snapshot = payload.broadcast.snapshot;
       await syncAdventureSnapshot();
+      await syncRecap();
       render();
     },
   });
@@ -168,6 +177,22 @@ async function syncAdventureSnapshot() {
   }
   if (result.error?.code === "adventure_not_loaded") {
     appState.adventureSnapshot = undefined;
+    return;
+  }
+  throw resultError(result);
+}
+
+async function syncRecap() {
+  if (!appState.roomId || !appState.playerSessionToken || appState.snapshot?.phase !== "ended") {
+    appState.recap = undefined;
+    return;
+  }
+  const result = await api.getRecap(appState.roomId, {
+    sessionToken: appState.playerSessionToken,
+    locale: appState.locale,
+  });
+  if (result.ok) {
+    appState.recap = result.data.recap;
     return;
   }
   throw resultError(result);

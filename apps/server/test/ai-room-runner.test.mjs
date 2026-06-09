@@ -509,6 +509,41 @@ test("provider config is disabled by default and runner refuses provider calls",
   assert.equal(result.error.code, "provider_disabled");
 });
 
+test("paused AI state blocks adapter execution without committing events", async () => {
+  const { service, room } = await createLoadedAiRoom();
+  let adapterCalls = 0;
+  service.setAiPaused({
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    paused: true,
+    reason: "Host pauses AI during review.",
+    now: "2026-06-02T19:14:30.000Z",
+  });
+  const before = service.getCommittedEvents(room.roomId).length;
+
+  const result = await runAiTurnForRoom({
+    roomService: service,
+    roomId: room.roomId,
+    hostPlayerId: room.hostPlayerId,
+    adapter: {
+      async generateStructuredResponse() {
+        adapterCalls += 1;
+        return {
+          publicMessage: "This should not be generated while paused.",
+          confidence: "high",
+        };
+      },
+    },
+    now: "2026-06-02T19:14:45.000Z",
+  });
+
+  assert.equal(result.status, "ai_paused");
+  assert.equal(adapterCalls, 0);
+  assert.equal(service.getCommittedEvents(room.roomId).length, before);
+  assert.deepEqual(result.events, []);
+  assert.deepEqual(result.broadcasts, []);
+});
+
 test("provider config applies default timeout when enabled", () => {
   const config = loadAiProviderConfig({
     TABLEMIND_AI_PROVIDER_ENABLED: "true",

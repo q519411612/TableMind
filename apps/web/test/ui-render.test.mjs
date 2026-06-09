@@ -6,6 +6,7 @@ import {
   createPlayerCommandClient,
   createTableMindApi,
 } from "../src/api-client.mjs";
+import { commitReviewedPublicMessageIfNeeded } from "../src/host-review-commit.mjs";
 import { buildHostReviewUpdateFromForm } from "../src/host-review-form.mjs";
 import { SUPPORTED_LOCALES, uiText } from "../src/i18n.mjs";
 import { renderHostRoom } from "../src/render-host.mjs";
@@ -467,6 +468,57 @@ test("Host review edit form parser submits edited payload and rejects invalid JS
   );
 });
 
+test("Host review commit helper commits only approved or edited public messages", async () => {
+  const calls = [];
+  const client = {
+    commitAiMessage(message, reviewItemId, reviewStatus) {
+      calls.push({ message, reviewItemId, reviewStatus });
+      return {
+        ok: true,
+        snapshot: { phase: "playing" },
+      };
+    },
+  };
+  const reviewItem = {
+    id: "review_0001",
+    proposedPayload: {
+      publicMessage: " Edited safe narration. ",
+    },
+  };
+
+  const approved = await commitReviewedPublicMessageIfNeeded(
+    client,
+    reviewItem,
+    "approve",
+  );
+  const edited = await commitReviewedPublicMessageIfNeeded(
+    client,
+    reviewItem,
+    "edit",
+  );
+  const rejected = await commitReviewedPublicMessageIfNeeded(
+    client,
+    reviewItem,
+    "reject",
+  );
+
+  assert.equal(approved.ok, true);
+  assert.equal(edited.ok, true);
+  assert.equal(rejected, undefined);
+  assert.deepEqual(calls, [
+    {
+      message: "Edited safe narration.",
+      reviewItemId: "review_0001",
+      reviewStatus: "approved",
+    },
+    {
+      message: "Edited safe narration.",
+      reviewItemId: "review_0001",
+      reviewStatus: "edited",
+    },
+  ]);
+});
+
 test("static web entries expose a language switcher hook", () => {
   const indexHtml = readFileSync(
     new URL("../public/index.html", import.meta.url),
@@ -503,6 +555,25 @@ test("static web entry i18n hooks reference supported label keys", () => {
       assert.notEqual(labels[key].trim(), "", `${locale}.${key}`);
     }
   }
+});
+
+test("browser apps wire reviewed output commitment and role-safe recaps", () => {
+  const hostApp = readFileSync(new URL("../src/host-app.mjs", import.meta.url), "utf8");
+  const playerApp = readFileSync(
+    new URL("../src/player-app.mjs", import.meta.url),
+    "utf8",
+  );
+  const reviewCommit = readFileSync(
+    new URL("../src/host-review-commit.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.ok(hostApp.includes("commitReviewedPublicMessageIfNeeded"));
+  assert.ok(reviewCommit.includes("commitAiMessage("));
+  assert.ok(hostApp.includes("syncRecap"));
+  assert.ok(hostApp.includes("getRecap"));
+  assert.ok(playerApp.includes("syncRecap"));
+  assert.ok(playerApp.includes("getRecap"));
 });
 
 test("Host renderer includes DM-only scene, review, combat, and recap controls", () => {
@@ -544,7 +615,11 @@ test("Host renderer includes DM-only scene, review, combat, and recap controls",
   assert.ok(html.includes("name=\"combatantId\""));
   assert.ok(html.includes("name=\"currentHp\""));
   assert.ok(html.includes("data-command=\"combat.advance_turn\""));
-  assert.ok(html.includes("name=\"condition\""));
+  assert.ok(html.includes("<select name=\"condition\" required>"));
+  assert.ok(html.includes("value=\"condition_prone\""));
+  assert.ok(html.includes(">Prone</option>"));
+  assert.equal(html.includes(">condition_prone</option>"), false);
+  assert.equal(html.includes("<input name=\"condition\""), false);
   assert.ok(html.includes("<option value=\"apply\">Apply</option>"));
   assert.ok(html.includes("data-command=\"session.complete\""));
   assert.ok(html.includes("Secret: Broken Seal"));
@@ -852,6 +927,10 @@ test("UI command clients use the transport contract and keep player snapshots pl
     sessionToken: "tm_test_session_token_player",
     locale: "zh-CN",
   });
+  await api.getRecap("room_0001", {
+    sessionToken: "tm_test_session_token_player",
+    locale: "zh-CN",
+  });
 
   assert.deepEqual(
     calls
@@ -877,8 +956,7 @@ test("UI command clients use the transport contract and keep player snapshots pl
       "combat.attack",
     ],
   );
-  assert.ok(calls.at(-1).url.includes("sessionToken=tm_test_session_token_player"));
-  assert.ok(calls.at(-1).url.includes("locale=zh-CN"));
+  assert.ok(calls.at(-1).url.endsWith("/recap?sessionToken=tm_test_session_token_player&locale=zh-CN"));
   assert.equal(calls.some((call) => call.url.includes("viewerRole=host")), false);
   assert.equal(
     calls

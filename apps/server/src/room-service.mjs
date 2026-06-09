@@ -14,6 +14,7 @@ import {
   resolveDamage,
   resolveInitiative,
 } from "../../../packages/rules-engine/src/index.mjs";
+import { generateSessionRecap } from "../../../packages/session-recap/src/index.mjs";
 
 export function createRoomService(options = {}) {
   const baseInviteUrl = options.baseInviteUrl ?? "http://localhost:3000/rooms";
@@ -404,6 +405,31 @@ export function createRoomService(options = {}) {
     }
 
     return buildPlayerAdventureSnapshot(room, input.locale);
+  }
+
+  function getSessionRecap(input) {
+    const room = requireRoom(input.roomId);
+    if (!room.adventure) {
+      throw new Error("adventure_not_loaded");
+    }
+    if (!["host", "player"].includes(input.viewerRole)) {
+      throw new Error(`Unsupported viewerRole: ${input.viewerRole}`);
+    }
+    if (input.viewerRole === "player" && !input.viewerPlayerId) {
+      throw new Error("Player recap requires viewerPlayerId");
+    }
+
+    const adventure = localizeAdventureModule(room.adventure, input.locale);
+    return generateSessionRecap({
+      sessionState: getSnapshot({
+        roomId: input.roomId,
+        viewerRole: "host",
+      }),
+      events: room.committedEvents,
+      adventure,
+      viewerRole: input.viewerRole,
+      locale: input.locale,
+    });
   }
 
   function revealClue(input) {
@@ -878,6 +904,7 @@ export function createRoomService(options = {}) {
     commitApprovedAiMessage,
     loadAdventureModule,
     getAdventureSnapshot,
+    getSessionRecap,
     revealClue,
     changeScene,
     startCombatFromEncounter,
