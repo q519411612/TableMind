@@ -319,6 +319,70 @@ test("AI private messages stay out of player SSE transport and public recap", as
   }
 });
 
+test("HTTP recap endpoint returns role-projected recaps", async () => {
+  const service = createRoomService();
+  const adventure = await loadAdventureFixture(
+    "packages/shared-test-fixtures/adventures/the-lantern-beneath-the-hill.md",
+  );
+  const app = createHttpServer({
+    dispatcher: createRoomActionDispatcher({
+      roomService: service,
+    }),
+  });
+  const { baseUrl } = await app.start();
+  try {
+    const created = await postJson(`${baseUrl}/rooms`, roomInput);
+    const joined = await postJson(`${baseUrl}/rooms/${created.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "adventure.load",
+      sessionToken: created.data.hostSessionToken,
+      payload: { adventure },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+    await postJson(`${baseUrl}/rooms/${created.data.roomId}/actions`, {
+      type: "session.complete",
+      sessionToken: created.data.hostSessionToken,
+      payload: {
+        ending: "Repair the Lantern",
+        rewards: ["Village gratitude"],
+      },
+      now: "2026-06-02T14:03:00.000Z",
+    });
+
+    const playerRecapResponse = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/recap?locale=zh-CN&sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+    const hostRecapResponse = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/recap?locale=zh-CN&sessionToken=${encodeURIComponent(created.data.hostSessionToken)}`,
+    );
+    const forgedHostRecapResponse = await fetch(
+      `${baseUrl}/rooms/${created.data.roomId}/recap?viewerRole=host&sessionToken=${encodeURIComponent(joined.data.playerSessionToken)}`,
+    );
+    const playerText = await playerRecapResponse.text();
+    const hostText = await hostRecapResponse.text();
+    const playerRecap = JSON.parse(playerText);
+    const hostRecap = JSON.parse(hostText);
+
+    assert.equal(playerRecapResponse.status, 200);
+    assert.equal(hostRecapResponse.status, 200);
+    assert.equal(forgedHostRecapResponse.status, 403);
+    assert.equal(playerRecap.data.recap.audience, "player");
+    assert.equal(playerRecap.data.recap.locale, "zh-CN");
+    assert.ok(playerRecap.data.recap.markdown.includes("受众：玩家"));
+    assert.equal(playerText.includes("broke the shrine seal"), false);
+    assert.equal(playerText.includes("Secret: Broken Seal"), false);
+    assert.equal(playerText.includes("state.patch"), false);
+    assert.equal(playerText.includes("host.review"), false);
+    assert.equal(hostRecap.data.recap.audience, "host");
+    assert.ok(hostRecap.data.recap.markdown.includes("秘密：破损封印"));
+  } finally {
+    await app.stop();
+  }
+});
+
 test("HTTP adapter returns typed client errors for invalid JSON, oversized bodies, and unsupported media types", async () => {
   const app = createHttpServer({
     dispatcher: createRoomActionDispatcher({

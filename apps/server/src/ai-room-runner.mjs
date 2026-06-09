@@ -98,6 +98,22 @@ export async function runAiTurnForRoom(input) {
     };
   }
 
+  const sessionSnapshot = input.roomService.getSnapshot({
+    roomId: input.roomId,
+    viewerRole: "host",
+  });
+  if (sessionSnapshot.flags?.aiPaused?.value === true) {
+    return {
+      status: "ai_paused",
+      error: {
+        code: "ai_paused",
+        message: "AI is paused by the Host.",
+      },
+      events: [],
+      broadcasts: [],
+    };
+  }
+
   const context = buildAiContextForRoom(input);
   let aiTurn;
   try {

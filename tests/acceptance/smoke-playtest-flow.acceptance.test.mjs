@@ -11,6 +11,7 @@ test("scripted HTTP playtest smoke repeats the QA flow with provider disabled", 
   assert.equal(result.phase, "ended");
   assert.equal(result.currentSceneId, "scene_lantern_tower");
   assert.deepEqual(result.playerDiscoveredClueIds, ["clue_broken_lens"]);
+  assert.deepEqual(result.aiTurnEventTypes, ["dice.rolled", "ai.message"]);
   assert.deepEqual(result.attackEventTypes, ["attack.resolved", "damage.applied"]);
   assert.equal(result.playerLeakChecks.playerSnapshot, false);
   assert.equal(result.playerLeakChecks.playerAdventureSnapshot, false);

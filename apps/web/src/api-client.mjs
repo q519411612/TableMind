@@ -57,6 +57,18 @@ export function createTableMindApi(input = {}) {
         `${baseUrl}/rooms/${encodeURIComponent(roomId)}/adventure-snapshot?${search.toString()}`,
       );
     },
+    getRecap(roomId, input) {
+      const search = new URLSearchParams();
+      if (input.sessionToken) {
+        search.set("sessionToken", input.sessionToken);
+      }
+      if (input.locale) {
+        search.set("locale", input.locale);
+      }
+      return requestJson(
+        `${baseUrl}/rooms/${encodeURIComponent(roomId)}/recap?${search.toString()}`,
+      );
+    },
   };
 }
 

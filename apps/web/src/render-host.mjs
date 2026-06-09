@@ -10,6 +10,14 @@ import {
   renderNotice,
 } from "./render-utils.mjs";
 
+const demoConditionOptions = [
+  { id: "condition_prone", labelKey: "conditionProne" },
+  { id: "condition_grappled", labelKey: "conditionGrappled" },
+  { id: "condition_restrained", labelKey: "conditionRestrained" },
+  { id: "condition_poisoned", labelKey: "conditionPoisoned" },
+  { id: "condition_unconscious", labelKey: "conditionUnconscious" },
+];
+
 export function renderHostRoom(input = {}) {
   const snapshot = input.snapshot;
   const scene = input.adventureSnapshot?.currentScene;
@@ -334,7 +342,14 @@ function renderCombatControls(combat, labels) {
       </label>
       <label>
         ${escapeHtml(labels.condition)}
-        <input name="condition" required />
+        <select name="condition" required>
+          ${demoConditionOptions
+            .map(
+              (condition) =>
+                `<option value="${escapeHtml(condition.id)}">${escapeHtml(labels[condition.labelKey])}</option>`,
+            )
+            .join("")}
+        </select>
       </label>
       <label>
         ${escapeHtml(labels.action)}

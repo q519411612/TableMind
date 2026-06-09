@@ -37,6 +37,112 @@ test("playtest server serves static pages, browser modules, and API config", asy
   }
 });
 
+test("disabled playtest provider mode runs local mock AI without network calls", async () => {
+  const app = await createPlaytestServer({
+    env: {
+      TABLEMIND_AI_PROVIDER_ENABLED: "false",
+    },
+    logger: quietLogger(),
+    fetchImpl: async () => {
+      throw new Error("disabled playtest mock must not call fetch");
+    },
+  });
+  const launch = await app.start({ port: 0 });
+  try {
+    const created = await postJson(`${launch.baseUrl}/rooms`, {
+      hostDisplayName: "Host",
+      rulesetId: "5e-srd-5.2.1",
+      adventureModuleId: "adventure_lantern_beneath_hill",
+      startingSceneId: "scene_village_square",
+      now: "2026-06-02T14:00:00.000Z",
+    });
+    const joined = await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/join`, {
+      displayName: "Ada",
+      now: "2026-06-02T14:01:00.000Z",
+    });
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "character.create",
+      sessionToken: joined.body.data.playerSessionToken,
+      payload: {
+        character: character({
+          id: "char_ada",
+          name: "Ada Thorne",
+          className: "Fighter",
+          abilities: {
+            strength: 14,
+            dexterity: 12,
+            constitution: 14,
+            intelligence: 16,
+            wisdom: 11,
+            charisma: 8,
+          },
+          armorClass: 16,
+          maxHp: 12,
+          skillProficiencies: ["investigation"],
+          attacks: [
+            {
+              id: "attack_longsword",
+              name: "Longsword",
+              attackBonus: 5,
+              damage: "1d8+3",
+              damageType: "slashing",
+            },
+          ],
+        }),
+      },
+      now: "2026-06-02T14:02:00.000Z",
+    });
+    const adventure = await fetchJson(
+      `${launch.baseUrl}/playtest/fixtures/demo-adventure.json?roomId=${created.body.data.roomId}&sessionToken=${created.body.data.hostSessionToken}`,
+    );
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "adventure.load",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: { adventure: adventure.body },
+      now: "2026-06-02T14:03:00.000Z",
+    });
+    await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "session.start",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: {},
+      now: "2026-06-02T14:04:00.000Z",
+    });
+
+    const aiTurn = await postJson(`${launch.baseUrl}/rooms/${created.body.data.roomId}/actions`, {
+      type: "ai.turn.run",
+      sessionToken: created.body.data.hostSessionToken,
+      payload: {
+        randomValues: [0.7],
+      },
+      now: "2026-06-02T14:05:00.000Z",
+    });
+    const playerSnapshot = await fetchJson(
+      `${launch.baseUrl}/rooms/${created.body.data.roomId}/snapshot?sessionToken=${joined.body.data.playerSessionToken}`,
+    );
+
+    assert.equal(aiTurn.status, 200);
+    assert.equal(aiTurn.body.data.status, "broadcast_ready");
+    assert.deepEqual(aiTurn.body.events.map((event) => event.type), [
+      "dice.rolled",
+      "ai.message",
+    ]);
+    assert.equal(aiTurn.body.events[0].check.characterId, "char_ada");
+    assert.equal(aiTurn.body.events[0].check.requestType, "skill_check");
+    assert.equal(aiTurn.body.events[0].check.skill, "investigation");
+    assert.equal(aiTurn.body.events[0].check.selectedD20, 15);
+    assert.ok(aiTurn.body.events[1].message.includes("Cold soot"));
+    assert.ok(
+      playerSnapshot.body.snapshot.eventLog.some(
+        (event) =>
+          event.type === "ai.message" &&
+          event.message.includes("Cold soot"),
+      ),
+    );
+  } finally {
+    await app.stop();
+  }
+});
+
 test("playtest fixture routes expose approved content without provider secrets", async () => {
   const testProviderApiKey = "<TEST_PROVIDER_API_KEY_DO_NOT_USE>";
   const app = await createPlaytestServer({
@@ -222,6 +328,29 @@ async function postJson(url, body) {
   return {
     status: response.statusCode,
     body: JSON.parse(response.body),
+  };
+}
+
+function character(input) {
+  return {
+    id: input.id,
+    name: input.name,
+    className: input.className,
+    level: 1,
+    abilities: input.abilities,
+    armorClass: input.armorClass,
+    hitPoints: {
+      current: input.maxHp,
+      max: input.maxHp,
+      temporary: 0,
+    },
+    speed: 30,
+    savingThrowProficiencies: input.savingThrowProficiencies ?? [],
+    skillProficiencies: input.skillProficiencies,
+    attacks: input.attacks,
+    spells: [],
+    inventory: [],
+    conditions: [],
   };
 }
 

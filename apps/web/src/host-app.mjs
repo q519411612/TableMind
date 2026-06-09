@@ -4,6 +4,7 @@ import {
 } from "./api-client.mjs";
 import { readBrowserLocale, storeBrowserLocale } from "./browser-locale.mjs";
 import { connectRoomEventStream } from "./event-stream-client.mjs";
+import { commitReviewedPublicMessageIfNeeded } from "./host-review-commit.mjs";
 import { buildHostReviewUpdateFromForm } from "./host-review-form.mjs";
 import { uiText } from "./i18n.mjs";
 import { renderHostRoom } from "./render-host.mjs";
@@ -17,6 +18,7 @@ const appState = {
   room: undefined,
   snapshot: undefined,
   adventureSnapshot: undefined,
+  recap: undefined,
   reviewQueue: [],
   stream: undefined,
   errorMessage: undefined,
@@ -59,6 +61,7 @@ root.addEventListener("submit", async (event) => {
         await hostClient().completeSession(body.get("ending"), []),
       );
       appState.snapshot = result.snapshot;
+      await syncRecap();
       render();
     }
 
@@ -103,7 +106,18 @@ root.addEventListener("submit", async (event) => {
       if (result?.snapshot) {
         appState.snapshot = result.snapshot;
       }
+      const committed = requireOkResult(
+        await commitReviewedPublicMessageIfNeeded(
+          hostClient(),
+          result.data,
+          update.action,
+        ),
+      );
+      if (committed?.snapshot) {
+        appState.snapshot = committed.snapshot;
+      }
       await syncReviewQueue();
+      await syncRecap();
       render();
     }
   } catch (error) {
@@ -124,6 +138,7 @@ root.addEventListener("click", async (event) => {
     appState.locale = storeBrowserLocale(button.dataset.locale);
     if (appState.room) {
       await syncAdventureSnapshot();
+      await syncRecap();
     }
     render();
     return;
@@ -151,6 +166,7 @@ root.addEventListener("click", async (event) => {
       appState.snapshot = result.snapshot;
       await syncAdventureSnapshot();
       await syncReviewQueue();
+      await syncRecap();
       render();
     } catch (error) {
       showError(error);
@@ -168,9 +184,22 @@ root.addEventListener("click", async (event) => {
     if (result?.snapshot) {
       appState.snapshot = result.snapshot;
     }
+    if (button.dataset.command === "host.review.update") {
+      const committed = requireOkResult(
+        await commitReviewedPublicMessageIfNeeded(
+          hostClient(),
+          result.data,
+          button.dataset.actionValue,
+        ),
+      );
+      if (committed?.snapshot) {
+        appState.snapshot = committed.snapshot;
+      }
+    }
     applyCommandStatus(result);
     await syncAdventureSnapshot();
     await syncReviewQueue();
+    await syncRecap();
     render();
   } catch (error) {
     showError(error);
@@ -243,6 +272,10 @@ function applyCommandStatus(result) {
     appState.statusMessage = labels.providerDisabled;
     return;
   }
+  if (result?.commandType === "ai.turn.run" && result.data?.status === "ai_paused") {
+    appState.statusMessage = labels.aiPausedRunBlocked;
+    return;
+  }
   if (result?.commandType === "ai.turn.run" && result.data?.status === "host_review_required") {
     appState.statusMessage = labels.aiReviewRequired;
   }
@@ -258,6 +291,22 @@ async function syncAdventureSnapshot() {
   });
   if (result.ok) {
     appState.adventureSnapshot = result.snapshot;
+    return;
+  }
+  throw resultError(result);
+}
+
+async function syncRecap() {
+  if (!appState.room || appState.snapshot?.phase !== "ended") {
+    appState.recap = undefined;
+    return;
+  }
+  const result = await api.getRecap(appState.room.roomId, {
+    sessionToken: appState.room.hostSessionToken,
+    locale: appState.locale,
+  });
+  if (result.ok) {
+    appState.recap = result.data.recap;
     return;
   }
   throw resultError(result);
@@ -289,12 +338,14 @@ function connectStream() {
       appState.snapshot = payload.snapshot;
       await syncAdventureSnapshot();
       await syncReviewQueue();
+      await syncRecap();
       render();
     },
     async onBroadcast(payload) {
       appState.snapshot = payload.broadcast.snapshot;
       await syncAdventureSnapshot();
       await syncReviewQueue();
+      await syncRecap();
       render();
     },
   });

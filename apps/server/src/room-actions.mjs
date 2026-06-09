@@ -107,6 +107,15 @@ export function createRoomActionDispatcher(input) {
             locale: command.locale,
           }),
         };
+      case "session.recap":
+        return {
+          recap: roomService.getSessionRecap({
+            roomId: requireRoomId(command),
+            viewerRole: command.viewerRole,
+            viewerPlayerId: command.viewerPlayerId,
+            locale: command.locale,
+          }),
+        };
       case "session.start":
         return roomService.startSession({
           roomId: requireRoomId(command),
