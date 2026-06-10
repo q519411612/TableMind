@@ -53,6 +53,7 @@ export function buildAiContextForRoom(input) {
   );
 
   const requiredContext = {
+    locale: input.locale ?? "en",
     session: sessionBasicsForAi(sessionSnapshot),
     currentScene,
     recentPublicEvents: [],

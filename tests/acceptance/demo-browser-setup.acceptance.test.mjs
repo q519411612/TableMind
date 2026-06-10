@@ -5,6 +5,7 @@ import {
   createPlayerCommandClient,
   createTableMindApi,
 } from "../../apps/web/src/api-client.mjs";
+import { demoCharacterForPlayer } from "../../apps/web/src/demo-character-presets.mjs";
 import { renderHostRoom } from "../../apps/web/src/render-host.mjs";
 import { renderPlayerRoom } from "../../apps/web/src/render-player.mjs";
 import { createPlaytestServer } from "../../apps/server/src/playtest-server.mjs";
@@ -78,54 +79,10 @@ test("P1 browser setup flow starts the demo with Host and two player-safe views"
       now: () => "2026-06-08T12:05:00.000Z",
     });
 
-    await adaClient.createCharacter(character({
-      id: "char_ada",
-      name: "Ada Thorne",
-      className: "Fighter",
-      maxHp: 12,
-      armorClass: 16,
-      abilities: {
-        strength: 14,
-        dexterity: 12,
-        constitution: 14,
-        intelligence: 12,
-        wisdom: 11,
-        charisma: 8,
-      },
-      attacks: [
-        {
-          id: "attack_longsword",
-          name: "Longsword",
-          attackBonus: 5,
-          damage: "1d8+3",
-          damageType: "slashing",
-        },
-      ],
-    }));
-    await branClient.createCharacter(character({
-      id: "char_bran",
-      name: "Bran Vale",
-      className: "Rogue",
-      maxHp: 9,
-      armorClass: 14,
-      abilities: {
-        strength: 10,
-        dexterity: 16,
-        constitution: 12,
-        intelligence: 12,
-        wisdom: 10,
-        charisma: 12,
-      },
-      attacks: [
-        {
-          id: "attack_dagger",
-          name: "Dagger",
-          attackBonus: 5,
-          damage: "1d4+3",
-          damageType: "piercing",
-        },
-      ],
-    }));
+    const adaCharacter = demoCharacterForPlayer(ada.data.playerId);
+    const branCharacter = demoCharacterForPlayer(bran.data.playerId);
+    await adaClient.createCharacter(adaCharacter);
+    await branClient.createCharacter(branCharacter);
 
     const config = await getJson(`${launch.baseUrl}/playtest/config.json`);
     const adventure = await getJson(
@@ -195,7 +152,12 @@ test("P1 browser setup flow starts the demo with Host and two player-safe views"
 
     assert.equal(hostSnapshot.snapshot.phase, "playing");
     assert.equal(adaSnapshot.snapshot.phase, "playing");
+    assert.equal(adaCharacter.name, "Ada Thorne");
+    assert.equal(branCharacter.name, "Bran Vale");
+    assert.notEqual(adaCharacter.attacks[0].name, branCharacter.attacks[0].name);
     assert.ok(hostHtml.includes("Players ready: 2/2"));
+    assert.ok(hostHtml.includes("Ada Thorne"));
+    assert.ok(hostHtml.includes("Bran Vale"));
     assert.ok(hostHtml.includes("Session is live. Run AI for the opening prompt."));
     assert.ok(hostHtml.includes("data-action=\"copy-invite\""));
     assert.ok(playerHtml.includes("Ada Thorne"));
@@ -211,29 +173,6 @@ test("P1 browser setup flow starts the demo with Host and two player-safe views"
     await app.stop();
   }
 });
-
-function character(input) {
-  return {
-    id: input.id,
-    name: input.name,
-    className: input.className,
-    level: 1,
-    abilities: input.abilities,
-    armorClass: input.armorClass,
-    hitPoints: {
-      current: input.maxHp,
-      max: input.maxHp,
-      temporary: 0,
-    },
-    speed: 30,
-    savingThrowProficiencies: input.savingThrowProficiencies ?? [],
-    skillProficiencies: input.skillProficiencies ?? [],
-    attacks: input.attacks,
-    spells: [],
-    inventory: [],
-    conditions: [],
-  };
-}
 
 async function getJson(url) {
   const response = await fetch(url);

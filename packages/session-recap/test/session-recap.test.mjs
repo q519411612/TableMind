@@ -4,6 +4,12 @@ import { generateSessionRecap } from "../src/index.mjs";
 
 const adventure = {
   title: "The Lantern Beneath the Hill",
+  scenes: [
+    {
+      id: "scene_lantern_tower",
+      title: "Lantern Tower",
+    },
+  ],
   truth: [
     {
       id: "secret_broken_seal",
@@ -26,10 +32,22 @@ const adventure = {
       visibility: "dm_only",
     },
   ],
+  encounters: [
+    {
+      id: "encounter_hill_scavengers",
+      title: "Hill Scavengers",
+    },
+  ],
 };
 
 const localizedAdventure = {
   title: "山丘下的灯火",
+  scenes: [
+    {
+      id: "scene_lantern_tower",
+      title: "灯塔",
+    },
+  ],
   truth: [
     {
       id: "secret_broken_seal",
@@ -50,6 +68,12 @@ const localizedAdventure = {
       title: "米拉遗落的护符",
       text: "一枚刻有米拉姓名首字母的陶土护符。",
       visibility: "dm_only",
+    },
+  ],
+  encounters: [
+    {
+      id: "encounter_hill_scavengers",
+      title: "山丘拾荒者",
     },
   ],
 };
@@ -207,6 +231,24 @@ test("player recap excludes rejected review payloads but includes approved AI me
           type: "ai_output",
           proposedPayload: {
             publicMessage: "Mira broke the shrine seal while searching for her sibling.",
+            privateMessages: [
+              {
+                playerId: "player_0002",
+                message: "Private review payload for Ada.",
+              },
+            ],
+            revealProposals: [
+              {
+                entityType: "clue",
+                entityId: "clue_symbol_under_hatch",
+                reason: "Reveal the hidden hatch symbol.",
+              },
+            ],
+            statePatch: {
+              op: "replace",
+              path: "/flags/hiddenTruth",
+              value: "unsafe",
+            },
           },
           reason: "Spoiler guard blocked output.",
           riskLevel: "high",
@@ -236,6 +278,9 @@ test("player recap excludes rejected review payloads but includes approved AI me
   });
 
   assert.equal(recap.markdown.includes("Mira broke the shrine seal"), false);
+  assert.equal(recap.markdown.includes("Private review payload for Ada"), false);
+  assert.equal(recap.markdown.includes("clue_symbol_under_hatch"), false);
+  assert.equal(recap.markdown.includes("/flags/hiddenTruth"), false);
   assert.ok(recap.markdown.includes("The lantern flickers back to life."));
 });
 
@@ -313,6 +358,24 @@ test("recap uses explicit localized authored adventure text when provided", () =
     "未揭示线索：米拉遗落的护符",
   ]);
   assert.ok(hostRecap.markdown.includes("秘密：破损封印"));
+});
+
+test("Chinese recap timeline uses readable localized scene, clue, and encounter titles", () => {
+  const recap = generateSessionRecap({
+    sessionState,
+    events,
+    adventure: localizedAdventure,
+    viewerRole: "player",
+    locale: "zh-CN",
+  });
+
+  assert.ok(recap.markdown.includes("场景切换至 灯塔。"));
+  assert.ok(recap.markdown.includes("线索已揭示：破裂的灯镜。"));
+  assert.ok(recap.markdown.includes("战斗开始：山丘拾荒者。"));
+  assert.equal(recap.markdown.includes("scene_lantern_tower"), false);
+  assert.equal(recap.markdown.includes("clue_broken_lens"), false);
+  assert.equal(recap.markdown.includes("encounter_hill_scavengers"), false);
+  assert.equal(recap.markdown.includes("破损封印"), false);
 });
 
 test("Host recap includes review audit history", () => {
