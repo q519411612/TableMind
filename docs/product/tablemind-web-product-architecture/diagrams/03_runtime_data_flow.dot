@@ -1,0 +1,37 @@
+digraph G {
+  rankdir=TB;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  player [label="Player Action
+'I search the old altar'", fillcolor="#FFF8E6"];
+  cmd [label="Command API
+actor + room + session token", fillcolor="#FFFFFF"];
+  dispatcher [label="Room Command Dispatcher
+role check + typed result", fillcolor="#F6E5D0"];
+  state [label="Current Session State
+scene / characters / clues / combat", fillcolor="#F6E5D0"];
+  ai [label="AI DM Orchestrator
+create structured proposal", fillcolor="#F6E5D0"];
+  guard [label="Spoiler Guard
+no unrevealed secrets in public text", fillcolor="#F6E5D0"];
+  review [label="Host Review Queue
+approve / edit / reject", fillcolor="#FFF8E6"];
+  rules [label="Rules Engine
+d20 + modifier vs DC", fillcolor="#F6E5D0"];
+  events [label="Event Log
+player.action / ai.message / dice.rolled / state.patch", fillcolor="#18131D", fontcolor="#F3E9D2", color="#C49A4A"];
+  project [label="Role-aware Projection
+Host truth vs Player-safe view", fillcolor="#FFFFFF"];
+  feed [label="Narrative Feed + Dice Log
+SSE broadcast to clients", fillcolor="#FFF8E6"];
+  player -> cmd -> dispatcher -> state -> ai -> guard;
+  guard -> review [label="risky / reveal / state patch"];
+  guard -> events [label="safe auto-commit"];
+  review -> events [label="approved/edited"];
+  ai -> rules [label="rule_check request", style=dashed];
+  rules -> events;
+  events -> project -> feed;
+}

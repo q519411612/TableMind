@@ -17,6 +17,17 @@ fall back to the canonical source text.
 This is not production readiness. It remains an internal/local MVP demo with
 in-memory room state and supervised Host control.
 
+## Product Architecture
+
+The current README describes the runnable MVP/local demo. The product architecture
+planning package for the later Web product shell lives at
+[`docs/product/tablemind-web-product-architecture/README.md`](docs/product/tablemind-web-product-architecture/README.md).
+
+That package describes how the current playtest flow can evolve into a fuller
+TableMind Web App shell while preserving the current engine, rules, event-log,
+Host review, and no-spoiler boundaries. It is planning material, not a production
+readiness or public launch commitment.
+
 ## MVP Scope
 
 The current implementation follows `docs/PRD.md` and `specs/SPEC_MATRIX.md`.

@@ -1,0 +1,30 @@
+digraph G {
+  rankdir=LR;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  p0a [label="P0-A
+UI Skin
+保留现有业务逻辑", fillcolor="#FFF8E6"];
+  p0b [label="P0-B
+Session Room
+产品化布局", fillcolor="#FFF8E6"];
+  p0c [label="P0-C
+Create / Join / Lobby
+完整入口", fillcolor="#FFF8E6"];
+  p1a [label="P1-A
+Dashboard / My Sessions
+历史与继续游戏", fillcolor="#F6E5D0"];
+  p1b [label="P1-B
+Adventure Studio
+Scenes / NPCs / Clues", fillcolor="#F6E5D0"];
+  p1c [label="P1-C
+Archive / Export
+Recap + event replay", fillcolor="#F6E5D0"];
+  p2 [label="P2
+Production Platform
+Auth / DB / Assets / Library", fillcolor="#E7DDF6", color="#6F63B7"];
+  p0a -> p0b -> p0c -> p1a -> p1b -> p1c -> p2;
+}

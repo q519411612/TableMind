@@ -1,0 +1,25 @@
+digraph G {
+  rankdir=LR;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  source [label="Authoritative Source
+Event Log + Domain State + Adventure Truth", fillcolor="#18131D", fontcolor="#F3E9D2", color="#C49A4A"];
+  projector [label="Projection Builder
+visibility filter + audience rules", fillcolor="#F6E5D0"];
+  host [label="Host Projection
+DM-only notes / hidden truth / review queue", fillcolor="#FFF8E6"];
+  player [label="Player Projection
+public scene / revealed clues / own character", fillcolor="#FFF8E6"];
+  private [label="Private Player View
+selected whisper / personal secret", fillcolor="#FFF8E6"];
+  blocked [label="Never broadcast to players
+prompts / hidden IDs / state.patch internals", fillcolor="#8B1E2D", fontcolor="#F3E9D2"];
+  source -> projector;
+  projector -> host [label="role=host"];
+  projector -> player [label="role=player"];
+  projector -> private [label="audience selected"];
+  projector -> blocked [label="redact / omit", style=dashed];
+}
