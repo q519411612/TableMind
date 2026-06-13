@@ -8,6 +8,7 @@ import {
   renderEventFeed,
   renderMarkdown,
   renderNotice,
+  renderSessionPhaseBanner,
 } from "./render-utils.mjs";
 
 const demoConditionOptions = [
@@ -40,7 +41,24 @@ export function renderHostRoom(input = {}) {
       <section class="tm-status-strip">
         ${renderError(input.errorMessage, labels)}
         ${renderNotice(input.statusMessage, labels.system)}
-        ${renderNotice(hostNextStep({ room, snapshot, adventureSnapshot: input.adventureSnapshot, labels }), labels.nextStep)}
+        ${renderSessionPhaseBanner({
+          room,
+          snapshot,
+          adventureSnapshot: input.adventureSnapshot,
+          labels,
+          role: "host",
+          reviewQueue: input.reviewQueue ?? [],
+        })}
+        ${renderNotice(
+          hostNextStep({
+            room,
+            snapshot,
+            adventureSnapshot: input.adventureSnapshot,
+            labels,
+            reviewQueue: input.reviewQueue ?? [],
+          }),
+          labels.nextStep,
+        )}
       </section>
 
       <section class="tm-console-layout" aria-label="${escapeHtml(labels.hostConsole)}">
@@ -98,7 +116,7 @@ export function renderHostRoom(input = {}) {
 
           <article class="tm-panel" data-panel="feed">
             <h2>${escapeHtml(labels.auditFeed)}</h2>
-            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
+            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat, input.adventureSnapshot)}
           </article>
 
           <article class="tm-panel" data-panel="recap">
@@ -430,6 +448,16 @@ function hostNextStep(input) {
   }
   if (!input.adventureSnapshot) {
     return input.labels.nextLoadDemoAdventure;
+  }
+  const pendingReviewCount = Object.values(input.reviewQueue ?? {}).filter(
+    (item) => item.status === "pending",
+  ).length;
+  if (pendingReviewCount > 0) {
+    return `${input.labels.hostReviewRequired}: ${pendingReviewCount} ${
+      pendingReviewCount === 1
+        ? input.labels.pendingReviewItem
+        : input.labels.pendingReviewItems
+    }.`;
   }
   const readiness = playerReadiness(Object.values(input.snapshot?.players ?? {}));
   if (readiness.ready < 2) {

@@ -300,6 +300,36 @@ p {
   padding: 0.75rem;
 }
 
+.tm-phase-banner {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--tm-border-strong);
+  border-left: 4px solid var(--tm-success);
+  border-radius: 8px;
+  background: rgba(125, 168, 107, 0.1);
+  color: var(--tm-text);
+  padding: 0.75rem;
+}
+
+.tm-phase-banner strong {
+  color: var(--tm-parchment);
+}
+
+.tm-phase-banner span {
+  width: fit-content;
+  border: 1px solid var(--tm-border);
+  border-radius: 999px;
+  color: var(--tm-primary);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.tm-phase-banner p {
+  margin-bottom: 0;
+  color: var(--tm-muted);
+}
+
 .tm-readiness {
   color: var(--tm-primary);
   font-weight: 800;
@@ -349,6 +379,48 @@ p {
 .tm-inline-form label {
   min-width: min(18rem, 100%);
   flex: 1;
+}
+
+.tm-action-composer,
+.tm-combat-action-hint,
+.tm-suggested-actions {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.tm-action-availability,
+.tm-combat-action-hint p,
+.tm-combat-hint {
+  margin-bottom: 0;
+  color: var(--tm-parchment);
+  font-weight: 700;
+}
+
+.tm-suggested-actions {
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  background: rgba(14, 11, 16, 0.32);
+  padding: 0.65rem;
+}
+
+.tm-suggested-actions strong {
+  color: var(--tm-text);
+}
+
+.tm-suggested-actions ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tm-suggested-actions li {
+  border: 1px solid var(--tm-border);
+  border-radius: 999px;
+  color: var(--tm-muted);
+  padding: 0.25rem 0.55rem;
 }
 
 .tm-facts {
@@ -474,6 +546,10 @@ p {
 .tm-active-combatant {
   border-left: 4px solid var(--tm-primary);
   padding-left: 0.6rem;
+}
+
+.tm-inactive-combatant {
+  opacity: 0.72;
 }
 
 pre {

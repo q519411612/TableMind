@@ -52,3 +52,18 @@ This shell intentionally does not add:
 3. Add player-safe friendly names for revealed clue and scene events so public feed text does not need raw IDs.
 4. Add compact mobile affordances for Host review and combat controls after browser smoke feedback.
 5. Add visual regression smoke coverage for Host and Player pages if the project adopts a browser automation runner.
+
+## PR #26 Usability Guidance
+
+The Web Play shell may add UI-only guidance derived from already-visible room
+snapshot, combat, review queue, and adventure snapshot data. Session phase
+banners, next-step hints, action composer helper text, suggested player actions,
+combat turn hints, and friendlier public feed summaries must not create new game
+state or alter command/API/SSE behavior.
+
+Player-facing public feed summaries must only use the player snapshot and player
+adventure snapshot supplied to the player renderer. If a revealed clue or scene
+change cannot be mapped to a player-safe title from those inputs, render a
+generic safe summary instead of a raw internal ID. Do not read Host snapshots,
+truth, DM notes, hidden encounter setup, unrevealed clue text, review payloads,
+or state patches to improve Player copy.
