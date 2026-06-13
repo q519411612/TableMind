@@ -225,6 +225,87 @@ test("renderers expose product shell layout, event kinds, and rules log fields",
   assert.equal(playerHtml.includes("state.patch"), false);
 });
 
+test("renderers show player-safe session guidance, action prompts, and friendly public feed labels", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.phase = "combat";
+  snapshot.eventLog = [
+    {
+      type: "scene.changed",
+      sceneId: "scene_lantern_tower",
+      reason: "The party reaches the hill.",
+    },
+    {
+      type: "clue.revealed",
+      clueId: "clue_broken_lens",
+    },
+    {
+      type: "dice.rolled",
+      roll: {
+        formula: "1d20+5",
+        total: 20,
+      },
+      reason: "Inspect the lantern soot.",
+    },
+    {
+      type: "combat.turn_advanced",
+      activeCombatantId: "combatant_char_ada",
+    },
+  ];
+
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      phase: "combat",
+      combat: snapshot.combat,
+      eventLog: snapshot.eventLog,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a reveal.",
+        riskLevel: "medium",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lens flashes.",
+        },
+      },
+    ],
+  });
+
+  assert.ok(playerHtml.includes("Session Phase"));
+  assert.ok(playerHtml.includes("Combat"));
+  assert.ok(playerHtml.includes("Describe your action"));
+  assert.ok(playerHtml.includes("Send Action"));
+  assert.ok(playerHtml.includes("Suggested actions"));
+  assert.ok(playerHtml.includes("Inspect the area"));
+  assert.ok(playerHtml.includes("It is your turn"));
+  assert.ok(playerHtml.includes("Available attack: Longsword"));
+  assert.ok(playerHtml.includes("Scene changed to Lantern Tower."));
+  assert.ok(playerHtml.includes("Revealed clue: Broken Lantern Lens."));
+  assert.ok(playerHtml.includes("Rule check: 1d20+5 = 20. Inspect the lantern soot."));
+  assert.ok(playerHtml.includes("Turn advanced. Active combatant: Ada Thorne."));
+  assert.equal(playerHtml.includes("scene_lantern_tower"), false);
+  assert.equal(playerHtml.includes("clue_broken_lens"), false);
+  assert.equal(playerHtml.includes(secretText), false);
+  assert.equal(playerHtml.includes("state.patch"), false);
+  assert.ok(hostHtml.includes("Host review required"));
+  assert.ok(hostHtml.includes("1 pending item"));
+});
+
 test("Host combat controls render non-empty Start, Advance, and End Combat labels", () => {
   const html = renderHostRoom({
     room: {
@@ -787,6 +868,25 @@ test("Host renderer includes DM-only scene, review, combat, and recap controls",
 });
 
 test("Host renderer surfaces invite copy, player readiness, and next setup hint", () => {
+  const loadAdventureHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "/player.html?roomId=room_0001",
+    },
+    snapshot: {
+      ...setupReadyHostSnapshot(),
+      players: {
+        player_0001: {
+          id: "player_0001",
+          displayName: "Host",
+          role: "host",
+        },
+      },
+      characters: {},
+    },
+    reviewQueue: [],
+  });
   const html = renderHostRoom({
     room: {
       roomId: "room_0001",
@@ -803,6 +903,8 @@ test("Host renderer surfaces invite copy, player readiness, and next setup hint"
   assert.ok(html.includes("Players ready: 2/2"));
   assert.ok(html.includes("Ready"));
   assert.ok(html.includes("Ready to start the session."));
+  assert.ok(loadAdventureHtml.includes("Load the demo adventure, then share the invite."));
+  assert.equal(loadAdventureHtml.includes("Ready to start the session."), false);
   assert.equal(html.includes("Needs character"), false);
 });
 

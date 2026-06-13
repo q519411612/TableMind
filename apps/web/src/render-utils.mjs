@@ -41,9 +41,9 @@ export function renderMarkdown(markdown, labels = uiText()) {
     .join("");
 }
 
-export function renderEventFeed(events = [], labels = uiText(), combat) {
+export function renderEventFeed(events = [], labels = uiText(), combat, adventureSnapshot) {
   const feedItems = events
-    .map((event) => renderEvent(event, labels, combat))
+    .map((event) => renderEvent(event, labels, combat, adventureSnapshot))
     .filter((item) => item.length > 0);
 
   if (feedItems.length === 0) {
@@ -51,6 +51,21 @@ export function renderEventFeed(events = [], labels = uiText(), combat) {
   }
 
   return `<ol class="tm-feed tm-event-feed">${feedItems.join("")}</ol>`;
+}
+
+export function renderSessionPhaseBanner(input = {}) {
+  const labels = input.labels ?? uiText();
+  const snapshot = input.snapshot;
+  const phase = snapshot?.phase ?? "setup";
+  const hint = sessionPhaseHint({ ...input, labels, phase });
+
+  return `
+    <div class="tm-phase-banner" data-session-phase="${escapeHtml(phase)}">
+      <strong>${escapeHtml(labels.sessionPhase)}</strong>
+      <span>${escapeHtml(phaseLabel(phase, labels))}</span>
+      ${hint ? `<p>${escapeHtml(hint)}</p>` : ""}
+    </div>
+  `;
 }
 
 export function renderDiceLog(diceLog = [], labels = uiText(), events = [], combat) {
@@ -119,12 +134,16 @@ export function renderCombat(combat, labels = uiText()) {
       <span>${escapeHtml(labels.round)} ${escapeHtml(combat.round ?? 1)}</span>
       <span>${escapeHtml(labels.active)}: ${escapeHtml(activeName)}</span>
     </div>
+    <p class="tm-combat-hint">${escapeHtml(labels.activeCombatant)}: ${escapeHtml(activeName)}</p>
     <h3>${escapeHtml(labels.turnOrder)}</h3>
     <ul class="tm-list">
       ${combatants
         .map(
-          (combatant) => `
-            <li class="${combatant.id === combat.activeCombatantId ? "tm-active-combatant" : ""}">
+          (combatant) => {
+            const status = formatCombatStatus(combatant.status, labels);
+            const attackSummary = renderAttackSummary(combatant);
+            return `
+            <li class="${combatantClasses(combatant, combat.activeCombatantId)}">
               <strong>${escapeHtml(combatant.displayName ?? combatant.id)}</strong>
               <span>${escapeHtml(combatant.id)}</span>
               <span>${escapeHtml(labels.initiative)} ${escapeHtml(combatant.initiative ?? "?")}</span>
@@ -132,10 +151,12 @@ export function renderCombat(combat, labels = uiText()) {
               <span>${escapeHtml(labels.hp)} ${escapeHtml(combatant.hitPoints?.current ?? "?")}/${escapeHtml(
                 combatant.hitPoints?.max ?? "?",
               )}</span>
-              <span>${escapeHtml(formatCombatStatus(combatant.status, labels))}</span>
+              <span>${escapeHtml(status)}</span>
               <span>${escapeHtml(labels.conditions)} ${escapeHtml(renderConditionSummary(combatant.conditions, labels))}</span>
+              ${attackSummary ? `<span>${escapeHtml(labels.availableAttack)}: ${escapeHtml(attackSummary)}</span>` : ""}
             </li>
-          `,
+          `;
+          },
         )
         .join("")}
     </ul>
@@ -148,7 +169,7 @@ export function ownCharacters(snapshot, playerId) {
   );
 }
 
-function renderEvent(event, labels, combat) {
+function renderEvent(event, labels, combat, adventureSnapshot) {
   if (event.type === "player.message") {
     return renderFeedItem("player-action", labels.playerAction, escapeHtml(event.message));
   }
@@ -159,23 +180,58 @@ function renderEvent(event, labels, combat) {
     return renderFeedItem("system-event", labels.systemEvent, escapeHtml(event.message));
   }
   if (event.type === "dice.rolled") {
+    const formula = event.roll?.formula ?? labels.dice;
+    const total = event.roll?.total ?? "?";
+    const reason = event.reason ?? "";
     return renderFeedItem(
       "dice-result",
       labels.diceResult,
-      `${escapeHtml(event.roll?.formula)} = ${escapeHtml(event.roll?.total)} ${escapeHtml(event.reason ?? "")}`,
+      escapeHtml(formatLabel(labels.ruleCheckSummary, { formula, total, reason }).trim()),
     );
   }
   if (event.type === "scene.changed") {
-    return renderFeedItem("system-event", labels.scene, escapeHtml(event.sceneId));
+    const sceneTitle = safeSceneTitle(event, adventureSnapshot);
+    return renderFeedItem(
+      "system-event",
+      labels.scene,
+      escapeHtml(
+        sceneTitle
+          ? formatLabel(labels.sceneChangedTo, { scene: sceneTitle })
+          : labels.sceneChangedGeneric,
+      ),
+    );
   }
   if (event.type === "clue.revealed") {
-    return renderFeedItem("host-approved-reveal", labels.hostApprovedReveal, escapeHtml(labels.revealClue));
+    const clueTitle = safeClueTitle(event, adventureSnapshot);
+    return renderFeedItem(
+      "host-approved-reveal",
+      labels.hostApprovedReveal,
+      escapeHtml(
+        clueTitle
+          ? formatLabel(labels.revealedClueNamed, { clue: clueTitle })
+          : labels.revealedClueGeneric,
+      ),
+    );
   }
   if (event.type === "attack.resolved") {
     return renderFeedItem("combat-update", labels.combatUpdate, renderAttackOutcome(event, labels, combat));
   }
   if (event.type === "damage.applied") {
     return renderFeedItem("combat-update", labels.combatUpdate, renderDamageOutcome(event, labels));
+  }
+  if (event.type === "combat.started") {
+    return renderFeedItem("combat-update", labels.combatUpdate, escapeHtml(labels.combatStateChanged));
+  }
+  if (event.type === "combat.turn_advanced") {
+    const activeName = combatantName(combat, event.activeCombatantId);
+    return renderFeedItem(
+      "combat-update",
+      labels.combatUpdate,
+      escapeHtml(formatLabel(labels.turnAdvancedTo, { combatant: activeName })),
+    );
+  }
+  if (event.type === "combat.ended") {
+    return renderFeedItem("combat-update", labels.combatUpdate, escapeHtml(labels.combatStateChanged));
   }
   if (event.type?.startsWith("combat.")) {
     return renderFeedItem("combat-update", labels.combatUpdate, escapeHtml(labels.combatStateChanged));
@@ -288,6 +344,13 @@ function attackName(event, result, combat) {
   return attack?.name ?? event.attackId ?? event.attackerCombatantId ?? "";
 }
 
+function combatantName(combat, combatantId) {
+  const combatant = (combat?.combatants ?? []).find(
+    (candidate) => candidate.id === combatantId,
+  );
+  return combatant?.displayName ?? combatantId ?? "";
+}
+
 function attackRollFormula(result) {
   const base = result.d20?.formula ?? "1d20";
   const bonus = result.attackBonus ?? 0;
@@ -314,6 +377,172 @@ function renderConditionSummary(conditions = [], labels) {
     })
     .filter((conditionId) => typeof conditionId === "string" && conditionId.length > 0)
     .join(", ");
+}
+
+function combatantClasses(combatant, activeCombatantId) {
+  return [
+    combatant.id === activeCombatantId ? "tm-active-combatant" : "",
+    isInactiveCombatant(combatant) ? "tm-inactive-combatant" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function renderAttackSummary(combatant) {
+  return (combatant.attacks ?? [])
+    .map((attack) => attack.name ?? attack.id)
+    .filter((name) => typeof name === "string" && name.length > 0)
+    .join(", ");
+}
+
+function sessionPhaseHint(input) {
+  const {
+    snapshot,
+    labels,
+    role,
+    reviewQueue = [],
+    joined,
+    playerId,
+    phase,
+    room,
+    adventureSnapshot,
+  } = input;
+  const pendingReviewCount = reviewQueue.filter((item) => item.status === "pending").length;
+
+  if (role === "host") {
+    if (!room) {
+      return labels.nextCreateRoom;
+    }
+    if (!adventureSnapshot) {
+      return labels.nextLoadDemoAdventure;
+    }
+    if (playerReadiness(snapshot).ready < 2) {
+      return labels.nextWaitForPlayers;
+    }
+  }
+
+  if (role === "host" && pendingReviewCount > 0) {
+    return `${labels.hostReviewRequired}: ${formatPendingReviewCount(pendingReviewCount, labels)}.`;
+  }
+
+  if (role === "player") {
+    if (!joined) {
+      return labels.nextJoinInvite;
+    }
+    if (ownCharacters(snapshot, playerId).length === 0) {
+      return labels.nextCreateDemoCharacter;
+    }
+    if (phase === "combat") {
+      return playerCombatHint(snapshot?.combat, playerId, labels);
+    }
+  }
+
+  if (!snapshot) {
+    return role === "host" ? labels.nextCreateRoom : labels.nextJoinInvite;
+  }
+  if (phase === "lobby") {
+    return role === "host" ? labels.nextReadyToStart : labels.nextWaitingHostStart;
+  }
+  if (phase === "playing") {
+    return role === "host" ? labels.nextRunAi : labels.nextDescribeAction;
+  }
+  if (phase === "combat") {
+    return labels.nextResolveCombat;
+  }
+  if (phase === "ended") {
+    return labels.nextReadRecap;
+  }
+  return undefined;
+}
+
+function playerReadiness(snapshot) {
+  const playerRows = Object.values(snapshot?.players ?? {}).filter(
+    (player) => player.role === "player",
+  );
+  const ready = playerRows.filter((player) => player.characterId).length;
+  return {
+    ready,
+    target: Math.max(2, playerRows.length),
+  };
+}
+
+function playerCombatHint(combat, playerId, labels) {
+  const active = activeCombatant(combat);
+  if (active?.playerId === playerId) {
+    if (isInactiveCombatant(active)) {
+      return labels.inactiveCombatantCannotAct;
+    }
+    return labels.itIsYourTurn;
+  }
+
+  return `${labels.waitingForAnotherCombatant}: ${active?.displayName ?? active?.id ?? "?"}.`;
+}
+
+function activeCombatant(combat) {
+  return (combat?.combatants ?? []).find(
+    (combatant) => combatant.id === combat?.activeCombatantId,
+  );
+}
+
+function isInactiveCombatant(combatant) {
+  return ["defeated", "dead", "fled", "inactive"].includes(combatant?.status);
+}
+
+function phaseLabel(phase, labels) {
+  if (phase === "setup") {
+    return labels.phaseSetup;
+  }
+  if (phase === "lobby") {
+    return labels.phaseLobby;
+  }
+  if (phase === "playing") {
+    return labels.phasePlaying;
+  }
+  if (phase === "combat") {
+    return labels.phaseCombat;
+  }
+  if (phase === "ended") {
+    return labels.phaseEnded;
+  }
+  return labels.phaseUnknown;
+}
+
+function formatPendingReviewCount(count, labels) {
+  const unit = count === 1 ? labels.pendingReviewItem : labels.pendingReviewItems;
+  return `${count} ${unit}`;
+}
+
+function safeSceneTitle(event, adventureSnapshot) {
+  const currentScene = adventureSnapshot?.currentScene;
+  if (currentScene?.id === event.sceneId && typeof currentScene.title === "string") {
+    return currentScene.title;
+  }
+  if (typeof event.sceneTitle === "string" && event.sceneTitle.length > 0) {
+    return event.sceneTitle;
+  }
+  return undefined;
+}
+
+function safeClueTitle(event, adventureSnapshot) {
+  if (typeof event.clueTitle === "string" && event.clueTitle.length > 0) {
+    return event.clueTitle;
+  }
+
+  const clues = adventureSnapshot?.currentScene?.clues ?? [];
+  const matchingClue = clues.find(
+    (clue) => clue.id === event.clueId || clue.publicHandle === event.clueId,
+  );
+  if (matchingClue?.title) {
+    return matchingClue.title;
+  }
+  return undefined;
+}
+
+function formatLabel(template, values) {
+  return Object.entries(values).reduce(
+    (result, [key, value]) => result.replaceAll(`{${key}}`, String(value ?? "")),
+    template,
+  );
 }
 
 function formatCombatStatus(status = "active", labels) {

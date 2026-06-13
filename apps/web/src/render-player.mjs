@@ -9,6 +9,7 @@ import {
   renderEventFeed,
   renderMarkdown,
   renderNotice,
+  renderSessionPhaseBanner,
 } from "./render-utils.mjs";
 
 export function renderPlayerRoom(input = {}) {
@@ -33,6 +34,13 @@ export function renderPlayerRoom(input = {}) {
       ${renderJoinPanel(input, labels, joined)}
       <section class="tm-status-strip">
         ${renderError(input.errorMessage, labels)}
+        ${renderSessionPhaseBanner({
+          snapshot,
+          labels,
+          role: "player",
+          joined,
+          playerId: input.playerId,
+        })}
         ${renderNotice(playerNextStep({ snapshot, playerId: input.playerId, joined, labels }), labels.nextStep)}
       </section>
 
@@ -45,12 +53,12 @@ export function renderPlayerRoom(input = {}) {
 
           <article class="tm-panel tm-panel-composer" data-panel="action-composer">
             <h2>${escapeHtml(labels.actionComposer)}</h2>
-            ${renderMessageForm(snapshot, labels)}
+            ${renderMessageForm(snapshot, input.playerId, labels)}
           </article>
 
           <article class="tm-panel" data-panel="feed">
             <h2>${escapeHtml(labels.narrativeFeed)}</h2>
-            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
+            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat, input.adventureSnapshot)}
           </article>
         </section>
 
@@ -167,19 +175,30 @@ function hasJoinedPlayer(input) {
   );
 }
 
-function renderMessageForm(snapshot, labels) {
+function renderMessageForm(snapshot, playerId, labels) {
   if (!snapshot) {
     return "";
   }
 
   return `
-    <form data-action="send-message" class="tm-inline-form">
-      <label>
-        ${escapeHtml(labels.message)}
-        <input name="message" required />
-      </label>
-      <button type="submit">${escapeHtml(labels.send)}</button>
-    </form>
+    <div class="tm-action-composer">
+      <p class="tm-action-availability">${escapeHtml(playerActionAvailability(snapshot, playerId, labels))}</p>
+      <form data-action="send-message" class="tm-inline-form tm-action-form">
+        <label>
+          ${escapeHtml(labels.describeYourAction)}
+          <input name="message" placeholder="${escapeHtml(labels.inspectArea)}" required />
+        </label>
+        <button type="submit">${escapeHtml(labels.sendAction)}</button>
+      </form>
+      <div class="tm-suggested-actions" aria-label="${escapeHtml(labels.suggestedActions)}">
+        <strong>${escapeHtml(labels.suggestedActions)}</strong>
+        <ul>
+          ${[labels.inspectArea, labels.askNpc, labels.examineObject, labels.prepareForDanger]
+            .map((suggestion) => `<li>${escapeHtml(suggestion)}</li>`)
+            .join("")}
+        </ul>
+      </div>
+    </div>
   `;
 }
 
@@ -188,45 +207,96 @@ function renderAttackForm(snapshot, playerId, labels) {
     return "";
   }
 
-  const attacker = activePlayerCombatant(snapshot.combat, playerId);
-  const attack = attacker?.attacks?.[0];
-  const targets = (snapshot.combat.combatants ?? []).filter(
-    (combatant) =>
-      combatant.id !== attacker?.id &&
-      !["defeated", "dead", "fled"].includes(combatant.status),
-  );
+  const availability = combatAvailability(snapshot.combat, playerId, labels);
 
-  if (!attacker || !attack || targets.length === 0) {
-    return renderEmpty(labels.noAvailableAttack);
+  if (!availability.canAct || !availability.attack || availability.targets.length === 0) {
+    return `
+      <div class="tm-combat-action-hint">
+        <p>${escapeHtml(availability.hint)}</p>
+        ${renderEmpty(labels.noAvailableAttack)}
+      </div>
+    `;
   }
 
   return `
-    <form data-action="combat-attack" class="tm-inline-form">
-      <input type="hidden" name="attackerCombatantId" value="${escapeHtml(attacker.id)}" />
-      <input type="hidden" name="attackId" value="${escapeHtml(attack.id)}" />
-      <label>
-        ${escapeHtml(labels.target)}
-        <select name="targetCombatantId" required>
-          ${targets
-            .map(
-              (target) =>
-                `<option value="${escapeHtml(target.id)}">${escapeHtml(target.displayName ?? target.id)}</option>`,
-            )
-            .join("")}
-        </select>
-      </label>
-      <button type="submit">${escapeHtml(labels.attack)} ${escapeHtml(attack.name ?? attack.id)}</button>
-    </form>
+    <div class="tm-combat-action-hint">
+      <p>${escapeHtml(availability.hint)}</p>
+      <form data-action="combat-attack" class="tm-inline-form">
+        <input type="hidden" name="attackerCombatantId" value="${escapeHtml(availability.attacker.id)}" />
+        <input type="hidden" name="attackId" value="${escapeHtml(availability.attack.id)}" />
+        <label>
+          ${escapeHtml(labels.target)}
+          <select name="targetCombatantId" required>
+            ${availability.targets
+              .map(
+                (target) =>
+                  `<option value="${escapeHtml(target.id)}">${escapeHtml(target.displayName ?? target.id)}</option>`,
+              )
+              .join("")}
+          </select>
+        </label>
+        <button type="submit">${escapeHtml(labels.attack)} ${escapeHtml(
+          availability.attack.name ?? availability.attack.id,
+        )}</button>
+      </form>
+    </div>
   `;
 }
 
-function activePlayerCombatant(combat, playerId) {
-  return (combat.combatants ?? []).find(
-    (combatant) =>
-      combatant.id === combat.activeCombatantId &&
-      combatant.playerId === playerId &&
-      !["defeated", "dead", "fled"].includes(combatant.status),
+function playerActionAvailability(snapshot, playerId, labels) {
+  if (ownCharacters(snapshot, playerId).length === 0) {
+    return labels.nextCreateDemoCharacter;
+  }
+  if (snapshot.phase === "lobby") {
+    return labels.nextWaitingHostStart;
+  }
+  if (snapshot.phase === "combat") {
+    return combatAvailability(snapshot.combat, playerId, labels).hint;
+  }
+  if (snapshot.phase === "ended") {
+    return labels.nextReadRecap;
+  }
+  return `${labels.describeYourAction}. ${labels.waitingForAiDm}.`;
+}
+
+function combatAvailability(combat, playerId, labels) {
+  const active = (combat?.combatants ?? []).find(
+    (combatant) => combatant.id === combat.activeCombatantId,
   );
+  const attacker = active?.playerId === playerId ? active : undefined;
+  const attack = attacker?.attacks?.[0];
+  const targets = (combat?.combatants ?? []).filter(
+    (combatant) =>
+      combatant.id !== attacker?.id &&
+      !["defeated", "dead", "fled", "inactive"].includes(combatant.status),
+  );
+
+  if (!attacker) {
+    return {
+      canAct: false,
+      hint: `${labels.waitingForAnotherCombatant}: ${active?.displayName ?? active?.id ?? "?"}.`,
+      targets: [],
+    };
+  }
+
+  if (["defeated", "dead", "fled", "inactive"].includes(attacker.status)) {
+    return {
+      canAct: false,
+      hint: labels.inactiveCombatantCannotAct,
+      attacker,
+      attack,
+      targets,
+    };
+  }
+
+  const attackName = attack?.name ?? attack?.id ?? "?";
+  return {
+    canAct: true,
+    hint: `${labels.itIsYourTurn}. ${labels.availableAttack}: ${attackName}.`,
+    attacker,
+    attack,
+    targets,
+  };
 }
 
 function playerNextStep(input) {
@@ -243,7 +313,7 @@ function playerNextStep(input) {
     return input.labels.nextDescribeAction;
   }
   if (input.snapshot?.phase === "combat") {
-    return input.labels.nextResolveCombat;
+    return combatAvailability(input.snapshot.combat, input.playerId, input.labels).hint;
   }
   if (input.snapshot?.phase === "ended") {
     return input.labels.nextReadRecap;
