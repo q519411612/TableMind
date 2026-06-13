@@ -1,0 +1,33 @@
+digraph G {
+  rankdir=TB;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  core [label="TableMind Core
+AI DM / Rules Engine / State Machine
+Room Runtime / Spoiler Guard / Event Log", fillcolor="#18131D", fontcolor="#F3E9D2", color="#C49A4A", penwidth=2.4];
+  play [label="P0: TableMind Play
+Create / Join / Lobby / Session Room
+Dice / Combat / Recap", fillcolor="#FFF8E6"];
+  prepare [label="P1: TableMind Prepare
+Adventure Studio
+Scenes / NPCs / Clues / Encounters", fillcolor="#FFF8E6"];
+  archive [label="P1: TableMind Archive
+Session History / Event Log
+Recap / Export", fillcolor="#FFF8E6"];
+  library [label="P2: TableMind Library
+Rulesets / Adventure Assets
+Reusable Content / Marketplace-ready", fillcolor="#FFF8E6"];
+  shell [label="Web Product Shell
+Design System + Navigation + Role-aware UX", fillcolor="#D8C49A", color="#C49A4A", penwidth=2.0];
+  shell -> play;
+  shell -> prepare;
+  shell -> archive;
+  shell -> library;
+  play -> core [label="commands + projections"];
+  prepare -> core [label="adventure data"];
+  archive -> core [label="events + recap"];
+  library -> core [label="content + rules"];
+}

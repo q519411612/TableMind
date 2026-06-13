@@ -1,0 +1,34 @@
+digraph G {
+  rankdir=TB;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  app [label="apps/web
+Current: ESM + zero-dependency renderers
+Future: componentized shell", fillcolor="#18131D", fontcolor="#F3E9D2", color="#C49A4A"];
+  shell [label="Layout Shell
+Topbar / responsive grid / role theme", fillcolor="#FFF8E6"];
+  host [label="Host Console
+Review Queue / Controls / DM-only panels", fillcolor="#F6E5D0"];
+  player [label="Player Session
+Narrative Feed / Action Composer / Character Status", fillcolor="#F6E5D0"];
+  shared [label="Shared Panels
+Dice Log / Combat / Recap / Events", fillcolor="#F6E5D0"];
+  api [label="API Client
+commands / snapshots / SSE", fillcolor="#FFFFFF"];
+  styles [label="Design Tokens
+colors / spacing / cards / states", fillcolor="#FFFFFF"];
+  tests [label="Acceptance Tests
+UI playtest + no-leak regression", fillcolor="#FFFFFF"];
+  app -> shell;
+  shell -> host;
+  shell -> player;
+  shell -> shared;
+  host -> api;
+  player -> api;
+  shared -> api;
+  shell -> styles;
+  app -> tests;
+}

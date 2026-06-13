@@ -1,0 +1,67 @@
+digraph G {
+  rankdir=LR;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  subgraph cluster_client {
+    label="Client / Web"; fontname="Noto Sans CJK SC"; fontsize=20; color="#C49A4A"; style="rounded";
+    web [label="TableMind Web
+Host View / Player View", fillcolor="#FFF8E6"];
+    ui [label="UI Components
+Narrative / Party / Dice / Combat / Host Review", fillcolor="#FFFFFF"];
+  }
+  subgraph cluster_transport {
+    label="Transport"; fontname="Noto Sans CJK SC"; fontsize=20; color="#C49A4A"; style="rounded";
+    http [label="HTTP Commands
+create / join / actions", fillcolor="#FFFFFF"];
+    sse [label="SSE / WebSocket
+role-aware broadcasts", fillcolor="#FFFFFF"];
+    projections [label="Projection Layer
+host-safe / player-safe", fillcolor="#FFF8E6"];
+  }
+  subgraph cluster_runtime {
+    label="Runtime Core"; fontname="Noto Sans CJK SC"; fontsize=20; color="#8B1E2D"; style="rounded";
+    room [label="Room Service
+Command Dispatcher", fillcolor="#F6E5D0"];
+    domain [label="Domain State Machine
+session / scene / party / combat", fillcolor="#F6E5D0"];
+    rules [label="Rules Engine
+dice / checks / attacks / damage", fillcolor="#F6E5D0"];
+    ai [label="AI DM Orchestrator
+structured response only", fillcolor="#F6E5D0"];
+    guard [label="Spoiler Guard + Host Review
+validate / approve / edit / reject", fillcolor="#F6E5D0"];
+    eventlog [label="Event Log
+authoritative timeline", fillcolor="#F6E5D0"];
+  }
+  subgraph cluster_future {
+    label="Future Production Services"; fontname="Noto Sans CJK SC"; fontsize=20; color="#6F63B7"; style="rounded,dashed";
+    db [label="Postgres
+events + snapshots", fillcolor="#FFFFFF"];
+    redis [label="Redis / PubSub
+room fanout", fillcolor="#FFFFFF"];
+    storage [label="Object Storage
+adventures / assets / maps", fillcolor="#FFFFFF"];
+    auth [label="Auth / Accounts
+workspace / ownership", fillcolor="#FFFFFF"];
+  }
+  web -> ui;
+  ui -> http;
+  http -> room;
+  room -> domain;
+  room -> rules;
+  room -> ai;
+  ai -> guard;
+  rules -> eventlog;
+  domain -> eventlog;
+  guard -> eventlog;
+  eventlog -> projections;
+  projections -> sse;
+  sse -> web;
+  eventlog -> db [style=dashed];
+  sse -> redis [style=dashed];
+  room -> storage [style=dashed];
+  web -> auth [style=dashed];
+}

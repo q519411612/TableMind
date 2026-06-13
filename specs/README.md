@@ -4,6 +4,13 @@ This directory contains the spec-driven development source of truth for TableMin
 
 TableMind is an AI DM system for D&D 5e-compatible one-shot adventures. The MVP focuses on a multiplayer room, a structured adventure module, a deterministic rules engine, an SRD compendium, a spoiler guard, and Host oversight.
 
+## Related Product Planning
+
+For the later Web product shell roadmap, see
+[`docs/product/tablemind-web-product-architecture/README.md`](../docs/product/tablemind-web-product-architecture/README.md).
+That package is planning context and does not replace this spec pack, the PRD,
+or the current implementation status.
+
 ## How to use these specs
 
 1. Read `docs/PRD.md` for the product-level intent.

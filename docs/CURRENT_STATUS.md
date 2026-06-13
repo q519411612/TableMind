@@ -66,6 +66,18 @@ completed with a spoiler incident found and addressed by the current code path.
 
 The first supervised DeepSeek dry run passed for required dry-run coverage. The follow-up automated DeepSeek bridge smoke proved two live provider calls can pass through the structured bridge path, deterministic rule routing, Host review, rejection, combat, recap, and automated player no-leak checks. The later manual browser pass confirmed combat can be completed in the UI, but it also exposed unrevealed hatch-related clue content in public AI narration. The current automated suite protects unrevealed clue aliases and exact clue text, player projections, player SSE, player UI, and player recap paths. Do not claim production readiness, public launch readiness, permanent DeepSeek integration, or second-run completion. Existing evidence supports only supervised internal playtest attempts, not unsupervised public rooms, production auth, durable persistence, PDF import, full character building, or full VTT scope.
 
+## Product Architecture Planning
+
+[`docs/product/tablemind-web-product-architecture/README.md`](product/tablemind-web-product-architecture/README.md)
+now records the TableMind Web Product Architecture planning package. It explains
+how the local MVP demo can evolve toward a Web product shell while keeping
+TableMind Core as the gameplay authority.
+
+This planning document does not change the current project status: TableMind
+remains an internal/local MVP demo. Do not use it to claim production readiness,
+public launch readiness, full VTT readiness, durable persistence, production
+auth, marketplace, or payment scope.
+
 ## Next Live Run Planning
 
 - Schedule one Host and two players before attempting the second supervised run again.

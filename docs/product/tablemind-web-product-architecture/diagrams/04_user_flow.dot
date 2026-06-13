@@ -1,0 +1,33 @@
+digraph G {
+  rankdir=LR;
+
+  graph [bgcolor="#FDF8ED", pad="0.2", nodesep="0.55", ranksep="0.7", dpi="180"];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK SC", fontsize=18, color="#3A2E3F", penwidth=1.6, fillcolor="#FFFFFF", fontcolor="#18131D", margin="0.16,0.10"];
+  edge [fontname="Noto Sans CJK SC", fontsize=14, color="#6D5B43", penwidth=1.4, arrowsize=0.8, fontcolor="#3A2E3F"];
+
+  start [label="Landing
+Create or Join", fillcolor="#D8C49A"];
+  host [label="Host Setup
+select adventure + party size", fillcolor="#FFF8E6"];
+  join [label="Player Join
+invite code + character", fillcolor="#FFF8E6"];
+  lobby [label="Lobby
+ready status + invite link", fillcolor="#FFF8E6"];
+  session [label="Session Room
+AI DM narrative + actions", fillcolor="#18131D", fontcolor="#F3E9D2", color="#C49A4A"];
+  check [label="Rule Check / Dice
+deterministic result", fillcolor="#F6E5D0"];
+  review [label="Host Review / Override
+only when needed", fillcolor="#F6E5D0"];
+  combat [label="Encounter
+initiative / HP / turns", fillcolor="#F6E5D0"];
+  recap [label="Session Summary
+choices / rolls / outcome", fillcolor="#D8C49A"];
+  start -> host -> lobby;
+  start -> join -> lobby;
+  lobby -> session;
+  session -> check -> session;
+  session -> review -> session;
+  session -> combat -> session;
+  session -> recap;
+}
