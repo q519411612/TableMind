@@ -108,6 +108,123 @@ test("renderers can render fixed UI labels in English", () => {
   assert.ok(hostHtml.includes("Run AI"));
 });
 
+test("renderers expose product shell layout, event kinds, and rules log fields", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  snapshot.diceLog = [
+    {
+      formula: "1d20+5",
+      total: 20,
+      reason: "Inspect the lantern soot.",
+      check: {
+        requestType: "skill_check",
+        skill: "investigation",
+        ability: "intelligence",
+        dc: 15,
+        selectedD20: 15,
+        total: 20,
+        success: true,
+        reason: "Inspect the lantern soot.",
+      },
+    },
+  ];
+  snapshot.eventLog = [
+    {
+      type: "player.message",
+      actorId: "player_0002",
+      message: "I inspect the lantern.",
+    },
+    {
+      type: "ai.message",
+      message: "Cold soot curls around the cracked lantern frame.",
+      visibility: "public",
+    },
+    {
+      type: "system.message",
+      message: "Session started.",
+    },
+    {
+      type: "dice.rolled",
+      roll: {
+        formula: "1d20+5",
+        total: 20,
+      },
+      reason: "Inspect the lantern soot.",
+    },
+    {
+      type: "clue.revealed",
+      clueId: "clue_broken_lens",
+    },
+    {
+      type: "attack.resolved",
+      attackerCombatantId: "combatant_char_ada",
+      targetCombatantId: "combatant_monster_hill_scavenger_1",
+      attackId: "attack_longsword",
+      attackResult: {
+        d20: {
+          formula: "1d20",
+          total: 15,
+        },
+        attackBonus: 5,
+        total: 20,
+        armorClass: 13,
+        hit: true,
+      },
+    },
+  ];
+
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      diceLog: snapshot.diceLog,
+      eventLog: snapshot.eventLog,
+      combat: snapshot.combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [],
+  });
+
+  assert.ok(hostHtml.includes("tm-console-layout"));
+  assert.ok(hostHtml.includes("data-panel=\"room-invite\""));
+  assert.ok(hostHtml.includes("data-panel=\"players-readiness\""));
+  assert.ok(hostHtml.includes("data-panel=\"ai-controls\""));
+  assert.ok(hostHtml.includes("data-boundary=\"host-only\""));
+  assert.ok(hostHtml.includes("DM-only Notes"));
+  assert.ok(playerHtml.includes("tm-session-layout"));
+  assert.ok(playerHtml.includes("data-panel=\"action-composer\""));
+  assert.ok(playerHtml.includes("data-panel=\"character-status\""));
+
+  for (const eventKind of [
+    "ai-narration",
+    "player-action",
+    "system-event",
+    "dice-result",
+    "host-approved-reveal",
+    "combat-update",
+  ]) {
+    assert.ok(playerHtml.includes(`data-event-kind="${eventKind}"`), eventKind);
+  }
+
+  for (const ruleField of ["expression", "modifier", "dc", "result", "source"]) {
+    assert.ok(playerHtml.includes(`data-rule-field="${ruleField}"`), ruleField);
+  }
+  assert.ok(playerHtml.includes("Rules engine"));
+  assert.ok(playerHtml.includes("+5"));
+  assert.equal(playerHtml.includes(secretText), false);
+  assert.equal(playerHtml.includes("state.patch"), false);
+});
+
 test("Host combat controls render non-empty Start, Advance, and End Combat labels", () => {
   const html = renderHostRoom({
     room: {

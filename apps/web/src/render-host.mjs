@@ -25,7 +25,7 @@ export function renderHostRoom(input = {}) {
   const labels = uiText(input.locale);
 
   return `
-    <main class="tm-shell tm-host" data-viewer-role="host">
+    <main class="tm-shell tm-host tm-product-shell" data-viewer-role="host">
       <header class="tm-topbar">
         <div>
           <p class="tm-kicker">${escapeHtml(labels.hostConsole)}</p>
@@ -37,68 +37,76 @@ export function renderHostRoom(input = {}) {
         </div>
       </header>
 
-      <section class="tm-grid">
+      <section class="tm-status-strip">
         ${renderError(input.errorMessage, labels)}
         ${renderNotice(input.statusMessage, labels.system)}
         ${renderNotice(hostNextStep({ room, snapshot, adventureSnapshot: input.adventureSnapshot, labels }), labels.nextStep)}
+      </section>
 
-        <article class="tm-panel" data-panel="create-room">
-          <h2>${escapeHtml(labels.room)}</h2>
-          <form data-action="create-room">
-            <label>
-              ${escapeHtml(labels.hostName)}
-              <input name="hostDisplayName" value="Host" required />
-            </label>
-            <button type="submit">${escapeHtml(labels.createRoom)}</button>
-          </form>
-          ${renderInvite(room, labels)}
-        </article>
+      <section class="tm-console-layout" aria-label="${escapeHtml(labels.hostConsole)}">
+        <section class="tm-console-main">
+          <article class="tm-panel tm-panel-room" data-panel="room-invite">
+            <h2>${escapeHtml(labels.roomInvite)}</h2>
+            <form data-action="create-room">
+              <label>
+                ${escapeHtml(labels.hostName)}
+                <input name="hostDisplayName" value="Host" required />
+              </label>
+              <button type="submit">${escapeHtml(labels.createRoom)}</button>
+            </form>
+            ${renderInvite(room, labels)}
+          </article>
 
-        <article class="tm-panel" data-panel="players">
-          <h2>${escapeHtml(labels.players)}</h2>
-          ${renderPlayers(snapshot, labels)}
-        </article>
+          <article class="tm-panel tm-panel-scene" data-panel="scene">
+            <h2>${escapeHtml(labels.currentScene)}</h2>
+            ${renderHostScene(snapshot, scene, input.adventureSnapshot?.truth ?? [], labels)}
+            ${renderAdventureControls(scene, labels)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="scene">
-          <h2>${escapeHtml(labels.scene)}</h2>
-          ${renderHostScene(snapshot, scene, input.adventureSnapshot?.truth ?? [], labels)}
-          ${renderAdventureControls(scene, labels)}
-        </article>
+          <article class="tm-panel tm-panel-controls" data-panel="ai-controls">
+            <h2>${escapeHtml(labels.aiDmControls)}</h2>
+            ${renderAiStatus(snapshot, labels)}
+            <div class="tm-command-row">
+              <button type="button" data-command="ai.turn.run">${escapeHtml(labels.runAi)}</button>
+              <button type="button" data-command="ai.pause" data-paused="true">${escapeHtml(labels.pauseAi)}</button>
+              <button type="button" data-command="ai.pause" data-paused="false">${escapeHtml(labels.resumeAi)}</button>
+            </div>
+          </article>
 
-        <article class="tm-panel" data-panel="ai">
-          <h2>${escapeHtml(labels.ai)}</h2>
-          ${renderAiStatus(snapshot, labels)}
-          <button type="button" data-command="ai.turn.run">${escapeHtml(labels.runAi)}</button>
-          <button type="button" data-command="ai.pause" data-paused="true">${escapeHtml(labels.pauseAi)}</button>
-          <button type="button" data-command="ai.pause" data-paused="false">${escapeHtml(labels.resumeAi)}</button>
-        </article>
+          <article class="tm-panel tm-panel-review" data-panel="review" data-boundary="host-only">
+            <h2>${escapeHtml(labels.reviewQueue)}</h2>
+            ${renderReviewQueue(input.reviewQueue ?? [], labels)}
+          </article>
+        </section>
 
-        <article class="tm-panel tm-panel-wide" data-panel="review">
-          <h2>${escapeHtml(labels.reviewQueue)}</h2>
-          ${renderReviewQueue(input.reviewQueue ?? [], labels)}
-        </article>
+        <aside class="tm-console-sidebar">
+          <article class="tm-panel" data-panel="players-readiness">
+            <h2>${escapeHtml(labels.playersReadiness)}</h2>
+            ${renderPlayers(snapshot, labels)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="feed">
-          <h2>${escapeHtml(labels.auditFeed)}</h2>
-          ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
-        </article>
+          <article class="tm-panel" data-panel="dice">
+            <h2>${escapeHtml(labels.diceLog)}</h2>
+            ${renderDiceLog(snapshot?.diceLog ?? [], labels, snapshot?.eventLog ?? [], snapshot?.combat)}
+          </article>
 
-        <article class="tm-panel" data-panel="dice">
-          <h2>${escapeHtml(labels.diceLog)}</h2>
-          ${renderDiceLog(snapshot?.diceLog ?? [], labels, snapshot?.eventLog ?? [], snapshot?.combat)}
-        </article>
+          <article class="tm-panel" data-panel="combat">
+            <h2>${escapeHtml(labels.combat)}</h2>
+            ${renderCombat(snapshot?.combat, labels)}
+            ${renderCombatControls(snapshot?.combat, labels)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="combat">
-          <h2>${escapeHtml(labels.combat)}</h2>
-          ${renderCombat(snapshot?.combat, labels)}
-          ${renderCombatControls(snapshot?.combat, labels)}
-        </article>
+          <article class="tm-panel" data-panel="feed">
+            <h2>${escapeHtml(labels.auditFeed)}</h2>
+            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="recap">
-          <h2>${escapeHtml(labels.recap)}</h2>
-          ${renderSessionComplete(labels)}
-          ${renderMarkdown(input.recap?.markdown, labels)}
-        </article>
+          <article class="tm-panel" data-panel="recap">
+            <h2>${escapeHtml(labels.recap)}</h2>
+            ${renderSessionComplete(labels)}
+            ${renderMarkdown(input.recap?.markdown, labels)}
+          </article>
+        </aside>
       </section>
     </main>
   `;
@@ -164,20 +172,30 @@ function renderHostScene(snapshot, scene, truth, labels) {
 
   return `
     <h3>${escapeHtml(scene?.title ?? snapshot.currentSceneId)}</h3>
-    <p>${escapeHtml(scene?.readAloud?.text ?? "")}</p>
-    <p class="tm-dm-note">${escapeHtml(scene?.dmNotes?.text ?? "")}</p>
-    <ul class="tm-list">
-      ${truth
-        .map(
-          (secret) => `
-            <li>
-              <strong>${escapeHtml(secret.title)}</strong>
-              <span>${escapeHtml(secret.text)}</span>
-            </li>
-          `,
-        )
-        .join("")}
-    </ul>
+    <p class="tm-scene-readaloud">${escapeHtml(scene?.readAloud?.text ?? "")}</p>
+    <div class="tm-host-only-stack" data-boundary="host-only">
+      <section class="tm-dm-note">
+        <span class="tm-boundary-label">${escapeHtml(labels.hostOnly)}</span>
+        <strong>${escapeHtml(labels.dmOnlyNotes)}</strong>
+        <p>${escapeHtml(scene?.dmNotes?.text ?? "")}</p>
+      </section>
+      <section class="tm-hidden-truth">
+        <span class="tm-boundary-label">${escapeHtml(labels.hostOnly)}</span>
+        <strong>${escapeHtml(labels.hiddenTruth)}</strong>
+        <ul class="tm-list">
+          ${truth
+            .map(
+              (secret) => `
+                <li>
+                  <strong>${escapeHtml(secret.title)}</strong>
+                  <span>${escapeHtml(secret.text)}</span>
+                </li>
+              `,
+            )
+            .join("")}
+        </ul>
+      </section>
+    </div>
   `;
 }
 
