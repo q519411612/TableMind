@@ -18,7 +18,7 @@ export function renderPlayerRoom(input = {}) {
   const joined = hasJoinedPlayer(input);
 
   return `
-    <main class="tm-shell tm-player" data-viewer-role="player">
+    <main class="tm-shell tm-player tm-product-shell" data-viewer-role="player">
       <header class="tm-topbar">
         <div>
           <p class="tm-kicker">${escapeHtml(labels.playerRoom)}</p>
@@ -31,41 +31,51 @@ export function renderPlayerRoom(input = {}) {
       </header>
 
       ${renderJoinPanel(input, labels, joined)}
-      ${renderError(input.errorMessage, labels)}
-      ${renderNotice(playerNextStep({ snapshot, playerId: input.playerId, joined, labels }), labels.nextStep)}
+      <section class="tm-status-strip">
+        ${renderError(input.errorMessage, labels)}
+        ${renderNotice(playerNextStep({ snapshot, playerId: input.playerId, joined, labels }), labels.nextStep)}
+      </section>
 
-      <section class="tm-grid">
-        <article class="tm-panel tm-panel-wide" data-panel="scene">
-          <h2>${escapeHtml(labels.currentScene)}</h2>
-          ${renderPlayerScene(snapshot, scene, labels)}
-        </article>
+      <section class="tm-session-layout" aria-label="${escapeHtml(labels.playerRoom)}">
+        <section class="tm-session-main">
+          <article class="tm-panel tm-panel-scene" data-panel="scene">
+            <h2>${escapeHtml(labels.currentScene)}</h2>
+            ${renderPlayerScene(snapshot, scene, labels)}
+          </article>
 
-        <article class="tm-panel" data-panel="character">
-          <h2>${escapeHtml(labels.character)}</h2>
-          ${renderCharacters(snapshot, input.playerId, labels, joined)}
-        </article>
+          <article class="tm-panel tm-panel-composer" data-panel="action-composer">
+            <h2>${escapeHtml(labels.actionComposer)}</h2>
+            ${renderMessageForm(snapshot, labels)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="feed">
-          <h2>${escapeHtml(labels.publicFeed)}</h2>
-          ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
-          ${renderMessageForm(snapshot, labels)}
-        </article>
+          <article class="tm-panel" data-panel="feed">
+            <h2>${escapeHtml(labels.narrativeFeed)}</h2>
+            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat)}
+          </article>
+        </section>
 
-        <article class="tm-panel" data-panel="dice">
-          <h2>${escapeHtml(labels.diceLog)}</h2>
-          ${renderDiceLog(snapshot?.diceLog ?? [], labels, snapshot?.eventLog ?? [], snapshot?.combat)}
-        </article>
+        <aside class="tm-session-sidebar">
+          <article class="tm-panel" data-panel="character-status">
+            <h2>${escapeHtml(labels.characterStatus)}</h2>
+            ${renderCharacters(snapshot, input.playerId, labels, joined)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="combat">
-          <h2>${escapeHtml(labels.combat)}</h2>
-          ${renderCombat(snapshot?.combat, labels)}
-          ${renderAttackForm(snapshot, input.playerId, labels)}
-        </article>
+          <article class="tm-panel" data-panel="dice">
+            <h2>${escapeHtml(labels.diceLog)}</h2>
+            ${renderDiceLog(snapshot?.diceLog ?? [], labels, snapshot?.eventLog ?? [], snapshot?.combat)}
+          </article>
 
-        <article class="tm-panel tm-panel-wide" data-panel="recap">
-          <h2>${escapeHtml(labels.recap)}</h2>
-          ${renderMarkdown(input.recap?.markdown, labels)}
-        </article>
+          <article class="tm-panel" data-panel="combat">
+            <h2>${escapeHtml(labels.combat)}</h2>
+            ${renderCombat(snapshot?.combat, labels)}
+            ${renderAttackForm(snapshot, input.playerId, labels)}
+          </article>
+
+          <article class="tm-panel" data-panel="recap">
+            <h2>${escapeHtml(labels.recap)}</h2>
+            ${renderMarkdown(input.recap?.markdown, labels)}
+          </article>
+        </aside>
       </section>
     </main>
   `;
@@ -77,7 +87,7 @@ function renderJoinPanel(input, labels, joined) {
   }
 
   return `
-    <section class="tm-panel tm-join">
+    <section class="tm-panel tm-join" data-panel="join">
       <form data-action="join-room">
         <label>
           ${escapeHtml(labels.roomId)}

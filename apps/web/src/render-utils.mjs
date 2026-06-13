@@ -50,7 +50,7 @@ export function renderEventFeed(events = [], labels = uiText(), combat) {
     return renderEmpty(labels.noPublicEventsYet);
   }
 
-  return `<ol class="tm-feed">${feedItems.join("")}</ol>`;
+  return `<ol class="tm-feed tm-event-feed">${feedItems.join("")}</ol>`;
 }
 
 export function renderDiceLog(diceLog = [], labels = uiText(), events = [], combat) {
@@ -63,25 +63,44 @@ export function renderDiceLog(diceLog = [], labels = uiText(), events = [], comb
     return renderEmpty(labels.noDiceRolledYet);
   }
 
-  return `<ul class="tm-list">${entries.map((entry) => `<li>${entry}</li>`).join("")}</ul>`;
+  return `<ul class="tm-list tm-rules-log">${entries
+    .map((entry) => `<li class="tm-rules-card" data-log-kind="rules-engine">${entry}</li>`)
+    .join("")}</ul>`;
 }
 
 function renderDiceLogEntry(roll, labels) {
   if (roll.check) {
     const subject = roll.check.skill ?? roll.check.ability;
     const outcome = roll.check.success ? labels.success : labels.failure;
-    return `<strong>${escapeHtml(roll.check.requestType)} ${escapeHtml(
-      subject,
-    )}</strong><span>DC ${escapeHtml(roll.check.dc)}, d20 ${escapeHtml(
-      roll.check.selectedD20,
-    )}, ${escapeHtml(labels.total)} ${escapeHtml(roll.check.total)}, ${escapeHtml(
-      outcome,
-    )}</span><span>${escapeHtml(roll.check.reason)}</span>`;
+    return `
+      <div class="tm-rule-card-heading">
+        <strong>${escapeHtml(roll.check.requestType)} ${escapeHtml(subject)}</strong>
+        <span class="tm-outcome ${roll.check.success ? "tm-outcome-success" : "tm-outcome-failure"}">${escapeHtml(
+          outcome,
+        )}</span>
+      </div>
+      <div class="tm-rules-grid">
+        ${renderRuleField(labels.rollExpression, roll.formula ?? checkExpression(roll.check), "expression")}
+        ${renderRuleField(labels.modifier, formatSignedModifier(checkModifier(roll.check)), "modifier")}
+        ${renderRuleField("DC", roll.check.dc, "dc")}
+        ${renderRuleField(labels.result, `${roll.check.total} ${outcome}`, "result")}
+        ${renderRuleField(labels.source, labels.rulesEngine, "source")}
+      </div>
+      <p>${escapeHtml(roll.check.reason)}</p>
+    `;
   }
 
-  return `<strong>${escapeHtml(roll.formula)}</strong> = ${escapeHtml(
-    roll.total,
-  )}<span>${escapeHtml(roll.reason ?? "")}</span>`;
+  return `
+    <div class="tm-rule-card-heading">
+      <strong>${escapeHtml(labels.diceResult)}</strong>
+    </div>
+    <div class="tm-rules-grid">
+      ${renderRuleField(labels.rollExpression, roll.formula, "expression")}
+      ${renderRuleField(labels.result, roll.total, "result")}
+      ${renderRuleField(labels.source, labels.rulesEngine, "source")}
+    </div>
+    <p>${escapeHtml(roll.reason ?? "")}</p>
+  `;
 }
 
 export function renderCombat(combat, labels = uiText()) {
@@ -131,33 +150,35 @@ export function ownCharacters(snapshot, playerId) {
 
 function renderEvent(event, labels, combat) {
   if (event.type === "player.message") {
-    return `<li><strong>${escapeHtml(labels.player)}</strong><p>${escapeHtml(event.message)}</p></li>`;
+    return renderFeedItem("player-action", labels.playerAction, escapeHtml(event.message));
   }
   if (event.type === "ai.message") {
-    return `<li><strong>${escapeHtml(labels.ai)}</strong><p>${escapeHtml(event.message)}</p></li>`;
+    return renderFeedItem("ai-narration", labels.aiDmNarration, escapeHtml(event.message));
   }
   if (event.type === "system.message") {
-    return `<li><strong>${escapeHtml(labels.system)}</strong><p>${escapeHtml(event.message)}</p></li>`;
+    return renderFeedItem("system-event", labels.systemEvent, escapeHtml(event.message));
   }
   if (event.type === "dice.rolled") {
-    return `<li><strong>${escapeHtml(labels.dice)}</strong><p>${escapeHtml(
-      event.roll?.formula,
-    )} = ${escapeHtml(event.roll?.total)} ${escapeHtml(event.reason ?? "")}</p></li>`;
+    return renderFeedItem(
+      "dice-result",
+      labels.diceResult,
+      `${escapeHtml(event.roll?.formula)} = ${escapeHtml(event.roll?.total)} ${escapeHtml(event.reason ?? "")}`,
+    );
   }
   if (event.type === "scene.changed") {
-    return `<li><strong>${escapeHtml(labels.scene)}</strong><p>${escapeHtml(event.sceneId)}</p></li>`;
+    return renderFeedItem("system-event", labels.scene, escapeHtml(event.sceneId));
   }
   if (event.type === "clue.revealed") {
-    return `<li><strong>${escapeHtml(labels.revealClue)}</strong><p>${escapeHtml(event.clueId)}</p></li>`;
+    return renderFeedItem("host-approved-reveal", labels.hostApprovedReveal, escapeHtml(labels.revealClue));
   }
   if (event.type === "attack.resolved") {
-    return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${renderAttackOutcome(event, labels, combat)}</p></li>`;
+    return renderFeedItem("combat-update", labels.combatUpdate, renderAttackOutcome(event, labels, combat));
   }
   if (event.type === "damage.applied") {
-    return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${renderDamageOutcome(event, labels)}</p></li>`;
+    return renderFeedItem("combat-update", labels.combatUpdate, renderDamageOutcome(event, labels));
   }
   if (event.type?.startsWith("combat.")) {
-    return `<li><strong>${escapeHtml(labels.combat)}</strong><p>${escapeHtml(event.type)}</p></li>`;
+    return renderFeedItem("combat-update", labels.combatUpdate, escapeHtml(labels.combatStateChanged));
   }
   return "";
 }
@@ -167,20 +188,75 @@ function renderCombatDiceLogEntries(events, labels, combat) {
     .map((event) => {
       if (event.type === "attack.resolved") {
         const result = event.attackResult ?? {};
-        return `<strong>${escapeHtml(labels.attackRoll)}</strong><span>${escapeHtml(
-          attackRollFormula(result),
-        )} = ${escapeHtml(result.total)}</span><span>${escapeHtml(attackName(event, result, combat))}</span>`;
+        return `
+          <div class="tm-rule-card-heading">
+            <strong>${escapeHtml(labels.attackRoll)}</strong>
+            <span class="tm-outcome ${result.hit ? "tm-outcome-success" : "tm-outcome-failure"}">${escapeHtml(
+              result.hit ? labels.hit : labels.miss,
+            )}</span>
+          </div>
+          <div class="tm-rules-grid">
+            ${renderRuleField(labels.rollExpression, attackRollFormula(result), "expression")}
+            ${renderRuleField(labels.modifier, formatSignedModifier(result.attackBonus ?? 0), "modifier")}
+            ${renderRuleField(labels.armorClass, result.targetArmorClass ?? result.armorClass ?? "?", "dc")}
+            ${renderRuleField(labels.result, result.total ?? "?", "result")}
+            ${renderRuleField(labels.source, labels.rulesEngine, "source")}
+          </div>
+          <p>${escapeHtml(attackName(event, result, combat))}</p>
+        `;
       }
       if (event.type === "damage.applied") {
         const result = event.damageResult ?? {};
         const roll = result.roll ?? {};
-        return `<strong>${escapeHtml(labels.damageRoll)}</strong><span>${escapeHtml(
-          roll.formula ?? labels.damage,
-        )} = ${escapeHtml(roll.total ?? result.amount)}</span><span>${escapeHtml(result.damageType ?? "")}</span>`;
+        return `
+          <div class="tm-rule-card-heading">
+            <strong>${escapeHtml(labels.damageRoll)}</strong>
+          </div>
+          <div class="tm-rules-grid">
+            ${renderRuleField(labels.rollExpression, roll.formula ?? labels.damage, "expression")}
+            ${renderRuleField(labels.result, roll.total ?? result.amount, "result")}
+            ${renderRuleField(labels.source, labels.rulesEngine, "source")}
+          </div>
+          <p>${escapeHtml(result.damageType ?? "")}</p>
+        `;
       }
       return "";
     })
     .filter((entry) => entry.length > 0);
+}
+
+function renderFeedItem(kind, label, bodyHtml) {
+  return `<li class="tm-feed-item tm-event-${escapeHtml(kind)}" data-event-kind="${escapeHtml(
+    kind,
+  )}"><strong>${escapeHtml(label)}</strong><p>${bodyHtml}</p></li>`;
+}
+
+function renderRuleField(label, value, field) {
+  return `<span class="tm-rule-field" data-rule-field="${escapeHtml(field)}"><b>${escapeHtml(
+    label,
+  )}</b><span>${escapeHtml(value)}</span></span>`;
+}
+
+function checkModifier(check) {
+  if (Number.isFinite(check.modifier)) {
+    return check.modifier;
+  }
+  if (Number.isFinite(check.total) && Number.isFinite(check.selectedD20)) {
+    return check.total - check.selectedD20;
+  }
+  return 0;
+}
+
+function checkExpression(check) {
+  return `1d20${formatSignedModifier(checkModifier(check))}`;
+}
+
+function formatSignedModifier(value) {
+  const modifier = Number.isFinite(value) ? value : 0;
+  if (modifier > 0) {
+    return `+${modifier}`;
+  }
+  return String(modifier);
 }
 
 function renderAttackOutcome(event, labels, combat) {
