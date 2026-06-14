@@ -14,6 +14,22 @@ Player view must only render player-projected inputs: player snapshot, player ad
 
 The UI does not rely on CSS to hide secrets. Player-facing DOM should not receive secret strings in the first place.
 
+## Player-safe Rendering Hardening
+
+Player UI does not rely on CSS hiding for secrets. The Player renderer consumes
+only player-projected inputs: player snapshot, player adventure snapshot, player
+recap, current player id, room id, and command state. It must not read Host
+snapshots, Host review payloads, raw state patches, DM notes, hidden truth,
+hidden encounter setup, hidden NPC or monster setup, AI prompts, provider
+credentials, or session tokens to improve copy.
+
+Friendly scene and clue names in the Player public feed must come from the
+player-safe adventure snapshot. When a scene or clue event cannot be mapped to a
+visible scene or clue in that snapshot, the Player feed renders generic public
+copy instead of raw internal IDs or event-carried titles. The Host renderer may
+use Host-authorized snapshots and Host-authorized event titles for the audit
+feed.
+
 ## Vanilla Renderer Structure
 
 The current frontend is intentionally small and zero-dependency:
