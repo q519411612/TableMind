@@ -83,3 +83,19 @@ change cannot be mapped to a player-safe title from those inputs, render a
 generic safe summary instead of a raw internal ID. Do not read Host snapshots,
 truth, DM notes, hidden encounter setup, unrevealed clue text, review payloads,
 or state patches to improve Player copy.
+
+## Host Review UX Boundary
+
+The Host Review Queue clarity pass only improves the Host Console UI. It groups
+pending review items into clearer status, risk, reason, public message, reveal
+proposal, state patch proposal, decision, and edit sections.
+
+This UI work does not change Host review business logic, state patch semantics,
+command payloads, the spoiler guard, rules-engine authority, or the existing
+review commit path. It does not auto approve or auto reject AI output, and it
+does not let the AI DM directly mutate deterministic rules state.
+
+The Host view may display Host-authorized review payloads because it is rendered
+from Host-scoped data. Player views must not receive Host review payloads,
+state patch proposals, rejected AI output, DM-only notes, or other Host-only
+content.

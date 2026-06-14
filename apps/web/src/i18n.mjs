@@ -97,7 +97,9 @@ const en = {
   noPendingReviewItems: "No pending review items.",
   noPlayersYet: "No players yet.",
   noPublicEventsYet: "No public events yet.",
+  noPublicMessageProposal: "No public message proposed.",
   noRecapYet: "No recap yet.",
+  noRevealProposals: "No reveal proposals.",
   nextStep: "Next",
   nextCreateDemoCharacter: "Create a demo-ready character.",
   nextCreateRoom: "Create a room to get an invite link.",
@@ -147,12 +149,30 @@ const en = {
   revealClue: "Reveal Clue",
   revealProposal: "Reveal Proposal",
   reviewEditReason: "Edit Reason",
+  reviewEditSection: "Edit section",
+  reviewApproveConsequence:
+    "Approve sends the approved public message and eligible proposals through the existing review commit path.",
   reviewCommitScope:
     "Approve/Edit commits only the public message. Apply reveal proposals through Host reveal controls; state patches stay manual Host overrides.",
+  reviewEmptyRiskWait:
+    "Outputs involving reveals, state patches, or risk content will wait here for Host review.",
+  reviewEmptySafePublicFlow:
+    "Safe AI DM public output will continue through the public flow.",
+  reviewHostDecisionControls: "Host decision controls",
+  reviewPublicMessagePreview: "Public message preview",
   reviewReason: "Reason",
   reviewQueue: "Review Queue",
+  reviewRejectConsequence: "Reject blocks the proposed output.",
   reviewRisk: "Risk",
+  reviewRiskLevel: "Risk Level",
+  reviewRequiredWhy: "Why Host review is required",
+  reviewRevealProposals: "Reveal proposals",
+  reviewStatePatchProposals: "State patch proposals",
+  reviewStatus: "Status",
+  reviewStatusType: "Review Status / Type",
   reviewType: "Type",
+  reviewEditConsequence:
+    "Edit lets the Host revise the public message or structured payload before saving.",
   room: "Room",
   roomConsole: "Room Console",
   roomId: "Room ID",
@@ -177,6 +197,10 @@ const en = {
   rollExpression: "Roll expression",
   rulesEngine: "Rules engine",
   statePatch: "State Patch",
+  riskHigh: "high",
+  riskLow: "low",
+  riskMedium: "medium",
+  riskUnknown: "unknown",
   target: "Target",
   total: "total",
   turnAdvancedTo: "Turn advanced. Active combatant: {combatant}.",
@@ -192,6 +216,7 @@ const en = {
   itIsYourTurn: "It is your turn",
   publicMessage: "Public Message",
   noReviewPayloadSummary: "No proposed public message, reveal, or state patch.",
+  noStatePatchProposals: "No state patch proposal.",
 };
 
 const zhCN = {
@@ -291,7 +316,9 @@ const zhCN = {
   noPendingReviewItems: "暂无待审核项目。",
   noPlayersYet: "还没有玩家。",
   noPublicEventsYet: "暂无公开动态。",
+  noPublicMessageProposal: "暂无公开消息提议。",
   noRecapYet: "暂无战报。",
+  noRevealProposals: "暂无揭示提议。",
   nextStep: "下一步",
   nextCreateDemoCharacter: "创建一个 Demo 可用角色。",
   nextCreateRoom: "创建房间以生成邀请链接。",
@@ -341,12 +368,30 @@ const zhCN = {
   revealClue: "揭示线索",
   revealProposal: "揭示提议",
   reviewEditReason: "编辑原因",
+  reviewEditSection: "编辑区",
+  reviewApproveConsequence:
+    "批准会通过现有审核提交路径发送已批准的公开消息和符合条件的提议。",
   reviewCommitScope:
     "批准/编辑只会提交公开消息。揭示提议请通过主持揭示控件执行；状态补丁仍由主持手动覆盖。",
+  reviewEmptyRiskWait:
+    "涉及揭示、状态补丁或风险内容的输出会在这里等待主持审核。",
+  reviewEmptySafePublicFlow:
+    "AI DM 的安全公开输出会继续进入公开流程。",
+  reviewHostDecisionControls: "主持决策控件",
+  reviewPublicMessagePreview: "公开消息预览",
   reviewReason: "原因",
   reviewQueue: "审核队列",
+  reviewRejectConsequence: "拒绝会阻止该拟议输出。",
   reviewRisk: "风险",
+  reviewRiskLevel: "风险等级",
+  reviewRequiredWhy: "为什么需要主持审核",
+  reviewRevealProposals: "揭示提议",
+  reviewStatePatchProposals: "状态补丁提议",
+  reviewStatus: "状态",
+  reviewStatusType: "审核状态 / 类型",
   reviewType: "类型",
+  reviewEditConsequence:
+    "编辑允许主持在保存前调整公开消息或结构化载荷。",
   room: "房间",
   roomConsole: "房间控制台",
   roomId: "房间 ID",
@@ -371,6 +416,10 @@ const zhCN = {
   rollExpression: "投骰表达式",
   rulesEngine: "规则引擎",
   statePatch: "状态补丁",
+  riskHigh: "高",
+  riskLow: "低",
+  riskMedium: "中",
+  riskUnknown: "未知",
   target: "目标",
   total: "总值",
   turnAdvancedTo: "回合已推进。当前战斗单位：{combatant}。",
@@ -386,6 +435,7 @@ const zhCN = {
   itIsYourTurn: "轮到你了",
   publicMessage: "公开消息",
   noReviewPayloadSummary: "暂无公开消息、揭示或状态补丁提议。",
+  noStatePatchProposals: "暂无状态补丁提议。",
 };
 
 const dictionaries = {

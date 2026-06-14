@@ -37,6 +37,30 @@ test("player renderer shows play panels without rendering Host-only input", () =
     recap: {
       markdown: "Repair the Lantern\nVillage gratitude",
     },
+    reviewQueue: [
+      {
+        id: "review_player_hidden",
+        type: "ai_output",
+        reason: "Player renderer must not receive review payloads.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "Review-only lantern draft.",
+          revealProposals: [
+            {
+              entityType: "clue",
+              entityId: "review_only_clue",
+              reason: "Hidden review-only reason.",
+            },
+          ],
+          statePatch: {
+            op: "replace",
+            path: "/review_only_state_path",
+            value: "hidden",
+          },
+        },
+      },
+    ],
   });
 
   assert.ok(joinHtml.includes("data-action=\"join-room\""));
@@ -48,6 +72,9 @@ test("player renderer shows play panels without rendering Host-only input", () =
   assert.ok(html.includes("Repair the Lantern"));
   assert.equal(html.includes(secretText), false);
   assert.equal(html.includes(hostPauseReason), false);
+  assert.equal(html.includes("Review-only lantern draft."), false);
+  assert.equal(html.includes("review_only_clue"), false);
+  assert.equal(html.includes("/review_only_state_path"), false);
 });
 
 test("player renderer treats incomplete persisted identity as not joined", () => {
@@ -703,11 +730,19 @@ test("Host renderer hides completed review items from the pending queue", () => 
   });
 
   assert.ok(html.includes("No pending review items."));
+  assert.ok(
+    html.includes("Safe AI DM public output will continue through the public flow."),
+  );
+  assert.ok(
+    html.includes(
+      "Outputs involving reveals, state patches, or risk content will wait here for Host review.",
+    ),
+  );
   assert.equal(html.includes("data-command=\"host.review.update\""), false);
   assert.equal(html.includes("AI proposed a reveal."), false);
 });
 
-test("Host renderer summarizes pending review payloads and exposes edit controls", () => {
+test("Host renderer renders review card sections, risk badge, decision copy, and edit controls", () => {
   const html = renderHostRoom({
     room: {
       roomId: "room_0001",
@@ -748,23 +783,46 @@ test("Host renderer summarizes pending review payloads and exposes edit controls
     ],
   });
 
-  assert.ok(html.includes("Type"));
+  assert.ok(html.includes("data-review-section=\"status\""));
+  assert.ok(html.includes("Review Status / Type"));
   assert.ok(html.includes("ai_output"));
-  assert.ok(html.includes("Risk"));
+  assert.ok(html.includes("data-review-section=\"risk\""));
+  assert.ok(html.includes("Risk Level"));
+  assert.ok(html.includes("tm-risk-badge tm-risk-high"));
+  assert.ok(html.includes("data-review-risk-level=\"high\""));
   assert.ok(html.includes("high"));
-  assert.ok(html.includes("Reason"));
+  assert.ok(html.includes("data-review-section=\"reason\""));
+  assert.ok(html.includes("Why Host review is required"));
   assert.ok(html.includes("AI proposed a state patch."));
-  assert.ok(html.includes("Public Message"));
+  assert.ok(html.includes("data-review-section=\"public-message\""));
+  assert.ok(html.includes("Public message preview"));
   assert.ok(html.includes("The lantern trembles in the rain."));
-  assert.ok(html.includes("Reveal Proposal"));
+  assert.ok(html.includes("data-review-section=\"reveal-proposals\""));
+  assert.ok(html.includes("Reveal proposals"));
   assert.ok(html.includes("clue: clue_broken_lens"));
-  assert.ok(html.includes("State Patch"));
+  assert.ok(html.includes("data-review-section=\"state-patch-proposals\""));
+  assert.ok(html.includes("State patch proposals"));
   assert.ok(html.includes("replace /phase"));
+  assert.ok(html.includes("data-review-section=\"decision-controls\""));
+  assert.ok(html.includes("Host decision controls"));
+  assert.ok(
+    html.includes(
+      "Approve sends the approved public message and eligible proposals through the existing review commit path.",
+    ),
+  );
+  assert.ok(html.includes("Reject blocks the proposed output."));
+  assert.ok(
+    html.includes(
+      "Edit lets the Host revise the public message or structured payload before saving.",
+    ),
+  );
   assert.ok(
     html.includes(
       "Approve/Edit commits only the public message. Apply reveal proposals through Host reveal controls; state patches stay manual Host overrides.",
     ),
   );
+  assert.ok(html.includes("data-review-section=\"edit\""));
+  assert.ok(html.includes("Edit section"));
   assert.ok(html.includes("data-review-action=\"edit\""));
   assert.ok(html.includes("name=\"publicMessage\""));
   assert.ok(html.includes("name=\"proposedPayload\""));
