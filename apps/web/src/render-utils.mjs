@@ -41,9 +41,18 @@ export function renderMarkdown(markdown, labels = uiText()) {
     .join("");
 }
 
-export function renderEventFeed(events = [], labels = uiText(), combat, adventureSnapshot) {
+export function renderEventFeed(
+  events = [],
+  labels = uiText(),
+  combat,
+  adventureSnapshot,
+  options = {},
+) {
+  const viewerRole = options.viewerRole ?? "host";
   const feedItems = events
-    .map((event) => renderEvent(event, labels, combat, adventureSnapshot))
+    .map((event) =>
+      renderEvent(event, labels, combat, adventureSnapshot, viewerRole),
+    )
     .filter((item) => item.length > 0);
 
   if (feedItems.length === 0) {
@@ -169,7 +178,7 @@ export function ownCharacters(snapshot, playerId) {
   );
 }
 
-function renderEvent(event, labels, combat, adventureSnapshot) {
+function renderEvent(event, labels, combat, adventureSnapshot, viewerRole) {
   if (event.type === "player.message") {
     return renderFeedItem("player-action", labels.playerAction, escapeHtml(event.message));
   }
@@ -190,7 +199,7 @@ function renderEvent(event, labels, combat, adventureSnapshot) {
     );
   }
   if (event.type === "scene.changed") {
-    const sceneTitle = safeSceneTitle(event, adventureSnapshot);
+    const sceneTitle = safeSceneTitle(event, adventureSnapshot, viewerRole);
     return renderFeedItem(
       "system-event",
       labels.scene,
@@ -202,7 +211,7 @@ function renderEvent(event, labels, combat, adventureSnapshot) {
     );
   }
   if (event.type === "clue.revealed") {
-    const clueTitle = safeClueTitle(event, adventureSnapshot);
+    const clueTitle = safeClueTitle(event, adventureSnapshot, viewerRole);
     return renderFeedItem(
       "host-approved-reveal",
       labels.hostApprovedReveal,
@@ -512,10 +521,13 @@ function formatPendingReviewCount(count, labels) {
   return `${count} ${unit}`;
 }
 
-function safeSceneTitle(event, adventureSnapshot) {
+function safeSceneTitle(event, adventureSnapshot, viewerRole) {
   const currentScene = adventureSnapshot?.currentScene;
   if (currentScene?.id === event.sceneId && typeof currentScene.title === "string") {
     return currentScene.title;
+  }
+  if (viewerRole === "player") {
+    return undefined;
   }
   if (typeof event.sceneTitle === "string" && event.sceneTitle.length > 0) {
     return event.sceneTitle;
@@ -523,17 +535,19 @@ function safeSceneTitle(event, adventureSnapshot) {
   return undefined;
 }
 
-function safeClueTitle(event, adventureSnapshot) {
-  if (typeof event.clueTitle === "string" && event.clueTitle.length > 0) {
-    return event.clueTitle;
-  }
-
+function safeClueTitle(event, adventureSnapshot, viewerRole) {
   const clues = adventureSnapshot?.currentScene?.clues ?? [];
   const matchingClue = clues.find(
     (clue) => clue.id === event.clueId || clue.publicHandle === event.clueId,
   );
   if (matchingClue?.title) {
     return matchingClue.title;
+  }
+  if (viewerRole === "player") {
+    return undefined;
+  }
+  if (typeof event.clueTitle === "string" && event.clueTitle.length > 0) {
+    return event.clueTitle;
   }
   return undefined;
 }

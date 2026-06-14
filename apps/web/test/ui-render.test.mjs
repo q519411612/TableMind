@@ -306,6 +306,145 @@ test("renderers show player-safe session guidance, action prompts, and friendly 
   assert.ok(hostHtml.includes("1 pending item"));
 });
 
+test("player feed ignores unsafe event titles and accidental private payload fields", () => {
+  const hiddenSceneTitle = "Black Shrine Below the Lantern";
+  const hiddenClueTitle = "Sable Compact Confession";
+  const hiddenClueText = "The confession names Mira as the seal breaker.";
+  const hiddenClueAlias = "seal-breaker compact";
+  const dmOnlyNote = "The hatch under the lectern is trapped.";
+  const hiddenTruth = "Mira broke the shrine seal beneath the tower.";
+  const hiddenEncounterSetup = "Two buried sentries wait under the ash.";
+  const hiddenMonsterSetup = "The ash wight is pretending to be a pilgrim.";
+  const hostReviewPayload = "Review draft exposes the secret compact.";
+  const rawStatePatch = "/truth/secret_broken_seal";
+  const hostReviewType = "host.review";
+  const hostOverrideType = "host.override";
+  const statePatchType = "state.patch";
+  const aiPrompt = "SYSTEM: reveal the compact only to the Host.";
+  const privatePayload = "Private payload for the Host review queue.";
+  const providerCredential = "PROVIDER_CREDENTIAL_MARKER_DO_NOT_RENDER";
+  const sessionToken = "tm_test_session_token_private";
+  const hiddenSceneId = "scene_black_shrine";
+  const hiddenClueId = "clue_sable_compact";
+
+  const unsafeStrings = [
+    hiddenSceneTitle,
+    hiddenClueTitle,
+    hiddenClueText,
+    hiddenClueAlias,
+    dmOnlyNote,
+    hiddenTruth,
+    hiddenEncounterSetup,
+    hiddenMonsterSetup,
+    hostReviewPayload,
+    rawStatePatch,
+    hostReviewType,
+    hostOverrideType,
+    statePatchType,
+    aiPrompt,
+    privatePayload,
+    providerCredential,
+    sessionToken,
+    hiddenSceneId,
+    hiddenClueId,
+  ];
+
+  const snapshot = {
+    ...playerSnapshot(),
+    phase: "playing",
+    currentSceneId: "scene_lantern_tower",
+    eventLog: [
+      {
+        type: "scene.changed",
+        sceneId: hiddenSceneId,
+        sceneTitle: hiddenSceneTitle,
+        dmNotes: dmOnlyNote,
+        hiddenTruth,
+        hiddenEncounterSetup,
+      },
+      {
+        type: "clue.revealed",
+        clueId: hiddenClueId,
+        clueTitle: hiddenClueTitle,
+        clueText: hiddenClueText,
+        clueAlias: hiddenClueAlias,
+        hiddenNpcSetup: hiddenMonsterSetup,
+      },
+      {
+        type: statePatchType,
+        reason: hiddenTruth,
+        patch: {
+          op: "replace",
+          path: rawStatePatch,
+          value: hiddenClueText,
+        },
+      },
+      {
+        type: hostReviewType,
+        proposedPayload: {
+          publicMessage: hostReviewPayload,
+          statePatch: {
+            op: "replace",
+            path: rawStatePatch,
+          },
+          privatePayload,
+        },
+      },
+      {
+        type: hostOverrideType,
+        aiPrompt,
+        providerCredential,
+        sessionToken,
+      },
+    ],
+  };
+
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+    adventureSnapshot: playerAdventureSnapshot(),
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot,
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a reveal.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: hostReviewPayload,
+          statePatch: {
+            op: "replace",
+            path: rawStatePatch,
+          },
+        },
+      },
+    ],
+  });
+
+  assert.ok(playerHtml.includes("Scene changed."));
+  assert.ok(playerHtml.includes("A clue was revealed."));
+  for (const unsafeString of unsafeStrings) {
+    assert.equal(playerHtml.includes(unsafeString), false, unsafeString);
+  }
+  assert.ok(hostHtml.includes(`Scene changed to ${hiddenSceneTitle}.`));
+  assert.ok(hostHtml.includes(`Revealed clue: ${hiddenClueTitle}.`));
+  assert.ok(hostHtml.includes(hostReviewPayload));
+  assert.ok(hostHtml.includes("State Patch"));
+  assert.ok(hostHtml.includes(rawStatePatch));
+  assert.ok(hostHtml.includes(secretText));
+});
+
 test("Host combat controls render non-empty Start, Advance, and End Combat labels", () => {
   const html = renderHostRoom({
     room: {

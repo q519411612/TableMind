@@ -58,7 +58,9 @@ export function renderPlayerRoom(input = {}) {
 
           <article class="tm-panel" data-panel="feed">
             <h2>${escapeHtml(labels.narrativeFeed)}</h2>
-            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat, input.adventureSnapshot)}
+            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat, input.adventureSnapshot, {
+              viewerRole: "player",
+            })}
           </article>
         </section>
 

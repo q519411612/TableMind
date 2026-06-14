@@ -116,7 +116,9 @@ export function renderHostRoom(input = {}) {
 
           <article class="tm-panel" data-panel="feed">
             <h2>${escapeHtml(labels.auditFeed)}</h2>
-            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat, input.adventureSnapshot)}
+            ${renderEventFeed(snapshot?.eventLog ?? [], labels, snapshot?.combat, input.adventureSnapshot, {
+              viewerRole: "host",
+            })}
           </article>
 
           <article class="tm-panel" data-panel="recap">
