@@ -7,23 +7,84 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="tm-shell">
+    <main class="tm-shell tm-launchpad">
       <header class="tm-topbar">
         <div>
           <p class="tm-kicker">TableMind</p>
-          <h1 data-i18n="roomConsole">Room Console</h1>
+          <h1 data-i18n="launchpadTitle">TableMind Web Play</h1>
         </div>
         <div data-language-switcher></div>
       </header>
-      <section class="tm-grid">
+
+      <section class="tm-hero" aria-labelledby="launchpad-title">
+        <p class="tm-kicker" data-i18n="launchpadHeroKicker">Local Web Play</p>
+        <h2 id="launchpad-title" data-i18n="launchpadTagline">
+          AI-assisted tabletop session engine for 5e-compatible one-shot play.
+        </h2>
+        <p data-i18n="launchpadLocalScope">
+          This is a local/internal MVP demo for one Host and 2-4 players, not a
+          public production service.
+        </p>
+        <div class="tm-hero-actions">
+          <article>
+            <h3 data-i18n="launchpadHostCtaTitle">Create Game</h3>
+            <a class="tm-link-button" href="./host.html" data-i18n="openHostConsole" data-locale-link>Open Host Console</a>
+          </article>
+          <article>
+            <h3 data-i18n="launchpadPlayerCtaTitle">Join Game</h3>
+            <a class="tm-link-button secondary" href="./player.html" data-i18n="openPlayerRoom" data-locale-link>Open Player Room</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="tm-launchpad-section" aria-labelledby="launchpad-flow-title">
+        <h2 id="launchpad-flow-title" data-i18n="launchpadHowItWorksTitle">
+          How the local playtest works
+        </h2>
+        <ol class="tm-flow-list">
+          <li data-i18n="launchpadFlowHost">
+            Host creates the room, loads the demo adventure, and shares the invite link.
+          </li>
+          <li data-i18n="launchpadFlowPlayer">
+            Players open the invite link, join the room, and create demo-ready characters.
+          </li>
+          <li data-i18n="launchpadFlowAiDm">
+            AI DM handles narration and interaction while the system keeps rules and state authoritative.
+          </li>
+        </ol>
+      </section>
+
+      <section class="tm-feature-grid" aria-label="TableMind demo boundaries">
         <article class="tm-panel">
-          <h2>Host</h2>
-          <a class="tm-link-button" href="./host.html" data-i18n="openHostConsole" data-locale-link>Open Host Console</a>
+          <h2 data-i18n="launchpadFeatureRulesTitle">Rules engine authority</h2>
+          <p data-i18n="launchpadFeatureRules">
+            Dice, checks, attacks, damage, initiative, HP, and combat outcomes
+            are deterministic rules engine operations.
+          </p>
         </article>
         <article class="tm-panel">
-          <h2>Player</h2>
-          <a class="tm-link-button" href="./player.html" data-i18n="openPlayerRoom" data-locale-link>Open Player Room</a>
+          <h2 data-i18n="launchpadFeatureReviewTitle">Host supervision</h2>
+          <p data-i18n="launchpadFeatureReview">
+            Host review lets a human approve, edit, reject, reveal manually,
+            patch state manually, pause AI, or take over.
+          </p>
         </article>
+        <article class="tm-panel">
+          <h2 data-i18n="launchpadFeatureProjectionTitle">Player-safe projection</h2>
+          <p data-i18n="launchpadFeatureProjection">
+            The player-safe projection keeps DM-only secrets, rejected AI output,
+            and private review payloads out of player views.
+          </p>
+        </article>
+      </section>
+
+      <section class="tm-scope-note" aria-labelledby="launchpad-scope-title">
+        <h2 id="launchpad-scope-title" data-i18n="launchpadScopeTitle">Demo scope</h2>
+        <p data-i18n="launchpadScopeNote">
+          Demo boundary: this launchpad is not a production dashboard and does
+          not add auth, a database, session history, marketplace, payment, or
+          full VTT readiness.
+        </p>
       </section>
     </main>
     <script type="module" src="../src/index-app.mjs"></script>

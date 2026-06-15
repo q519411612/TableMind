@@ -80,6 +80,33 @@ const en = {
   joinRoom: "Join Room",
   joinRoomToSeeScene: "Join a room to see the scene.",
   language: "Language",
+  launchpadFeatureProjection:
+    "The player-safe projection keeps DM-only secrets, rejected AI output, and private review payloads out of player views.",
+  launchpadFeatureProjectionTitle: "Player-safe projection",
+  launchpadFeatureReview:
+    "Host review lets a human approve, edit, reject, reveal manually, patch state manually, pause AI, or take over.",
+  launchpadFeatureReviewTitle: "Host supervision",
+  launchpadFeatureRules:
+    "Dice, checks, attacks, damage, initiative, HP, and combat outcomes are deterministic rules engine operations.",
+  launchpadFeatureRulesTitle: "Rules engine authority",
+  launchpadFlowAiDm:
+    "AI DM handles narration and interaction while the system keeps rules and state authoritative.",
+  launchpadFlowHost:
+    "Host creates the room, loads the demo adventure, and shares the invite link.",
+  launchpadFlowPlayer:
+    "Players open the invite link, join the room, and create demo-ready characters.",
+  launchpadHeroKicker: "Local Web Play",
+  launchpadHostCtaTitle: "Create Game",
+  launchpadHowItWorksTitle: "How the local playtest works",
+  launchpadLocalScope:
+    "This is a local/internal MVP demo for one Host and 2-4 players, not a public production service.",
+  launchpadPlayerCtaTitle: "Join Game",
+  launchpadScopeNote:
+    "Demo boundary: this launchpad is not a production dashboard and does not add auth, a database, session history, marketplace, payment, or full VTT readiness.",
+  launchpadScopeTitle: "Demo scope",
+  launchpadTagline:
+    "AI-assisted tabletop session engine for 5e-compatible one-shot play.",
+  launchpadTitle: "TableMind Web Play",
   level: "level",
   loadDemoAdventure: "Load Demo Adventure",
   message: "Message",
@@ -151,7 +178,7 @@ const en = {
   reviewEditReason: "Edit Reason",
   reviewEditSection: "Edit section",
   reviewApproveConsequence:
-    "Approve sends the approved public message and eligible proposals through the existing review commit path.",
+    "Approve sends the approved public message through the existing review commit path.",
   reviewCommitScope:
     "Approve/Edit commits only the public message. Apply reveal proposals through Host reveal controls; state patches stay manual Host overrides.",
   reviewEmptyRiskWait:
@@ -299,6 +326,33 @@ const zhCN = {
   joinRoom: "加入房间",
   joinRoomToSeeScene: "加入房间后查看场景。",
   language: "语言",
+  launchpadFeatureProjection:
+    "玩家安全投影会防止 DM-only 内容、已拒绝的 AI 输出和私密审核载荷进入玩家视图。",
+  launchpadFeatureProjectionTitle: "玩家安全投影",
+  launchpadFeatureReview:
+    "主持审核允许人类批准、编辑、拒绝、手动揭示、手动修正状态、暂停 AI 或接管。",
+  launchpadFeatureReviewTitle: "主持监督",
+  launchpadFeatureRules:
+    "骰子、检定、攻击、伤害、先攻、生命值和战斗结果都由确定性规则引擎处理。",
+  launchpadFeatureRulesTitle: "规则引擎裁判",
+  launchpadFlowAiDm:
+    "AI DM 负责叙事和交互，系统继续保持规则与状态的权威性。",
+  launchpadFlowHost:
+    "主持创建房间、加载 Demo 冒险，并分享 invite link。",
+  launchpadFlowPlayer:
+    "玩家打开 invite link，加入房间，并创建 Demo 可用角色。",
+  launchpadHeroKicker: "本地 Web Play",
+  launchpadHostCtaTitle: "创建游戏",
+  launchpadHowItWorksTitle: "本地 playtest 如何运行",
+  launchpadLocalScope:
+    "这是面向一名主持和 2-4 名玩家的本地/内部 MVP Demo，不是公开生产服务。",
+  launchpadPlayerCtaTitle: "加入游戏",
+  launchpadScopeNote:
+    "Demo 边界：这个 launchpad 不是 production dashboard，也不引入账号、数据库、团局历史、市场、支付或完整 VTT 能力。",
+  launchpadScopeTitle: "Demo 范围",
+  launchpadTagline:
+    "面向 5e-compatible one-shot play 的 AI-assisted tabletop session engine。",
+  launchpadTitle: "TableMind Web Play",
   level: "等级",
   loadDemoAdventure: "加载 Demo 冒险",
   message: "消息",
@@ -370,7 +424,7 @@ const zhCN = {
   reviewEditReason: "编辑原因",
   reviewEditSection: "编辑区",
   reviewApproveConsequence:
-    "批准会通过现有审核提交路径发送已批准的公开消息和符合条件的提议。",
+    "批准会通过现有审核提交路径发送已批准的公开消息。",
   reviewCommitScope:
     "批准/编辑只会提交公开消息。揭示提议请通过主持揭示控件执行；状态补丁仍由主持手动覆盖。",
   reviewEmptyRiskWait:

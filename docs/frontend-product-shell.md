@@ -61,13 +61,27 @@ This shell intentionally does not add:
 - full D&D character builder or complete 5e automation;
 - provider configuration UI or live-provider dependency for tests.
 
+## Local Launchpad Boundary
+
+The `index.html` launchpad is only the local Web Play demo entry. It helps a
+Host open the Host Console and helps players open the Player Room for the
+current internal/local MVP playtest flow.
+
+It is not a production dashboard. It does not introduce auth, accounts, durable
+database storage, session history, My Sessions, marketplace, payment, public
+launch readiness, or full VTT scope.
+
+`host.html` and `player.html` remain the canonical play surfaces. The launchpad
+must not change Host/player command paths, HTTP contracts, SSE behavior, room
+service behavior, Host review business logic, rules-engine outcomes, or
+player-safe projection guarantees.
+
 ## Suggested Follow-up PRs
 
 1. Split feed, rules log, combat, scene, and recap rendering into smaller first-party modules once this shell proves stable.
-2. Add a lightweight local launchpad polish pass for `index.html` without changing Host/player command paths.
-3. Add player-safe friendly names for revealed clue and scene events so public feed text does not need raw IDs.
-4. Add compact mobile affordances for Host review and combat controls after browser smoke feedback.
-5. Add visual regression smoke coverage for Host and Player pages if the project adopts a browser automation runner.
+2. Add player-safe friendly names for revealed clue and scene events so public feed text does not need raw IDs.
+3. Add compact mobile affordances for Host review and combat controls after browser smoke feedback.
+4. Add visual regression smoke coverage for Host and Player pages if the project adopts a browser automation runner.
 
 ## PR #26 Usability Guidance
 
