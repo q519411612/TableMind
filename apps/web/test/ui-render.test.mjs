@@ -807,9 +807,10 @@ test("Host renderer renders review card sections, risk badge, decision copy, and
   assert.ok(html.includes("Host decision controls"));
   assert.ok(
     html.includes(
-      "Approve sends the approved public message and eligible proposals through the existing review commit path.",
+      "Approve sends the approved public message through the existing review commit path.",
     ),
   );
+  assert.equal(html.includes("eligible proposals"), false);
   assert.ok(html.includes("Reject blocks the proposed output."));
   assert.ok(
     html.includes(
@@ -975,6 +976,58 @@ test("static web entries expose a language switcher hook", () => {
   for (const html of [indexHtml, playerHtml, hostHtml]) {
     assert.ok(html.includes("data-language-switcher"));
   }
+});
+
+test("static launchpad keeps room links, locale hooks, and product boundary copy", () => {
+  const html = readFileSync(
+    new URL("../public/index.html", import.meta.url),
+    "utf8",
+  );
+
+  assert.ok(html.includes("tm-launchpad"));
+  assert.ok(html.includes("tm-hero"));
+  assert.ok(html.includes("href=\"./host.html\""));
+  assert.ok(html.includes("href=\"./player.html\""));
+  assert.ok(html.includes("data-i18n=\"openHostConsole\""));
+  assert.ok(html.includes("data-i18n=\"openPlayerRoom\""));
+  assert.equal(
+    [...html.matchAll(/<a\b[^>]*data-locale-link/g)].length,
+    2,
+  );
+
+  for (const key of [
+    "launchpadTitle",
+    "launchpadTagline",
+    "launchpadLocalScope",
+    "launchpadHowItWorksTitle",
+    "launchpadFlowHost",
+    "launchpadFlowPlayer",
+    "launchpadFlowAiDm",
+    "launchpadFeatureRules",
+    "launchpadFeatureReview",
+    "launchpadFeatureProjection",
+    "launchpadScopeNote",
+  ]) {
+    assert.ok(html.includes(`data-i18n="${key}"`), key);
+  }
+
+  const enLabels = uiText("en");
+  const zhLabels = uiText("zh-CN");
+
+  assert.ok(
+    enLabels.launchpadTagline.includes(
+      "AI-assisted tabletop session engine for 5e-compatible one-shot play",
+    ),
+  );
+  assert.ok(enLabels.launchpadLocalScope.includes("local/internal MVP demo"));
+  assert.ok(enLabels.launchpadFlowHost.includes("invite link"));
+  assert.ok(enLabels.launchpadFlowPlayer.includes("invite link"));
+  assert.ok(enLabels.launchpadFlowAiDm.includes("AI DM"));
+  assert.ok(enLabels.launchpadFeatureRules.includes("rules engine"));
+  assert.ok(enLabels.launchpadFeatureReview.includes("Host review"));
+  assert.ok(enLabels.launchpadFeatureProjection.includes("player-safe projection"));
+  assert.ok(enLabels.launchpadScopeNote.includes("not a production dashboard"));
+  assert.ok(zhLabels.launchpadLocalScope.includes("本地/内部 MVP Demo"));
 });
 
 test("static web entry i18n hooks reference supported label keys", () => {
