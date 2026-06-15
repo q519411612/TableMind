@@ -444,6 +444,120 @@ p {
   overflow-wrap: anywhere;
 }
 
+.tm-review-empty {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  background: rgba(14, 11, 16, 0.32);
+  padding: 0.75rem;
+}
+
+.tm-review-empty p {
+  margin-bottom: 0;
+  color: var(--tm-muted);
+}
+
+.tm-review-empty .tm-empty {
+  color: var(--tm-text);
+  font-weight: 800;
+}
+
+.tm-review-card {
+  gap: 0.75rem;
+  border-left: 4px solid var(--tm-warn);
+}
+
+.tm-review-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(9rem, 0.7fr) minmax(0, 1.2fr);
+  gap: 0.6rem;
+}
+
+.tm-review-section {
+  display: grid;
+  gap: 0.45rem;
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  background: rgba(33, 26, 39, 0.56);
+  padding: 0.65rem;
+}
+
+.tm-review-section h3 {
+  margin: 0;
+  color: var(--tm-parchment);
+  font-size: 0.88rem;
+}
+
+.tm-review-public-message,
+.tm-review-reason,
+.tm-review-help,
+.tm-review-scope {
+  margin-bottom: 0;
+  color: var(--tm-muted);
+}
+
+.tm-review-public-message {
+  border-left: 3px solid var(--tm-primary);
+  background: rgba(216, 196, 154, 0.08);
+  color: var(--tm-text);
+  padding: 0.55rem 0.65rem;
+}
+
+.tm-review-proposal-list,
+.tm-review-decision-copy {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tm-review-proposal-list li,
+.tm-review-decision-copy li {
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  background: rgba(14, 11, 16, 0.32);
+  padding: 0.5rem 0.6rem;
+}
+
+.tm-review-proposal-list span,
+.tm-review-decision-copy span {
+  color: var(--tm-muted);
+}
+
+.tm-risk-badge {
+  width: fit-content;
+  border: 1px solid var(--tm-border);
+  border-radius: 999px;
+  padding: 0.18rem 0.58rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.tm-risk-low {
+  border-color: var(--tm-success);
+  color: var(--tm-success);
+}
+
+.tm-risk-medium {
+  border-color: var(--tm-warn);
+  color: var(--tm-warn);
+}
+
+.tm-risk-high {
+  border-color: var(--tm-danger);
+  color: #ffb4bd;
+}
+
+.tm-risk-unknown {
+  border-color: var(--tm-border-strong);
+  color: var(--tm-muted);
+}
+
 .tm-event-feed .tm-feed-item {
   border-left: 4px solid var(--tm-border-strong);
 }
@@ -575,7 +689,8 @@ pre {
   }
 
   .tm-grid,
-  .tm-rules-grid {
+  .tm-rules-grid,
+  .tm-review-overview {
     grid-template-columns: 1fr;
   }
 
