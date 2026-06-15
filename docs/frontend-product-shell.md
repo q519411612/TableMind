@@ -38,11 +38,19 @@ The current frontend is intentionally small and zero-dependency:
 - `apps/web/src/host-app.mjs` and `apps/web/src/player-app.mjs` own browser state, form handling, command dispatch, locale switching, SSE refresh, and recap sync.
 - `apps/web/src/render-host.mjs` renders the Host Console from already-authorized Host inputs.
 - `apps/web/src/render-player.mjs` renders the Player Room from player-safe inputs.
-- `apps/web/src/render-utils.mjs` owns shared escaping, notices, feed cards, rules log cards, combat display, markdown display, and role-neutral helpers.
+- `apps/web/src/render-feed.mjs` renders Host audit and Player public feed cards, including viewer-role-aware scene and clue titles.
+- `apps/web/src/render-rules-log.mjs` renders dice, check, attack, and damage rules log cards with rules-engine source labels.
+- `apps/web/src/render-combat.mjs` renders projected combat state, turn order, combatant status, conditions, and available attack summaries.
+- `apps/web/src/render-host-review.mjs` renders the Host Review Queue, including risk, public message, reveal, state patch, decision, and edit sections.
+- `apps/web/src/render-utils.mjs` owns shared escaping, empty/error/notice display, markdown display, player-owned character lookup, and the role-neutral session phase banner.
 - `apps/web/src/i18n.mjs` owns fixed English and Simplified Chinese UI labels.
 - `apps/web/public/styles.css` owns the product shell visual language and responsive layout.
 
 Renderers may add UI-only grouping and labels, but they must not mutate game state, compute rules outcomes, authorize visibility, or infer hidden facts.
+
+The renderer module split changes module boundaries only. It does not change
+game state, visibility projection, command semantics, HTTP API behavior, SSE
+behavior, Host review business logic, combat rules, or rules-engine outcomes.
 
 ## Why Not React Yet
 
@@ -78,10 +86,9 @@ player-safe projection guarantees.
 
 ## Suggested Follow-up PRs
 
-1. Split feed, rules log, combat, scene, and recap rendering into smaller first-party modules once this shell proves stable.
-2. Add player-safe friendly names for revealed clue and scene events so public feed text does not need raw IDs.
-3. Add compact mobile affordances for Host review and combat controls after browser smoke feedback.
-4. Add visual regression smoke coverage for Host and Player pages if the project adopts a browser automation runner.
+1. Split scene and recap rendering into smaller first-party modules if those surfaces grow after the renderer boundary split.
+2. Add compact mobile affordances for Host review and combat controls after browser smoke feedback.
+3. Add visual regression smoke coverage for Host and Player pages if the project adopts a browser automation runner.
 
 ## PR #26 Usability Guidance
 
