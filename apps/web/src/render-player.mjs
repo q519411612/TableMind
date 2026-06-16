@@ -1,12 +1,12 @@
 import { renderLanguageSwitcher, uiText } from "./i18n.mjs";
+import { renderCombat } from "./render-combat.mjs";
+import { renderEventFeed } from "./render-feed.mjs";
+import { renderDiceLog } from "./render-rules-log.mjs";
 import {
   escapeHtml,
   ownCharacters,
-  renderCombat,
-  renderDiceLog,
   renderEmpty,
   renderError,
-  renderEventFeed,
   renderMarkdown,
   renderNotice,
   renderSessionPhaseBanner,
