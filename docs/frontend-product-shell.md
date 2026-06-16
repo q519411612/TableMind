@@ -120,3 +120,24 @@ The Host view may display Host-authorized review payloads because it is rendered
 from Host-scoped data. Player views must not receive Host review payloads,
 state patch proposals, rejected AI output, DM-only notes, or other Host-only
 content.
+
+## Mobile Affordance Boundary
+
+The mobile affordance pass only improves narrow-screen layout and control
+ergonomics for the current vanilla Web Play Host Review Queue and Combat panels.
+It adds UI-only grouping, class hooks, wrapping behavior, larger mobile tap
+targets, readable edit textareas, clearer active combatant emphasis, and
+stacked combat patch or attack controls.
+
+This work does not change Host review approval, rejection, edit, reveal, state
+patch, combat start, turn advance, combat end, Player attack, rules-engine, room
+service, event log, HTTP, or SSE semantics.
+
+Player-safe projection remains unchanged. Player views must continue to consume
+only player-projected snapshots and adventure snapshots, with no Host review
+payloads, DM-only secrets, rejected AI output, raw state patches, or Host-only
+content in the Player DOM.
+
+Desktop Host and Player play surfaces keep the current product shell structure:
+`host.html` and `player.html` remain the canonical play surfaces, and the
+vanilla render modules stay thin adapters over already-authorized inputs.

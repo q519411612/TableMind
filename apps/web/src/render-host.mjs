@@ -261,46 +261,48 @@ function renderCombatControls(combat, labels) {
     combatantOptions.length === 0
       ? ""
       : `
-    <form data-command="combat.patch_hp" class="tm-inline-form">
-      <label>
-        ${escapeHtml(labels.combatant)}
-        <select name="combatantId" required>
-          ${combatantOptions}
-        </select>
-      </label>
-      <label>
-        ${escapeHtml(labels.currentHp)}
-        <input name="currentHp" type="number" min="0" required />
-      </label>
-      <button type="submit" data-command="combat.patch_hp">${escapeHtml(labels.patchHp)}</button>
-    </form>
-    <form data-command="combat.patch_condition" class="tm-inline-form">
-      <label>
-        ${escapeHtml(labels.combatant)}
-        <select name="combatantId" required>
-          ${combatantOptions}
-        </select>
-      </label>
-      <label>
-        ${escapeHtml(labels.condition)}
-        <select name="condition" required>
-          ${demoConditionOptions
-            .map(
-              (condition) =>
-                `<option value="${escapeHtml(condition.id)}">${escapeHtml(labels[condition.labelKey])}</option>`,
-            )
-            .join("")}
-        </select>
-      </label>
-      <label>
-        ${escapeHtml(labels.action)}
-        <select name="action">
-          <option value="apply">${escapeHtml(labels.apply)}</option>
-          <option value="remove">${escapeHtml(labels.remove)}</option>
-        </select>
-      </label>
-      <button type="submit" data-command="combat.patch_condition">${escapeHtml(labels.patchCondition)}</button>
-    </form>`;
+    <div class="tm-combat-patch-controls">
+      <form data-command="combat.patch_hp" class="tm-inline-form tm-combat-patch-form tm-combat-hp-patch-form">
+        <label>
+          ${escapeHtml(labels.combatant)}
+          <select name="combatantId" required>
+            ${combatantOptions}
+          </select>
+        </label>
+        <label>
+          ${escapeHtml(labels.currentHp)}
+          <input name="currentHp" type="number" min="0" required />
+        </label>
+        <button type="submit" data-command="combat.patch_hp">${escapeHtml(labels.patchHp)}</button>
+      </form>
+      <form data-command="combat.patch_condition" class="tm-inline-form tm-combat-patch-form tm-combat-condition-patch-form">
+        <label>
+          ${escapeHtml(labels.combatant)}
+          <select name="combatantId" required>
+            ${combatantOptions}
+          </select>
+        </label>
+        <label>
+          ${escapeHtml(labels.condition)}
+          <select name="condition" required>
+            ${demoConditionOptions
+              .map(
+                (condition) =>
+                  `<option value="${escapeHtml(condition.id)}">${escapeHtml(labels[condition.labelKey])}</option>`,
+              )
+              .join("")}
+          </select>
+        </label>
+        <label>
+          ${escapeHtml(labels.action)}
+          <select name="action">
+            <option value="apply">${escapeHtml(labels.apply)}</option>
+            <option value="remove">${escapeHtml(labels.remove)}</option>
+          </select>
+        </label>
+        <button type="submit" data-command="combat.patch_condition">${escapeHtml(labels.patchCondition)}</button>
+      </form>
+    </div>`;
 
   return `
     <div class="tm-command-row">
