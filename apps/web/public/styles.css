@@ -572,6 +572,8 @@ p {
 .tm-review-card {
   gap: 0.75rem;
   border-left: 4px solid var(--tm-warn);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .tm-review-overview {
@@ -583,10 +585,12 @@ p {
 .tm-review-section {
   display: grid;
   gap: 0.45rem;
+  min-width: 0;
   border: 1px solid var(--tm-border);
   border-radius: 6px;
   background: rgba(33, 26, 39, 0.56);
   padding: 0.65rem;
+  overflow-wrap: anywhere;
 }
 
 .tm-review-section h3 {
@@ -608,6 +612,13 @@ p {
   background: rgba(216, 196, 154, 0.08);
   color: var(--tm-text);
   padding: 0.55rem 0.65rem;
+  overflow-wrap: anywhere;
+}
+
+.tm-review-risk-row {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
 }
 
 .tm-review-proposal-list,
@@ -636,32 +647,52 @@ p {
 
 .tm-risk-badge {
   width: fit-content;
+  max-width: 100%;
   border: 1px solid var(--tm-border);
   border-radius: 999px;
   padding: 0.18rem 0.58rem;
   font-size: 0.78rem;
   font-weight: 800;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
-.tm-risk-low {
+.tm-risk-badge.tm-risk-low {
   border-color: var(--tm-success);
   color: var(--tm-success);
 }
 
-.tm-risk-medium {
+.tm-risk-badge.tm-risk-medium {
   border-color: var(--tm-warn);
   color: var(--tm-warn);
 }
 
-.tm-risk-high {
+.tm-risk-badge.tm-risk-high {
   border-color: var(--tm-danger);
   color: #ffb4bd;
 }
 
-.tm-risk-unknown {
+.tm-risk-badge.tm-risk-unknown {
   border-color: var(--tm-border-strong);
   color: var(--tm-muted);
+}
+
+.tm-review-edit-form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.tm-review-textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.tm-review-payload-textarea {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.88rem;
 }
 
 .tm-event-feed .tm-feed-item {
@@ -761,15 +792,102 @@ p {
   background: rgba(196, 154, 74, 0.08);
   color: var(--tm-parchment);
   padding: 0.25rem 0.55rem;
+  overflow-wrap: anywhere;
 }
 
 .tm-active-combatant {
   border-left: 4px solid var(--tm-primary);
+  background: rgba(196, 154, 74, 0.1);
   padding-left: 0.6rem;
 }
 
 .tm-inactive-combatant {
   opacity: 0.72;
+}
+
+.tm-combat-list {
+  gap: 0.65rem;
+}
+
+.tm-combatant-row {
+  min-width: 0;
+}
+
+.tm-combatant-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.tm-combatant-id {
+  color: var(--tm-muted);
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.tm-combatant-active-badge,
+.tm-combatant-status,
+.tm-combatant-conditions,
+.tm-combatant-attacks {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--tm-border);
+  border-radius: 999px;
+  padding: 0.16rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.tm-combatant-active-badge {
+  border-color: var(--tm-primary);
+  background: rgba(196, 154, 74, 0.14);
+  color: var(--tm-parchment);
+}
+
+.tm-list .tm-combatant-active-badge {
+  color: var(--tm-parchment);
+}
+
+.tm-combatant-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.tm-combatant-stat {
+  display: block;
+  min-width: 0;
+  border: 1px solid var(--tm-border);
+  border-radius: 6px;
+  background: rgba(33, 26, 39, 0.72);
+  color: var(--tm-parchment);
+  padding: 0.42rem 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.tm-list .tm-combatant-stat {
+  color: var(--tm-parchment);
+}
+
+.tm-combatant-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.tm-combatant-status,
+.tm-combatant-conditions,
+.tm-combatant-attacks {
+  color: var(--tm-muted);
+}
+
+.tm-combat-patch-controls {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
 }
 
 pre {
@@ -786,6 +904,14 @@ pre {
   .tm-console-layout,
   .tm-session-layout {
     grid-template-columns: 1fr;
+  }
+
+  .tm-review-overview {
+    grid-template-columns: minmax(0, 1fr) minmax(10rem, 0.55fr);
+  }
+
+  .tm-review-section-reason {
+    grid-column: 1 / -1;
   }
 }
 
@@ -820,5 +946,60 @@ pre {
 
   .tm-language-switcher {
     justify-content: flex-start;
+  }
+
+  .tm-review-decision-actions button,
+  .tm-combat-attack-form button,
+  .tm-combat-patch-form button {
+    width: 100%;
+  }
+
+  .tm-review-decision-copy li {
+    gap: 0.28rem;
+  }
+
+  .tm-combat-summary {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
+  }
+
+  .tm-combatant-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tm-combatant-meta {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .tm-combatant-active-badge,
+  .tm-combatant-status,
+  .tm-combatant-conditions,
+  .tm-combatant-attacks {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .tm-shell {
+    width: min(100% - 0.6rem, 1420px);
+  }
+
+  .tm-panel,
+  .tm-join,
+  .tm-list li,
+  .tm-feed li,
+  .tm-review-section {
+    padding: 0.55rem;
+  }
+
+  .tm-combatant-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tm-risk-badge,
+  .tm-combat-summary span {
+    width: 100%;
   }
 }

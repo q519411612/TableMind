@@ -223,7 +223,7 @@ function renderAttackForm(snapshot, playerId, labels) {
   return `
     <div class="tm-combat-action-hint">
       <p>${escapeHtml(availability.hint)}</p>
-      <form data-action="combat-attack" class="tm-inline-form">
+      <form data-action="combat-attack" class="tm-inline-form tm-combat-attack-form">
         <input type="hidden" name="attackerCombatantId" value="${escapeHtml(availability.attacker.id)}" />
         <input type="hidden" name="attackId" value="${escapeHtml(availability.attack.id)}" />
         <label>

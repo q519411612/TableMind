@@ -6,7 +6,7 @@ export function renderReviewQueue(reviewQueue, labels) {
     return renderReviewEmptyState(labels);
   }
 
-  return `<ul class="tm-list">${pendingItems
+  return `<ul class="tm-list tm-review-list">${pendingItems
     .map((item) => renderReviewItem(item, labels))
     .join("")}</ul>`;
 }
@@ -39,9 +39,11 @@ export function renderReviewItem(item, labels) {
         ${renderReviewSection(
           "risk",
           labels.reviewRiskLevel,
-          `<span class="tm-risk-badge tm-risk-${escapeHtml(risk.level)}" data-review-risk-level="${escapeHtml(
+          `<div class="tm-review-risk-row"><span class="tm-risk-badge tm-risk-${escapeHtml(
             risk.level,
-          )}" data-review-risk-original="${escapeHtml(item.riskLevel ?? "")}">${escapeHtml(risk.label)}</span>`,
+          )}" data-review-risk-level="${escapeHtml(risk.level)}" data-review-risk-original="${escapeHtml(
+            item.riskLevel ?? "",
+          )}">${escapeHtml(risk.label)}</span></div>`,
         )}
         ${renderReviewSection(
           "reason",
@@ -149,7 +151,7 @@ export function renderReviewDecisionControls(item, labels) {
         <li><strong>${escapeHtml(labels.edit)}</strong><span>${escapeHtml(labels.reviewEditConsequence)}</span></li>
       </ul>
       <p class="tm-review-scope">${escapeHtml(labels.reviewCommitScope)}</p>
-      <div class="tm-command-row">
+      <div class="tm-command-row tm-review-decision-actions">
         <button type="button" data-command="host.review.update" data-action-value="approve" data-review-id="${escapeHtml(
           item.id,
         )}">${escapeHtml(labels.approve)}</button>
@@ -165,16 +167,16 @@ export function renderReviewEditForm(item, labels) {
   const payloadJson = JSON.stringify(item.proposedPayload ?? {}, null, 2);
   const publicMessage = item.proposedPayload?.publicMessage ?? "";
   return `
-    <form data-command="host.review.update" data-review-action="edit" class="tm-review-edit">
+    <form data-command="host.review.update" data-review-action="edit" class="tm-review-edit tm-review-edit-form">
       <input type="hidden" name="itemId" value="${escapeHtml(item.id)}" />
       <input type="hidden" name="action" value="edit" />
       <label>
         ${escapeHtml(labels.publicMessage)}
-        <textarea name="publicMessage" rows="3">${escapeHtml(publicMessage)}</textarea>
+        <textarea name="publicMessage" rows="3" class="tm-review-textarea tm-review-public-textarea">${escapeHtml(publicMessage)}</textarea>
       </label>
       <label>
         ${escapeHtml(labels.proposedPayloadJson)}
-        <textarea name="proposedPayload" rows="7">${escapeHtml(payloadJson)}</textarea>
+        <textarea name="proposedPayload" rows="7" class="tm-review-textarea tm-review-payload-textarea">${escapeHtml(payloadJson)}</textarea>
       </label>
       <label>
         ${escapeHtml(labels.reviewEditReason)}

@@ -14,29 +14,44 @@ export function renderCombat(combat, labels = uiText()) {
 
   return `
     <div class="tm-combat-summary">
-      <span>${escapeHtml(labels.round)} ${escapeHtml(combat.round ?? 1)}</span>
-      <span>${escapeHtml(labels.active)}: ${escapeHtml(activeName)}</span>
+      <span class="tm-combat-summary-pill tm-combat-round">${escapeHtml(labels.round)} ${escapeHtml(combat.round ?? 1)}</span>
+      <span class="tm-combat-summary-pill tm-combat-active-summary">${escapeHtml(labels.active)}: ${escapeHtml(activeName)}</span>
     </div>
     <p class="tm-combat-hint">${escapeHtml(labels.activeCombatant)}: ${escapeHtml(activeName)}</p>
     <h3>${escapeHtml(labels.turnOrder)}</h3>
-    <ul class="tm-list">
+    <ul class="tm-list tm-combat-list">
       ${combatants
         .map(
           (combatant) => {
             const status = formatCombatStatus(combatant.status, labels);
             const attackSummary = renderAttackSummary(combatant);
+            const isActive = combatant.id === combat.activeCombatantId;
             return `
-            <li class="${combatantClasses(combatant, combat.activeCombatantId)}">
-              <strong>${escapeHtml(combatant.displayName ?? combatant.id)}</strong>
-              <span>${escapeHtml(combatant.id)}</span>
-              <span>${escapeHtml(labels.initiative)} ${escapeHtml(combatant.initiative ?? "?")}</span>
-              <span>${escapeHtml(labels.armorClass)} ${escapeHtml(combatant.armorClass ?? "?")}</span>
-              <span>${escapeHtml(labels.hp)} ${escapeHtml(combatant.hitPoints?.current ?? "?")}/${escapeHtml(
-                combatant.hitPoints?.max ?? "?",
-              )}</span>
-              <span>${escapeHtml(status)}</span>
-              <span>${escapeHtml(labels.conditions)} ${escapeHtml(renderConditionSummary(combatant.conditions, labels))}</span>
-              ${attackSummary ? `<span>${escapeHtml(labels.availableAttack)}: ${escapeHtml(attackSummary)}</span>` : ""}
+            <li class="tm-combatant-row ${combatantClasses(
+              combatant,
+              combat.activeCombatantId,
+            )}" data-combatant-id="${escapeHtml(combatant.id)}" data-combatant-active="${escapeHtml(isActive)}">
+              <div class="tm-combatant-heading">
+                <strong>${escapeHtml(combatant.displayName ?? combatant.id)}</strong>
+                ${isActive ? `<span class="tm-combatant-active-badge">${escapeHtml(labels.active)}</span>` : ""}
+              </div>
+              <span class="tm-combatant-id">${escapeHtml(combatant.id)}</span>
+              <div class="tm-combatant-stat-grid">
+                ${renderCombatStat("initiative", labels.initiative, combatant.initiative ?? "?")}
+                ${renderCombatStat("armor-class", labels.armorClass, combatant.armorClass ?? "?")}
+                ${renderCombatStat(
+                  "hp",
+                  labels.hp,
+                  `${combatant.hitPoints?.current ?? "?"}/${combatant.hitPoints?.max ?? "?"}`,
+                )}
+              </div>
+              <div class="tm-combatant-meta">
+                <span class="tm-combatant-status">${escapeHtml(status)}</span>
+                <span class="tm-combatant-conditions">${escapeHtml(labels.conditions)} ${escapeHtml(
+                  renderConditionSummary(combatant.conditions, labels),
+                )}</span>
+                ${attackSummary ? `<span class="tm-combatant-attacks">${escapeHtml(labels.availableAttack)}: ${escapeHtml(attackSummary)}</span>` : ""}
+              </div>
             </li>
           `;
           },
@@ -44,6 +59,10 @@ export function renderCombat(combat, labels = uiText()) {
         .join("")}
     </ul>
   `;
+}
+
+function renderCombatStat(field, label, value) {
+  return `<span class="tm-combatant-stat" data-combat-stat="${escapeHtml(field)}">${escapeHtml(label)} ${escapeHtml(value)}</span>`;
 }
 
 export function combatantClasses(combatant, activeCombatantId) {

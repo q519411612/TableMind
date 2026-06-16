@@ -831,6 +831,48 @@ test("Host renderer renders review card sections, risk badge, decision copy, and
   assert.equal(html.includes("<pre>"), false);
 });
 
+test("Host review cards expose mobile-friendly layout hooks without changing review commands", () => {
+  const html = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: hostSnapshot(),
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_0001",
+        type: "ai_output",
+        reason: "AI proposed a reveal with a long explanation that should wrap on mobile.",
+        riskLevel: "medium",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "The lantern trembles in the rain.",
+          revealProposals: [
+            {
+              entityType: "clue",
+              entityId: "clue_broken_lens",
+              reason: "The player inspected the lens.",
+            },
+          ],
+        },
+      },
+    ],
+  });
+
+  assert.ok(html.includes("tm-list tm-review-list"));
+  assert.ok(html.includes("tm-review-overview"));
+  assert.ok(html.includes("tm-review-risk-row"));
+  assert.ok(html.includes("tm-review-decision-actions"));
+  assert.ok(html.includes("tm-review-public-textarea"));
+  assert.ok(html.includes("tm-review-payload-textarea"));
+  assert.ok(html.includes("data-command=\"host.review.update\""));
+  assert.ok(html.includes("data-review-action=\"edit\""));
+  assert.ok(html.includes("data-action-value=\"approve\""));
+  assert.ok(html.includes("data-action-value=\"reject\""));
+});
+
 test("Host renderer shows clear AI pause and active states", () => {
   const pausedHtml = renderHostRoom({
     room: {
@@ -1265,6 +1307,56 @@ test("combat renderers show round, turn order, AC, status, and conditions", () =
     assert.ok(html.includes("active"));
     assert.ok(html.includes("condition_grappled"));
   }
+});
+
+test("combat panels expose mobile-friendly active row, action, and patch hooks", () => {
+  const snapshot = combatReadyPlayerSnapshot();
+  const playerHtml = renderPlayerRoom({
+    roomId: "room_0001",
+    playerId: "player_0002",
+    playerSessionToken: "tm_test_session_token_player",
+    snapshot,
+  });
+  const hostHtml = renderHostRoom({
+    room: {
+      roomId: "room_0001",
+      hostPlayerId: "player_0001",
+      inviteLink: "http://localhost:3000/rooms/room_0001",
+    },
+    snapshot: {
+      ...hostSnapshot(),
+      combat: snapshot.combat,
+    },
+    adventureSnapshot: hostAdventureSnapshot(),
+    reviewQueue: [
+      {
+        id: "review_host_only",
+        type: "ai_output",
+        reason: "Host-only review payload.",
+        riskLevel: "high",
+        status: "pending",
+        proposedPayload: {
+          publicMessage: "Review-only combat draft.",
+        },
+      },
+    ],
+  });
+
+  assert.ok(playerHtml.includes("tm-combat-list"));
+  assert.ok(playerHtml.includes("tm-combatant-row"));
+  assert.ok(playerHtml.includes("tm-active-combatant"));
+  assert.ok(playerHtml.includes("data-combatant-active=\"true\""));
+  assert.ok(playerHtml.includes("tm-combatant-stat-grid"));
+  assert.ok(playerHtml.includes("tm-combatant-conditions"));
+  assert.ok(playerHtml.includes("tm-combat-attack-form"));
+  assert.ok(playerHtml.includes("data-action=\"combat-attack\""));
+  assert.ok(hostHtml.includes("tm-combat-patch-controls"));
+  assert.ok(hostHtml.includes("tm-combat-patch-form"));
+  assert.ok(hostHtml.includes("data-command=\"combat.patch_hp\""));
+  assert.ok(hostHtml.includes("data-command=\"combat.patch_condition\""));
+  assert.equal(playerHtml.includes("Review-only combat draft."), false);
+  assert.equal(playerHtml.includes("host.review"), false);
+  assert.equal(playerHtml.includes(secretText), false);
 });
 
 test("player renderer shows attack and damage outcomes without Host-only combat events", () => {
