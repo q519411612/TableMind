@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TableMind Web UI Redesign Preview</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7f3;
+        --paper: #fffdf8;
+        --panel: #ffffff;
+        --ink: #1f2528;
+        --muted: #677079;
+        --line: #d9ded6;
+        --line-strong: #bdc7bf;
+        --green: #246b61;
+        --green-soft: #e7f1ed;
+        --amber: #a45f18;
+        --amber-soft: #fff4df;
+        --red: #a33a35;
+        --red-soft: #fff0ee;
+        --blue: #2d5e7e;
+        --blue-soft: #e8f1f6;
+        --shadow: 0 14px 34px rgba(31, 37, 40, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0)),
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .preview-stack {
+        display: grid;
+        gap: 32px;
+        padding: 32px;
+      }
+
+      .screen {
+        min-height: 720px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        min-height: 68px;
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .brand {
+        display: grid;
+        gap: 2px;
+      }
+
+      .kicker {
+        margin: 0;
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.15;
+      }
+
+      .top-actions,
+      .button-row,
+      .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .button,
+      .ghost-button,
+      .danger-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        border: 1px solid var(--green);
+        border-radius: 6px;
+        padding: 7px 12px;
+        background: var(--green);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .ghost-button {
+        background: transparent;
+        color: var(--green);
+      }
+
+      .danger-button {
+        border-color: var(--red);
+        background: var(--red);
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 3px 9px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .pill.good {
+        border-color: #b9d5cc;
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .pill.warn {
+        border-color: #efd4a4;
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .pill.risk {
+        border-color: #edc1bd;
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .launchpad {
+        min-height: 652px;
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 24px;
+        padding: 32px;
+      }
+
+      .launch-hero {
+        align-self: stretch;
+        display: grid;
+        align-content: center;
+        gap: 18px;
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+          linear-gradient(135deg, rgba(231, 241, 237, 0.92), rgba(255, 253, 248, 0.92)),
+          #fff;
+      }
+
+      .launch-hero h2 {
+        margin: 0;
+        max-width: 620px;
+        font-size: 46px;
+        line-height: 1.02;
+      }
+
+      .launch-hero p {
+        max-width: 610px;
+        color: var(--muted);
+        font-size: 17px;
+        line-height: 1.6;
+      }
+
+      .launch-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .entry-card,
+      .panel,
+      .rail,
+      .workspace,
+      .monitor,
+      .feed-item,
+      .combatant,
+      .review-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .entry-card {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .entry-card h3 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .entry-card p,
+      .muted {
+        color: var(--muted);
+      }
+
+      .host-layout {
+        display: grid;
+        grid-template-columns: 230px minmax(0, 1fr) 290px;
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .rail,
+      .workspace,
+      .monitor,
+      .panel {
+        padding: 16px;
+      }
+
+      .rail h2,
+      .workspace h2,
+      .monitor h2,
+      .panel h2 {
+        margin-bottom: 12px;
+        font-size: 17px;
+      }
+
+      .steps {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 24px 1fr;
+        gap: 9px;
+        align-items: start;
+        padding: 9px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        color: var(--muted);
+      }
+
+      .step strong {
+        color: var(--ink);
+      }
+
+      .dot {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #eef2ee;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .step.active {
+        border-color: #b9d5cc;
+        background: var(--green-soft);
+      }
+
+      .step.active .dot {
+        background: var(--green);
+        color: #fff;
+      }
+
+      .step.warn {
+        border-color: #efd4a4;
+        background: var(--amber-soft);
+      }
+
+      .step.warn .dot {
+        background: var(--amber);
+        color: #fff;
+      }
+
+      .scene-card {
+        display: grid;
+        gap: 14px;
+      }
+
+      .scene-title {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .scene-title h2 {
+        margin: 0;
+        font-size: 30px;
+      }
+
+      .read-aloud {
+        padding: 15px;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--green);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 16px;
+        line-height: 1.58;
+      }
+
+      .dm-note {
+        padding: 13px;
+        border: 1px solid #efd4a4;
+        border-left: 4px solid var(--amber);
+        border-radius: 8px;
+        background: var(--amber-soft);
+      }
+
+      .truth-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .mini-card {
+        padding: 11px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fff;
+      }
+
+      .mini-card strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .monitor-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .player-row,
+      .metric-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .player-row:last-child,
+      .metric-row:last-child {
+        border-bottom: 0;
+      }
+
+      .review-card {
+        display: grid;
+        gap: 14px;
+        padding: 15px;
+        border-color: #edc1bd;
+        background: #fffdfc;
+      }
+
+      .review-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .proposal {
+        min-height: 110px;
+        padding: 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        line-height: 1.5;
+      }
+
+      .player-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 310px;
+        gap: 16px;
+        padding: 18px;
+      }
+
+      .player-main {
+        display: grid;
+        gap: 14px;
+      }
+
+      .action-box {
+        display: grid;
+        gap: 9px;
+        padding: 14px;
+        border: 1px solid #b9d5cc;
+        border-radius: 8px;
+        background: var(--green-soft);
+      }
+
+      .input-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+      }
+
+      input,
+      select {
+        min-height: 38px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: #fff;
+        padding: 8px 10px;
+        color: var(--ink);
+      }
+
+      .feed {
+        display: grid;
+        gap: 10px;
+      }
+
+      .feed-item {
+        padding: 12px;
+      }
+
+      .feed-item strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .character-card {
+        display: grid;
+        gap: 10px;
+        padding: 15px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .stat {
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fbfcf9;
+        text-align: center;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 18px;
+      }
+
+      .combat-grid {
+        display: grid;
+        gap: 10px;
+      }
+
+      .combatant {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        padding: 12px;
+      }
+
+      .combatant.active {
+        border-color: #b9d5cc;
+        background: var(--green-soft);
+      }
+
+      .target-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .target {
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .target.selected {
+        border-color: var(--green);
+        background: var(--green-soft);
+      }
+
+      .screenshot-label {
+        padding: 10px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #f9faf6;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      @media (max-width: 900px) {
+        .launchpad,
+        .host-layout,
+        .player-layout {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="preview-stack">
+      <section class="screen" id="launchpad">
+        <div class="screenshot-label">Preview 1 / Index Launchpad</div>
+        <header class="topbar">
+          <div class="brand">
+            <p class="kicker">TableMind</p>
+            <h1>Local Demo Launchpad</h1>
+          </div>
+          <div class="top-actions">
+            <span class="pill good">Server ready</span>
+            <span class="pill">English</span>
+            <span class="pill">中文</span>
+          </div>
+        </header>
+        <div class="launchpad">
+          <div class="launch-hero">
+            <span class="pill good">60-90 minute one-shot demo</span>
+            <h2>Run a safer AI-assisted tabletop session.</h2>
+            <p>
+              Start the Host console, invite players, and move through setup,
+              exploration, review, combat, and recap without exposing DM-only
+              information to player views.
+            </p>
+            <div class="button-row">
+              <a class="button" href="#host-workspace">Open Host Console</a>
+              <a class="ghost-button" href="#player-exploration">Open Player Room</a>
+            </div>
+          </div>
+          <div class="launch-grid">
+            <article class="entry-card">
+              <span class="pill good">Recommended first</span>
+              <h3>Host Console</h3>
+              <p>Create a room, copy the invite, load the Lantern demo, and supervise AI output.</p>
+              <a class="button" href="#host-workspace">Open Host</a>
+            </article>
+            <article class="entry-card">
+              <span class="pill">Invite link ready</span>
+              <h3>Player Room</h3>
+              <p>Join from a link, create a demo character, read the current scene, and act.</p>
+              <a class="ghost-button" href="#player-exploration">Join Player</a>
+            </article>
+            <article class="entry-card">
+              <span class="pill warn">Recent session</span>
+              <h3>room_0001</h3>
+              <p>Host: ready. Players: Ada and Bran have demo characters.</p>
+              <div class="status-row">
+                <span class="pill good">2/2 ready</span>
+                <span class="pill">zh-CN available</span>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="host-workspace">
+        <div class="screenshot-label">Preview 2 / Host Play + Review Workspace</div>
+        <header class="topbar">
+          <div class="brand">
+            <p class="kicker">Host Console</p>
+            <h1>room_0001 · The Lantern Beneath the Hill</h1>
+          </div>
+          <div class="top-actions">
+            <span class="pill warn">1 review pending</span>
+            <span class="pill good">Players 2/2 ready</span>
+            <a class="ghost-button" href="#launchpad">Refresh</a>
+          </div>
+        </header>
+        <div class="host-layout">
+          <aside class="rail">
+            <h2>Demo Progress</h2>
+            <ol class="steps">
+              <li class="step"><span class="dot">1</span><div><strong>Room</strong><br />Invite copied</div></li>
+              <li class="step"><span class="dot">2</span><div><strong>Players</strong><br />Ada and Bran ready</div></li>
+              <li class="step active"><span class="dot">3</span><div><strong>Exploration</strong><br />Lantern tower</div></li>
+              <li class="step warn"><span class="dot">!</span><div><strong>Review</strong><br />Risky AI output</div></li>
+              <li class="step"><span class="dot">5</span><div><strong>Combat</strong><br />Encounter ready</div></li>
+              <li class="step"><span class="dot">6</span><div><strong>Recap</strong><br />Not complete</div></li>
+            </ol>
+          </aside>
+          <main class="workspace">
+            <div class="scene-card">
+              <div class="scene-title">
+                <div>
+                  <span class="pill good">Current workspace</span>
+                  <h2>Lantern Tower</h2>
+                </div>
+                <div class="button-row">
+                  <a class="button" href="#host-workspace">Run AI</a>
+                  <a class="ghost-button" href="#host-workspace">Pause AI</a>
+                </div>
+              </div>
+              <div class="read-aloud">
+                Cold soot curls around the cracked lantern frame. Rain taps the
+                old glass while the hill road disappears into the dark below.
+              </div>
+              <div class="dm-note">
+                <strong>Host-only DM notes</strong>
+                <p class="muted">
+                  Mira broke the shrine seal while searching for her sibling.
+                  Reveal the broken lens only after direct inspection.
+                </p>
+              </div>
+              <div class="truth-grid">
+                <div class="mini-card">
+                  <strong>Revealed clue</strong>
+                  Broken Lens: the lantern was damaged from inside the tower.
+                </div>
+                <div class="mini-card">
+                  <strong>Hidden truth</strong>
+                  The hatch below the tower leads to the old shrine chamber.
+                </div>
+              </div>
+              <article class="review-card">
+                <div class="status-row">
+                  <span class="pill risk">Spoiler risk</span>
+                  <span class="pill warn">Reveal proposal</span>
+                  <span class="pill">AI output</span>
+                </div>
+                <div class="review-grid">
+                  <div class="mini-card">
+                    <strong>Reason</strong>
+                    AI mentioned a hidden hatch before the party revealed it.
+                  </div>
+                  <div class="mini-card">
+                    <strong>Reveal proposal</strong>
+                    clue_broken_lens · direct inspection
+                  </div>
+                  <div class="mini-card">
+                    <strong>State patch</strong>
+                    None committed automatically
+                  </div>
+                </div>
+                <div class="proposal">
+                  The lantern trembles as Ada brushes soot from the lens. A
+                  hairline fracture catches the last light from the village.
+                </div>
+                <div class="button-row">
+                  <a class="button" href="#host-workspace">Approve</a>
+                  <a class="ghost-button" href="#host-workspace">Edit</a>
+                  <a class="danger-button" href="#host-workspace">Reject</a>
+                </div>
+              </article>
+            </div>
+          </main>
+          <aside class="monitor">
+            <h2>Monitor</h2>
+            <div class="monitor-list">
+              <div class="player-row"><strong>Ada Thorne</strong><span class="pill good">Ready</span></div>
+              <div class="player-row"><strong>Bran Vale</strong><span class="pill good">Ready</span></div>
+              <div class="metric-row"><span>AI status</span><span class="pill warn">Paused</span></div>
+              <div class="metric-row"><span>Latest roll</span><strong>1d20+5 = 18</strong></div>
+              <div class="metric-row"><span>Scene</span><strong>Tower</strong></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="player-exploration">
+        <div class="screenshot-label">Preview 3 / Player Exploration Room</div>
+        <header class="topbar">
+          <div class="brand">
+            <p class="kicker">Player Room</p>
+            <h1>Ada Thorne · room_0001</h1>
+          </div>
+          <div class="top-actions">
+            <span class="pill good">Exploration</span>
+            <span class="pill">English</span>
+            <a class="ghost-button" href="#launchpad">Refresh</a>
+          </div>
+        </header>
+        <div class="player-layout">
+          <main class="player-main">
+            <section class="workspace">
+              <div class="scene-title">
+                <div>
+                  <span class="pill good">Current Scene</span>
+                  <h2>Lantern Tower</h2>
+                </div>
+                <span class="pill">1 clue revealed</span>
+              </div>
+              <p class="read-aloud">
+                The lantern tower squats against the black sky. Its broken frame
+                smells of rain, old oil, and cold ash.
+              </p>
+              <div class="truth-grid">
+                <div class="mini-card">
+                  <strong>Broken Lens</strong>
+                  The glass is cracked inward, as if something inside pushed out.
+                </div>
+                <div class="mini-card">
+                  <strong>Village Road</strong>
+                  The unlit hill path is unsafe after nightfall.
+                </div>
+              </div>
+            </section>
+            <section class="action-box">
+              <strong>Next: describe what Ada does</strong>
+              <p class="muted">Investigate the lens, speak with Bran, or ask the Host for a rules prompt.</p>
+              <div class="input-row">
+                <input value="I inspect the cracked lens more closely." />
+                <a class="button" href="#player-exploration">Send</a>
+              </div>
+            </section>
+            <section class="panel">
+              <h2>Public Feed</h2>
+              <div class="feed">
+                <div class="feed-item"><strong>Player</strong>Ada inspects the cracked lantern.</div>
+                <div class="feed-item"><strong>AI</strong>Cold soot curls around the cracked lantern frame.</div>
+                <div class="feed-item"><strong>Dice</strong>Investigation DC 15 · total 18 · success</div>
+              </div>
+            </section>
+          </main>
+          <aside class="monitor">
+            <h2>Character</h2>
+            <div class="character-card">
+              <strong>Ada Thorne</strong>
+              <span class="muted">Fighter · Level 1</span>
+              <div class="stat-grid">
+                <div class="stat"><span>HP</span><strong>12/12</strong></div>
+                <div class="stat"><span>AC</span><strong>16</strong></div>
+                <div class="stat"><span>Turn</span><strong>Ready</strong></div>
+              </div>
+            </div>
+            <h2 style="margin-top: 18px">Table Status</h2>
+            <div class="monitor-list">
+              <div class="metric-row"><span>Phase</span><span class="pill good">Playing</span></div>
+              <div class="metric-row"><span>Party</span><strong>2 players</strong></div>
+              <div class="metric-row"><span>Dice</span><strong>1d20+5</strong></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" id="player-combat">
+        <div class="screenshot-label">Preview 4 / Player Combat Room</div>
+        <header class="topbar">
+          <div class="brand">
+            <p class="kicker">Player Room</p>
+            <h1>Ada Thorne · Combat</h1>
+          </div>
+          <div class="top-actions">
+            <span class="pill good">Your turn</span>
+            <span class="pill">Round 1</span>
+            <a class="ghost-button" href="#player-exploration">Refresh</a>
+          </div>
+        </header>
+        <div class="player-layout">
+          <main class="player-main">
+            <section class="workspace">
+              <div class="scene-title">
+                <div>
+                  <span class="pill good">Combat Active</span>
+                  <h2>Hill Scavengers</h2>
+                </div>
+                <span class="pill good">Active: Ada Thorne</span>
+              </div>
+              <div class="combat-grid">
+                <div class="combatant active">
+                  <div><strong>Ada Thorne</strong><br /><span class="muted">Initiative 18 · HP 12/12 · AC 16</span></div>
+                  <span class="pill good">Act now</span>
+                </div>
+                <div class="combatant">
+                  <div><strong>Bran Vale</strong><br /><span class="muted">Initiative 14 · HP 9/9 · AC 14</span></div>
+                  <span class="pill">Waiting</span>
+                </div>
+                <div class="combatant">
+                  <div><strong>Hill Scavenger</strong><br /><span class="muted">Initiative 9 · HP 8/8 · AC 13</span></div>
+                  <span class="pill risk">Hostile</span>
+                </div>
+              </div>
+            </section>
+            <section class="action-box">
+              <strong>Choose a target and attack</strong>
+              <div class="target-grid">
+                <div class="target selected">
+                  <strong>Hill Scavenger</strong>
+                  <p class="muted">AC 13 · HP 8/8 · hostile</p>
+                </div>
+                <div class="target">
+                  <strong>Scavenger Lookout</strong>
+                  <p class="muted">AC 12 · HP 6/6 · hostile</p>
+                </div>
+              </div>
+              <div class="button-row">
+                <a class="button" href="#player-combat">Attack with Longsword</a>
+                <span class="pill">Rules engine resolves roll</span>
+              </div>
+            </section>
+            <section class="panel">
+              <h2>Recent Combat</h2>
+              <div class="feed">
+                <div class="feed-item"><strong>Attack</strong>Longsword Attack 20 vs AC 13: hit</div>
+                <div class="feed-item"><strong>Damage</strong>Damage 8 slashing, HP 0</div>
+              </div>
+            </section>
+          </main>
+          <aside class="monitor">
+            <h2>Dice Log</h2>
+            <div class="monitor-list">
+              <div class="metric-row"><span>Attack roll</span><strong>1d20+5 = 20</strong></div>
+              <div class="metric-row"><span>Damage roll</span><strong>1d8+3 = 8</strong></div>
+              <div class="metric-row"><span>Status</span><span class="pill good">Hit</span></div>
+            </div>
+            <h2 style="margin-top: 18px">Character</h2>
+            <div class="character-card">
+              <strong>Ada Thorne</strong>
+              <div class="stat-grid">
+                <div class="stat"><span>HP</span><strong>12/12</strong></div>
+                <div class="stat"><span>AC</span><strong>16</strong></div>
+                <div class="stat"><span>Cond.</span><strong>None</strong></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

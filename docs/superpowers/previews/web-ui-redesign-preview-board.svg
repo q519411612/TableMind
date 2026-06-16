@@ -1,0 +1,234 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="2200" viewBox="0 0 1600 2200">
+  <defs>
+    <style>
+      .bg { fill: #f5f7f3; }
+      .paper { fill: #fffdf8; stroke: #d9ded6; stroke-width: 1.5; }
+      .panel { fill: #ffffff; stroke: #d9ded6; stroke-width: 1.5; }
+      .soft { fill: #e7f1ed; stroke: #b9d5cc; stroke-width: 1.5; }
+      .warn { fill: #fff4df; stroke: #efd4a4; stroke-width: 1.5; }
+      .risk { fill: #fff0ee; stroke: #edc1bd; stroke-width: 1.5; }
+      .info { fill: #e8f1f6; stroke: #bdd0dc; stroke-width: 1.5; }
+      .ink { fill: #1f2528; font-family: Inter, Arial, sans-serif; }
+      .muted { fill: #677079; font-family: Inter, Arial, sans-serif; }
+      .green { fill: #246b61; font-family: Inter, Arial, sans-serif; }
+      .amber { fill: #a45f18; font-family: Inter, Arial, sans-serif; }
+      .red { fill: #a33a35; font-family: Inter, Arial, sans-serif; }
+      .title { font-size: 34px; font-weight: 800; letter-spacing: 0; }
+      .screen-title { font-size: 28px; font-weight: 800; letter-spacing: 0; }
+      .h2 { font-size: 22px; font-weight: 800; letter-spacing: 0; }
+      .h3 { font-size: 18px; font-weight: 800; letter-spacing: 0; }
+      .body { font-size: 15px; letter-spacing: 0; }
+      .small { font-size: 12px; letter-spacing: 0; }
+      .pill-text { font-size: 12px; font-weight: 800; letter-spacing: 0; }
+      .button-text { fill: #ffffff; font-size: 14px; font-weight: 800; font-family: Inter, Arial, sans-serif; }
+      .button-ghost { fill: #246b61; font-size: 14px; font-weight: 800; font-family: Inter, Arial, sans-serif; }
+      .shadow { filter: drop-shadow(0 14px 26px rgba(31,37,40,0.10)); }
+      .line { stroke: #d9ded6; stroke-width: 1.5; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="1600" height="2200"/>
+  <text x="70" y="72" class="ink title">TableMind Web UI Redesign Preview</text>
+  <text x="70" y="106" class="muted body">Implementation-oriented mockups for the local demo flow. Static preview only, not production UI.</text>
+
+  <!-- Screen 1 -->
+  <g transform="translate(70 145)" class="shadow">
+    <rect class="paper" width="1460" height="440" rx="10"/>
+    <rect class="info" width="1460" height="38" rx="10"/>
+    <text x="22" y="25" class="green pill-text">PREVIEW 1 / INDEX LAUNCHPAD</text>
+    <line x1="0" y1="70" x2="1460" y2="70" class="line"/>
+    <text x="26" y="61" class="green pill-text">TableMind</text>
+    <text x="26" y="105" class="ink screen-title">Local Demo Launchpad</text>
+    <rect x="1100" y="82" width="105" height="28" rx="14" class="soft"/>
+    <text x="1120" y="101" class="green pill-text">Server ready</text>
+    <rect x="1216" y="82" width="74" height="28" rx="14" class="panel"/>
+    <text x="1234" y="101" class="muted pill-text">English</text>
+    <rect x="1302" y="82" width="60" height="28" rx="14" class="panel"/>
+    <text x="1320" y="101" class="muted pill-text">CN</text>
+
+    <rect x="26" y="130" width="820" height="280" rx="8" class="soft"/>
+    <text x="58" y="174" class="green pill-text">60-90 MINUTE ONE-SHOT DEMO</text>
+    <text x="58" y="222" class="ink title">Run a safer AI-assisted</text>
+    <text x="58" y="260" class="ink title">tabletop session.</text>
+    <text x="58" y="302" class="muted body">Start the Host console, invite players, and move through setup,</text>
+    <text x="58" y="326" class="muted body">exploration, review, combat, and recap without leaking secrets.</text>
+    <rect x="58" y="352" width="150" height="40" rx="6" fill="#246b61"/>
+    <text x="78" y="378" class="button-text">Open Host</text>
+    <rect x="222" y="352" width="160" height="40" rx="6" fill="#ffffff" stroke="#246b61" stroke-width="1.5"/>
+    <text x="243" y="378" class="button-ghost">Open Player</text>
+
+    <rect x="876" y="130" width="260" height="126" rx="8" class="panel"/>
+    <text x="900" y="166" class="ink h2">Host Console</text>
+    <text x="900" y="194" class="muted body">Create room, copy invite,</text>
+    <text x="900" y="218" class="muted body">supervise AI output.</text>
+    <rect x="900" y="224" width="96" height="28" rx="6" fill="#246b61"/>
+    <text x="920" y="243" class="button-text">Open</text>
+
+    <rect x="1160" y="130" width="260" height="126" rx="8" class="panel"/>
+    <text x="1184" y="166" class="ink h2">Player Room</text>
+    <text x="1184" y="194" class="muted body">Join, create character,</text>
+    <text x="1184" y="218" class="muted body">read scene, act.</text>
+    <rect x="1184" y="224" width="96" height="28" rx="6" fill="#ffffff" stroke="#246b61" stroke-width="1.5"/>
+    <text x="1208" y="243" class="button-ghost">Join</text>
+
+    <rect x="876" y="278" width="544" height="132" rx="8" class="warn"/>
+    <text x="900" y="314" class="amber pill-text">RECENT SESSION</text>
+    <text x="900" y="348" class="ink h2">room_0001</text>
+    <text x="900" y="376" class="muted body">Host ready. Ada and Bran have demo characters.</text>
+    <rect x="1260" y="330" width="92" height="28" rx="14" class="soft"/>
+    <text x="1278" y="349" class="green pill-text">2/2 ready</text>
+  </g>
+
+  <!-- Screen 2 -->
+  <g transform="translate(70 635)" class="shadow">
+    <rect class="paper" width="1460" height="440" rx="10"/>
+    <rect class="warn" width="1460" height="38" rx="10"/>
+    <text x="22" y="25" class="amber pill-text">PREVIEW 2 / HOST PLAY + REVIEW WORKSPACE</text>
+    <line x1="0" y1="70" x2="1460" y2="70" class="line"/>
+    <text x="26" y="61" class="green pill-text">Host Console</text>
+    <text x="26" y="105" class="ink screen-title">room_0001 · The Lantern Beneath the Hill</text>
+    <rect x="1060" y="82" width="130" height="28" rx="14" class="warn"/>
+    <text x="1076" y="101" class="amber pill-text">1 review pending</text>
+    <rect x="1205" y="82" width="128" height="28" rx="14" class="soft"/>
+    <text x="1221" y="101" class="green pill-text">Players 2/2 ready</text>
+    <rect x="1346" y="78" width="82" height="36" rx="6" fill="#ffffff" stroke="#246b61" stroke-width="1.5"/>
+    <text x="1366" y="101" class="button-ghost">Refresh</text>
+
+    <rect x="22" y="130" width="220" height="286" rx="8" class="panel"/>
+    <text x="44" y="163" class="ink h2">Demo Progress</text>
+    <rect x="44" y="180" width="176" height="34" rx="7" class="panel"/>
+    <text x="56" y="202" class="muted small">Room · invite copied</text>
+    <rect x="44" y="220" width="176" height="34" rx="7" class="panel"/>
+    <text x="56" y="242" class="muted small">Players · ready</text>
+    <rect x="44" y="260" width="176" height="40" rx="7" class="soft"/>
+    <text x="56" y="284" class="green small">Exploration · tower</text>
+    <rect x="44" y="306" width="176" height="40" rx="7" class="warn"/>
+    <text x="56" y="330" class="amber small">Review · risky AI</text>
+    <rect x="44" y="352" width="176" height="34" rx="7" class="panel"/>
+    <text x="56" y="374" class="muted small">Combat · ready</text>
+
+    <rect x="260" y="130" width="855" height="286" rx="8" class="panel"/>
+    <text x="286" y="166" class="green pill-text">CURRENT WORKSPACE</text>
+    <text x="286" y="204" class="ink screen-title">Lantern Tower</text>
+    <rect x="945" y="150" width="78" height="36" rx="6" fill="#246b61"/>
+    <text x="964" y="173" class="button-text">Run AI</text>
+    <rect x="1032" y="150" width="70" height="36" rx="6" fill="#ffffff" stroke="#246b61" stroke-width="1.5"/>
+    <text x="1048" y="173" class="button-ghost">Pause</text>
+    <rect x="286" y="222" width="790" height="54" rx="7" class="paper"/>
+    <text x="306" y="247" class="ink body">Cold soot curls around the cracked lantern frame. Rain taps the old glass</text>
+    <text x="306" y="270" class="ink body">while the hill road disappears into the dark below.</text>
+    <rect x="286" y="288" width="790" height="42" rx="7" class="warn"/>
+    <text x="306" y="314" class="amber body">Host-only DM notes: reveal the broken lens only after direct inspection.</text>
+    <rect x="286" y="342" width="252" height="48" rx="7" class="panel"/>
+    <text x="302" y="366" class="ink small">Revealed clue · Broken Lens</text>
+    <text x="302" y="384" class="muted small">Damaged from inside the tower.</text>
+    <rect x="552" y="342" width="252" height="48" rx="7" class="panel"/>
+    <text x="568" y="366" class="ink small">Hidden truth · Hatch below tower</text>
+    <text x="568" y="384" class="muted small">Host-only content.</text>
+    <rect x="818" y="342" width="258" height="48" rx="7" class="risk"/>
+    <text x="834" y="366" class="red small">Review card · spoiler risk</text>
+    <text x="834" y="384" class="muted small">Approve · Edit · Reject</text>
+
+    <rect x="1134" y="130" width="304" height="286" rx="8" class="panel"/>
+    <text x="1158" y="163" class="ink h2">Monitor</text>
+    <line x1="1158" y1="180" x2="1412" y2="180" class="line"/>
+    <text x="1158" y="210" class="ink body">Ada Thorne</text>
+    <text x="1340" y="210" class="green body">Ready</text>
+    <text x="1158" y="245" class="ink body">Bran Vale</text>
+    <text x="1340" y="245" class="green body">Ready</text>
+    <text x="1158" y="280" class="ink body">AI status</text>
+    <text x="1332" y="280" class="amber body">Paused</text>
+    <text x="1158" y="315" class="ink body">Latest roll</text>
+    <text x="1302" y="315" class="ink body">1d20+5 = 18</text>
+  </g>
+
+  <!-- Screen 3 -->
+  <g transform="translate(70 1125)" class="shadow">
+    <rect class="paper" width="1460" height="440" rx="10"/>
+    <rect class="soft" width="1460" height="38" rx="10"/>
+    <text x="22" y="25" class="green pill-text">PREVIEW 3 / PLAYER EXPLORATION ROOM</text>
+    <line x1="0" y1="70" x2="1460" y2="70" class="line"/>
+    <text x="26" y="61" class="green pill-text">Player Room</text>
+    <text x="26" y="105" class="ink screen-title">Ada Thorne · room_0001</text>
+    <rect x="1130" y="82" width="95" height="28" rx="14" class="soft"/>
+    <text x="1148" y="101" class="green pill-text">Exploration</text>
+    <rect x="1238" y="82" width="74" height="28" rx="14" class="panel"/>
+    <text x="1256" y="101" class="muted pill-text">English</text>
+
+    <rect x="22" y="130" width="1020" height="286" rx="8" class="panel"/>
+    <text x="50" y="166" class="green pill-text">CURRENT SCENE</text>
+    <text x="50" y="204" class="ink screen-title">Lantern Tower</text>
+    <rect x="820" y="156" width="126" height="28" rx="14" class="panel"/>
+    <text x="840" y="175" class="muted pill-text">1 clue revealed</text>
+    <rect x="50" y="224" width="940" height="58" rx="7" class="paper"/>
+    <text x="70" y="250" class="ink body">The lantern tower squats against the black sky. Its broken frame smells of</text>
+    <text x="70" y="273" class="ink body">rain, old oil, and cold ash.</text>
+    <rect x="50" y="296" width="455" height="48" rx="7" class="panel"/>
+    <text x="68" y="320" class="ink small">Broken Lens</text>
+    <text x="68" y="338" class="muted small">The glass is cracked inward.</text>
+    <rect x="522" y="296" width="468" height="48" rx="7" class="panel"/>
+    <text x="540" y="320" class="ink small">Village Road</text>
+    <text x="540" y="338" class="muted small">The unlit hill path is unsafe after nightfall.</text>
+    <rect x="50" y="358" width="940" height="40" rx="7" class="soft"/>
+    <text x="70" y="383" class="green body">Next: describe what Ada does. Action input appears before public logs.</text>
+
+    <rect x="1060" y="130" width="378" height="286" rx="8" class="panel"/>
+    <text x="1084" y="163" class="ink h2">Character</text>
+    <rect x="1084" y="180" width="330" height="90" rx="8" class="panel"/>
+    <text x="1104" y="210" class="ink h3">Ada Thorne</text>
+    <text x="1104" y="234" class="muted body">Fighter · Level 1</text>
+    <text x="1104" y="260" class="green body">HP 12/12 · AC 16 · Ready</text>
+    <text x="1084" y="306" class="ink h2">Public Feed</text>
+    <text x="1084" y="336" class="muted body">Player: I inspect the cracked lantern.</text>
+    <text x="1084" y="362" class="muted body">AI: Cold soot curls around the frame.</text>
+    <text x="1084" y="388" class="muted body">Dice: Investigation total 18.</text>
+  </g>
+
+  <!-- Screen 4 -->
+  <g transform="translate(70 1615)" class="shadow">
+    <rect class="paper" width="1460" height="440" rx="10"/>
+    <rect class="soft" width="1460" height="38" rx="10"/>
+    <text x="22" y="25" class="green pill-text">PREVIEW 4 / PLAYER COMBAT ROOM</text>
+    <line x1="0" y1="70" x2="1460" y2="70" class="line"/>
+    <text x="26" y="61" class="green pill-text">Player Room</text>
+    <text x="26" y="105" class="ink screen-title">Ada Thorne · Combat</text>
+    <rect x="1130" y="82" width="92" height="28" rx="14" class="soft"/>
+    <text x="1150" y="101" class="green pill-text">Your turn</text>
+    <rect x="1236" y="82" width="78" height="28" rx="14" class="panel"/>
+    <text x="1252" y="101" class="muted pill-text">Round 1</text>
+
+    <rect x="22" y="130" width="1020" height="286" rx="8" class="panel"/>
+    <text x="50" y="166" class="green pill-text">COMBAT ACTIVE</text>
+    <text x="50" y="204" class="ink screen-title">Hill Scavengers</text>
+    <rect x="760" y="156" width="160" height="28" rx="14" class="soft"/>
+    <text x="780" y="175" class="green pill-text">Active: Ada Thorne</text>
+    <rect x="50" y="224" width="420" height="46" rx="7" class="soft"/>
+    <text x="70" y="252" class="ink body">Ada Thorne · Initiative 18 · HP 12/12 · AC 16</text>
+    <rect x="50" y="280" width="420" height="42" rx="7" class="panel"/>
+    <text x="70" y="306" class="muted body">Bran Vale · Initiative 14 · waiting</text>
+    <rect x="50" y="332" width="420" height="42" rx="7" class="risk"/>
+    <text x="70" y="358" class="red body">Hill Scavenger · HP 8/8 · AC 13</text>
+    <rect x="500" y="224" width="490" height="150" rx="8" class="soft"/>
+    <text x="526" y="258" class="ink h2">Choose target and attack</text>
+    <rect x="526" y="278" width="200" height="56" rx="7" class="panel"/>
+    <text x="544" y="304" class="ink small">Hill Scavenger</text>
+    <text x="544" y="324" class="muted small">Selected · AC 13 · HP 8/8</text>
+    <rect x="744" y="278" width="200" height="56" rx="7" class="panel"/>
+    <text x="762" y="304" class="ink small">Scavenger Lookout</text>
+    <text x="762" y="324" class="muted small">AC 12 · HP 6/6</text>
+    <rect x="526" y="348" width="190" height="36" rx="6" fill="#246b61"/>
+    <text x="550" y="371" class="button-text">Attack Longsword</text>
+
+    <rect x="1060" y="130" width="378" height="286" rx="8" class="panel"/>
+    <text x="1084" y="163" class="ink h2">Dice Log</text>
+    <text x="1084" y="202" class="ink body">Attack roll</text>
+    <text x="1274" y="202" class="ink body">1d20+5 = 20</text>
+    <text x="1084" y="238" class="ink body">Damage roll</text>
+    <text x="1274" y="238" class="ink body">1d8+3 = 8</text>
+    <text x="1084" y="286" class="ink h2">Recent Combat</text>
+    <rect x="1084" y="306" width="330" height="42" rx="7" class="panel"/>
+    <text x="1104" y="332" class="muted body">Longsword 20 vs AC 13: hit</text>
+    <rect x="1084" y="358" width="330" height="42" rx="7" class="panel"/>
+    <text x="1104" y="384" class="muted body">Damage 8 slashing, HP 0</text>
+  </g>
+</svg>

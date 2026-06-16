@@ -6,10 +6,12 @@ Keep answers short unless a participant wants to explain a blocker.
 ## Players
 
 1. Did you know what to do next during most of the session?
-2. Did combat make sense when turns, attacks, damage, and outcomes appeared?
-3. Did the AI feel like a DM or more like a generic chatbot?
-4. Did you see anything that felt like hidden DM information or spoilers?
-5. Would you want to play another TableMind session? Why or why not?
+2. Was joining the room and creating or selecting a character clear?
+3. Did combat make sense when turns, attacks, damage, and outcomes appeared?
+4. Did the AI feel like a DM or more like a generic chatbot?
+5. Did you see anything that felt like hidden DM information or spoilers?
+6. Would you want to play another TableMind session? Why or why not?
+7. What is the first thing you would improve?
 
 ## Host
 
@@ -17,6 +19,7 @@ Keep answers short unless a participant wants to explain a blocker.
 2. Was the review queue manageable while players were waiting?
 3. What required manual intervention or correction?
 4. What was the most annoying part of running the session?
+5. What is the first thing you would improve?
 
 ## Capture Notes
 
