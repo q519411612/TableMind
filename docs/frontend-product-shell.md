@@ -69,6 +69,21 @@ This shell intentionally does not add:
 - full D&D character builder or complete 5e automation;
 - provider configuration UI or live-provider dependency for tests.
 
+## Web Play UI Playtest Readiness
+
+The next product-shell activity is manual playtesting and a feedback loop for
+the current local/internal Web Play UI. The runbook, smoke checklist, and
+feedback template in `docs/playtests` help a Host and players record whether
+the existing launchpad, Host Console, Player Room, Host review, combat, recap,
+mobile/narrow layout, locale behavior, and player-safe rendering are ready for
+another small UI iteration.
+
+These playtest documents are not production-readiness evidence. They do not
+expand the project into Dashboard, Adventure Studio, account history,
+marketplace, payment, public launch, durable persistence, or full VTT scope.
+Feedback from these runs should drive the next focused UI fixes before any
+larger product area is added.
+
 ## Local Launchpad Boundary
 
 The `index.html` launchpad is only the local Web Play demo entry. It helps a
@@ -87,7 +102,7 @@ player-safe projection guarantees.
 ## Suggested Follow-up PRs
 
 1. Split scene and recap rendering into smaller first-party modules if those surfaces grow after the renderer boundary split.
-2. Add compact mobile affordances for Host review and combat controls after browser smoke feedback.
+2. Use Web Play UI playtest feedback to make the next narrow Host/Player UI clarity fix.
 3. Add visual regression smoke coverage for Host and Player pages if the project adopts a browser automation runner.
 
 ## PR #26 Usability Guidance

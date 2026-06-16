@@ -116,6 +116,13 @@ Or, without npm:
 TABLEMIND_AI_PROVIDER_ENABLED=false node scripts/smoke-playtest-flow.mjs
 ```
 
+For human feedback collection on the local Web Play UI, use the
+[`Web Play UI playtest runbook`](docs/playtests/WEB_PLAY_UI_PLAYTEST_RUNBOOK.md),
+[`smoke checklist`](docs/playtests/WEB_PLAY_UI_SMOKE_CHECKLIST.md), and
+[`feedback template`](docs/playtests/WEB_PLAY_UI_FEEDBACK_TEMPLATE.md). These
+documents support internal playtests only and do not change the demo's
+non-production status.
+
 ## Specs
 
 Start with:

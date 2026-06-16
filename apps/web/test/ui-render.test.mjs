@@ -1072,6 +1072,31 @@ test("static launchpad keeps room links, locale hooks, and product boundary copy
   assert.ok(zhLabels.launchpadLocalScope.includes("本地/内部 MVP Demo"));
 });
 
+test("Web Play UI playtest readiness docs are present", () => {
+  const docs = [
+    {
+      path: "../../../docs/playtests/WEB_PLAY_UI_PLAYTEST_RUNBOOK.md",
+      marker: "supervised one-shot demo",
+    },
+    {
+      path: "../../../docs/playtests/WEB_PLAY_UI_SMOKE_CHECKLIST.md",
+      marker: "Player-Safe Rendering",
+    },
+    {
+      path: "../../../docs/playtests/WEB_PLAY_UI_FEEDBACK_TEMPLATE.md",
+      marker: "Safety/No-Leak Observations",
+    },
+  ];
+
+  for (const doc of docs) {
+    const markdown = readFileSync(new URL(doc.path, import.meta.url), "utf8");
+    assert.ok(markdown.includes("# Web Play UI"), doc.path);
+    assert.ok(markdown.includes(doc.marker), doc.path);
+    assert.ok(markdown.includes("production"), doc.path);
+    assert.ok(markdown.includes("readiness"), doc.path);
+  }
+});
+
 test("static web entry i18n hooks reference supported label keys", () => {
   const html = readFileSync(
     new URL("../public/index.html", import.meta.url),
