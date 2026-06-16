@@ -8,6 +8,10 @@ The repository supports a local, mock-provider browser demo flow for the origina
 
 The current local demo UI is text-first and playtest-focused. It includes fixed UI labels in English and Simplified Chinese, preserves `?lang=` and localStorage locale behavior, and uses explicit Simplified Chinese authored adventure text for the built-in Lantern demo. Missing localized authored fields preserve canonical source text.
 
+Web Play UI playtest runbook, smoke checklist, and feedback template documents
+now exist for internal Host/player feedback collection without changing the
+current internal/local MVP status.
+
 A supervised live-provider dry run has passed the required dry-run coverage. The evidence report is `docs/playtests/LIVE_PROVIDER_DRY_RUN_REPORT_2026-06-06_DEEPSEEK.md`; that report remains the source of truth for observed run details, and this status page must not copy, overwrite, or invent report fields.
 
 Production readiness remains deferred. The DeepSeek run was validated through a temporary local structured-response bridge, not a permanent first-party DeepSeek integration. The default automated suite must still avoid live provider calls, and live-provider use remains an explicitly supervised internal playtest activity.
